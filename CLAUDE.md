@@ -29,7 +29,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
-  low-pass on the bottom white key and a high-pass on the top white key). The FX page holds bus effects only (no
+  low-pass on the bottom white key and a high-pass on the top white key; also repeats, tape stop, reverse, a room
+  freeze and a reverse swell). The FX page holds bus effects only (no
   per-part sends page), and FX again picks each effect's type (a knob each, the type's name on screen), as After Images' second effects page does (its DIRT's
   varieties, CHORUS's ensemble): the compressor from clean to a heavier tape smasher, the delay from clean to a dirty
   granular one, the room from a plain room to a gated reverb (its pre-delay and gate synced to the tempo), a reverse
