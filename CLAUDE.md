@@ -9,6 +9,24 @@ to the notes it sends (one channel a layer) so the percussion reacts to what's p
 Sound world: synthetic, interesting percussion. Autechre, Burial, Boards of Canada, Objekt; ambient and electronica.
 Generative at its core, with macros across the main features, as After Images has.
 
+## Direction from the owner (November 2026)
+
+- A partner firmware to After Images, inheriting the look and feel of its menu system.
+- Always a kit: four roles (KICK, SNARE, PERC, HATS) that hold the groove, with really interesting synthesised
+  engines and really interesting patterns: lots of polymeters.
+- REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
+  like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on). Performance macros:
+  DENSITY, VARIATION, TIMING, EVOLUTION.
+- First iteration: IDM in feel and machine-like.
+- Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down); in
+  the menu, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
+  a tempo-synced delay that can go very fast into Autechre glitch, stereo pan effects, and anything else weird and
+  wonderful.
+- Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
+  and brighter.
+- Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
+  hub port; a small host-mode test firmware first. Fallbacks: a computer, AUM on an iPad or an Ableton Move as host.
+
 ## Working rules
 
 - Build and test in the host simulator before every push. The device build only runs on GitHub when the owner
