@@ -1,0 +1,86 @@
+# SPDX-License-Identifier: MPL-2.0
+# the home screen, the levels and the macros, the pages each button steps through, the info, the groove playing
+wav home.wav
+expect page 0
+wait 6000
+shot home.png
+expect level3 58
+turn K4 5
+wait 200
+expect page 0
+expect level3 68
+shot levels.png
+wait 2500
+press HOME
+wait 300
+shot macros.png
+turn K2 5
+wait 200
+expect activity 60
+release HOME
+wait 2500
+expect page 0
+tap EDIT
+wait 200
+expect page 1
+shot sound.png
+tap SEQ
+wait 200
+expect page 2
+shot groove.png
+tap ENV
+wait 200
+expect page 3
+tap FX
+wait 200
+expect page 4
+shot sends.png
+tap FX
+wait 200
+expect page 5
+shot effects.png
+tap FX
+wait 200
+expect page 6
+shot types.png
+tap FX
+wait 200
+expect page 7
+tap FX
+wait 200
+expect page 4
+tap LFO
+wait 200
+expect page 8
+shot motion.png
+tap GLO
+wait 200
+expect page 9
+tap GLO
+wait 200
+expect page 10
+shot scale.png
+tap GLO
+wait 200
+expect page 11
+tap ARP
+wait 200
+expect page 12
+tap ARP
+wait 200
+expect page 13
+tap ARP
+wait 200
+expect page 14
+tap HOME
+wait 200
+expect page 0
+tap HOME
+wait 300
+shot info.png
+wait 4000
+expect events0 >8
+expect events1 >2
+expect events2 >2
+expect events3 >8
+expect playing 1

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MPL-2.0
+# REC: a new groove (a new seed, a new palette), held: the same tempo; SEL held + REC: one part anew; OCT- / OCT+:
+# back and forward through the grooves REC replaced; every part still playing afterwards
+wav rec.wav
+wait 3000
+expect hist 0
+tap REC
+wait 1500
+expect hist 1
+shot rec.png
+tap REC
+wait 1500
+expect hist 2
+press REC
+wait 1200
+release REC
+wait 500
+expect hist 3
+press SEL
+tap REC
+release SEL
+wait 1500
+expect hist 3
+tap OCT-
+wait 300
+tap OCT+
+wait 300
+wait 6000
+expect events0 >4
+expect events3 >4
+expect playing 1

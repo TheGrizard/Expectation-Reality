@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MPL-2.0
+# following a clock (MIDI's CLOCK IN): locked to the leader's beats and bars, not just its tempo, through a new groove
+# (REC) and a change of tempo; Start puts us at the top of the bar; Stop stops
+wait 2500
+tap ARP
+wait 100
+expect page 12
+turn K1 1
+wait 100
+expect sync 1
+midi FA 00 00
+clock 240 21
+expect beatlag >-9
+expect beatlag <9
+tap REC
+clock 480 21
+expect beatlag >-9
+expect beatlag <9
+clock 480 18
+expect clockbpm >136
+expect clockbpm <142
+expect beatlag >-9
+expect beatlag <9
+clock 480 22
+expect clockbpm >111
+expect clockbpm <116
+expect beatlag >-9
+expect beatlag <9
+midi FC 00 00
+wait 100
+expect playing 0

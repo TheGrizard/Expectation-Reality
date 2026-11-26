@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: MPL-2.0
+# the keys: the white ones punch-ins (the bottom a high-pass, the top a low-pass), the black ones randomisers
+wav keys.wav
+wait 3000
+key w1 down 100
+wait 300
+expect pu_want 2
+expect pu 2
+shot punch.png
+key w1 up
+wait 300
+expect pu_want 0
+expect pu 0
+key w7 down 100
+wait 400
+expect pu 7
+key w7 up
+wait 200
+key w8 down 100
+wait 400
+expect pu 8
+key w8 up
+wait 200
+key w9 down 100
+wait 600
+expect pu 9
+key w9 up
+wait 200
+expect pu 0
+key w11 down 100
+wait 800
+expect pu 11
+key w11 up
+wait 1500
+key w12 down 100
+wait 100
+key w12 up
+wait 1200
+expect pu 0
+key w0 down 100
+wait 300
+expect hpf 1
+key w0 up
+wait 200
+expect hpf 0
+key w15 down 110
+wait 300
+expect lpf 1
+key w15 up
+wait 200
+expect lpf 0
+key b0 down 100
+wait 300
+expect rnd0 1
+key b0 up
+wait 100
+expect rnd0 0
+key b4 down 100
+wait 300
+expect rnd1 4
+key b4 up
+key b10 down 100
+wait 300
+expect rnd0 7
+expect rnd3 7
+key b10 up
+wait 200
+expect rnd2 0
+key w4 down 100
+key w6 down 100
+wait 300
+expect pu_want 6
+key w6 up
+wait 300
+expect pu_want 4
+key w4 up
+wait 500
+expect pu 0
+expect playing 1

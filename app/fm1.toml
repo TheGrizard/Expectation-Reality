@@ -1,0 +1,26 @@
+# Expectation Reality: generative percussion for the M-VAVE FM-1 (tools/build.py)
+# Build: ./build.sh (from the repository's root; it runs base/tools/build.py app)
+name = "EXPECTATION-REALITY"
+title = "Expectation Reality"
+id_prefix = "FM-1_79"          # package identity: dev FM-1_7900, releases FM-1_79XXYYZZ (After Images is FM-1_78)
+usb_manufacturer = "Expectation Reality"
+usb_product = "Expectation Reality FM-1"
+o2 = ["dsp/drums.c", "dsp/groove.c", "dsp/engine.c", "dsp/fx.c", "dsp/dsp_init.c"]   # the sound engine, at -O2
+words = "words.tsv"
+gen = ["tools/gen_font_dejavu.py {gen}/felucca_font.h"]   # the screen's font: DejaVu Sans (app/fonts), as After Images'
+ble = false                    # no Bluetooth: its RAM goes to the room, the delay and the punch-ins' memory
+usb_audio_channels = 2         # one stereo pair: the mix, recorded on a computer
+usb_audio_out = false          # the computer's audio never played through the FM-1 (its ring's RAM kept)
+cpu2 = true                    # the second core renders some of the parts (app_render)
+cpu2_fallback = true           # if it fails, carry on with one core instead of restarting
+cpu2_stack = 8192
+# the site and firmware.json
+tagline = "generative percussion: four parts, one button, endless grooves"
+licence = "MPL-2.0"
+credits = "Built on fm1-base by Charles Vestal and felucca-bsp by Leo Kuroshita. A partner to After Images."
+author = "TheGrizard"
+repo = "https://github.com/TheGrizard/Expectation-Reality"
+install = "https://github.com/TheGrizard/Expectation-Reality/releases/latest"
+screenshot = "docs/screen.png"
+description = "Expectation Reality makes endless percussion: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length (polymeters) from a groove map, Euclidean rhythms, a Turing machine or broken IDM groupings, driving one of twelve synthesised drum engines. REC deals a groove that loops exactly; EVOLVE brings in its step components, then rewrites it. Made to play under After Images: it follows its clock and hears its notes. Punch-ins on the keys, randomisers on the black keys, a kick-sidechained tape compressor, a glitch delay."
+tags = ["drum-machine", "generative", "experimental"]

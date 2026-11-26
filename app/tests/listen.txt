@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MPL-2.0
+# After Images heard: its layers' notes on channels 1-4 (GROUND, BODY, LIGHT, DUST) counted; on another channel not
+wait 2500
+expect heard 0
+midi 90 24 64
+midi 92 48 50
+midi 92 4B 50
+midi 93 54 40
+wait 300
+expect heard 4
+midi 95 30 64
+wait 300
+expect heard 4
+midi 80 24 00
+wait 300
+expect heard 4
