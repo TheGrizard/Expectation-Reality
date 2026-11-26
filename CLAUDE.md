@@ -28,18 +28,19 @@ Generative at its core, with macros across the main features, as After Images ha
 - First iteration: IDM in feel and machine-like.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, bouncing-ball rolls, probability and ghost notes.
-- Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
-  low-pass on the bottom white key and a high-pass on the top white key; also repeats, tape stop, reverse, a room
-  freeze and a reverse swell). FX's first page is SENDS for the chosen
-  part (SEL), as in After Images: ROOM, DELAY, PAN and DUCK (how far it ducks under the kick), REC dealing
-  sensible starting amounts; FX again holds the bus amounts, and a third press picks each effect's type (a knob each, the type's name on screen), as After Images' second effects page does (its DIRT's
-  varieties, CHORUS's ensemble): the compressor from clean to a heavier tape smasher, the delay from clean to a dirty
-  granular one, the room from a plain room to a gated reverb (its pre-delay and gate synced to the tempo), a reverse
-  reverb and a freeze. The kick stays out of the delay, the room and the stereo effects,
-  but the compressor takes the whole kit, kick included: it glues it together and can make the kick dirty. The
-  kick is hard-wired as the compressor's sidechain. The effects: ROOM, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
-  a tempo-synced delay that can go very fast into Autechre glitch, stereo pan effects, and anything else weird and
-  wonderful.
+- Effects, in three places:
+  - Punch-ins on the FM-1's keys, OP-XY-style, for performance: a low-pass on the bottom white key and a high-pass
+    on the top white key (pressure sets how far), pitch up and pitch down (the owner especially likes these),
+    repeats, tape stop, reverse, a room freeze, a reverse swell landing on the next bar.
+  - FX: SENDS for the chosen part (SEL), as in After Images: ROOM, DELAY, PAN and DUCK (how far it ducks under the
+    kick), REC dealing sensible starting amounts. The kick is never sent to ROOM, DELAY or PAN.
+  - FX again: the bus amounts, ROOM, COMP, DELAY, PAN. FX a third time: each one's type (a knob each, its name on
+    screen, a change crossfaded), as After Images' second effects page offers DIRT's varieties and CHORUS's
+    ensemble. ROOM: room, gated (pre-delay and gate synced to the tempo), reverse, freeze. COMP: clean, tape smash.
+    DELAY: clean, granular (dirty). PAN: sweep, spin, scatter.
+  - COMP is tape-style, simple and musical, extreme when cranked. It takes the whole kit, kick included (glue, and
+    dirt on the kick), and the kick is hard-wired as its sidechain. DELAY is tempo-synced and can go very fast, into
+    Autechre glitch. Room for anything else weird and wonderful.
 - Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
   and brighter.
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
