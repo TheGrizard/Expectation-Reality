@@ -15,8 +15,10 @@ Generative at its core, with macros across the main features, as After Images ha
 - Always a kit: four roles (KICK, SNARE, PERC, HATS) that hold the groove, with really interesting synthesised
   engines and really interesting patterns: lots of polymeters.
 - REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
-  like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on). Performance macros:
-  DENSITY, VARIATION, TIMING, EVOLUTION.
+  like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on).
+- HOME held + K1-K4 (and GLO's MACROS page) keep After Images' names: MOOD (dark and heavy to bright and metallic),
+  ACTIVITY (density), EVOLVE (from the fixed loop, expectation, towards variation and evolving, reality), DRIFT (the
+  mixer: drum parts fading in and out over time; 0 keeps everything as set). Timing lives in MOTION's WARP.
 - The LFO page keeps After Images' MOTION settings by name (LINK, WARP, FLOW, CHAOS), read for drums: LINK the
   parts (and After Images) answering each other, WARP swing and push/drag, FLOW slow drift of the sounds, CHAOS
   ratchets, skips and displacement.
