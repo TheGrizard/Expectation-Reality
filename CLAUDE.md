@@ -41,8 +41,9 @@ Generative at its core, with macros across the main features, as After Images ha
   - COMP is tape-style, simple and musical, extreme when cranked. It takes the whole kit, kick included (glue, and
     dirt on the kick), and the kick is hard-wired as its sidechain. DELAY is tempo-synced and can go very fast, into
     Autechre glitch. Room for anything else weird and wonderful.
-- Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
-  and brighter.
+- Visuals: After Images' MATRIX turned inside out, squares instead of circles, brighter and more extreme. The grid
+  starts lit; each hit knocks a square out, and it fades back in in that part's colour (After Images adds a square
+  on a hit; this removes one).
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
   hub port; a small host-mode test firmware first. Fallbacks: a computer, AUM on an iPad or an Ableton Move as host.
 
