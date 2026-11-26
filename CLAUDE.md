@@ -26,6 +26,8 @@ Generative at its core, with macros across the main features, as After Images ha
   parts (and After Images) answering each other, WARP swing and push/drag, FLOW slow drift of the sounds, CHAOS
   ratchets, skips and displacement.
 - First iteration: IDM in feel and machine-like.
+- Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
+  polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
   low-pass on the bottom white key and a high-pass on the top white key). The FX page holds bus effects only (no
   per-part sends page), and FX again sets each effect's style, as After Images' second effects page does (its DIRT's
