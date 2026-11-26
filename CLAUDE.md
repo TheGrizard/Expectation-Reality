@@ -30,12 +30,14 @@ Generative at its core, with macros across the main features, as After Images ha
   polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
   low-pass on the bottom white key and a high-pass on the top white key; also repeats, tape stop, reverse, a room
-  freeze and a reverse swell). The FX page holds bus effects only (no
-  per-part sends page), and FX again picks each effect's type (a knob each, the type's name on screen), as After Images' second effects page does (its DIRT's
+  freeze and a reverse swell). FX's first page is SENDS for the chosen
+  part (SEL), as in After Images: ROOM, DELAY, PAN and DUCK (how far it ducks under the kick), REC dealing
+  sensible starting amounts; FX again holds the bus amounts, and a third press picks each effect's type (a knob each, the type's name on screen), as After Images' second effects page does (its DIRT's
   varieties, CHORUS's ensemble): the compressor from clean to a heavier tape smasher, the delay from clean to a dirty
   granular one, the room from a plain room to a gated reverb (its pre-delay and gate synced to the tempo), a reverse
   reverb and a freeze. The kick stays out of the delay, the room and the stereo effects,
-  but the compressor takes the whole kit, kick included: it glues it together and can make the kick dirty. The effects: ROOM, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
+  but the compressor takes the whole kit, kick included: it glues it together and can make the kick dirty. The
+  kick is hard-wired as the compressor's sidechain. The effects: ROOM, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
   a tempo-synced delay that can go very fast into Autechre glitch, stereo pan effects, and anything else weird and
   wonderful.
 - Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
