@@ -30,7 +30,7 @@ Generative at its core, with macros across the main features, as After Images ha
   polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
   low-pass on the bottom white key and a high-pass on the top white key). The FX page holds bus effects only (no
-  per-part sends page), and FX again sets each effect's style, as After Images' second effects page does (its DIRT's
+  per-part sends page), and FX again picks each effect's type (a knob each, the type's name on screen), as After Images' second effects page does (its DIRT's
   varieties, CHORUS's ensemble): the compressor from clean to a heavier tape smasher, the delay from clean to a dirty
   granular one, the room from a plain room to a gated reverb (its pre-delay and gate synced to the tempo), a reverse
   reverb and a freeze. The kick stays out of the delay, the room and the stereo effects,
