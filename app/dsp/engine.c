@@ -271,7 +271,7 @@ static void bar_turned(Engine *e, uint32_t bar)
     Groove *g = e->g;
     float E = (float)g->evolve * 0.01f, D = (float)g->drift * 0.01f;
     /* EVOLVE past 70: the patterns rewrite themselves, a step at a time (SAVE keeps how far) */
-    if (E > 0.7f && rng_chance(&e->rng, (E - 0.7f) / 0.3f * 0.35f)) {
+    if (E > 0.7f && rng_chance(&e->rng, (E - 0.7f) / 0.3f * 0.6f)) {   /* (at full: a rewrite most bars) */
         int p = rng_chance(&e->rng, 0.3f) ? P_KICK + rng_int(&e->rng, 2) : P_PERC + rng_int(&e->rng, 2);
         PartP *q = &g->p[p];
         if (q->muts < 999u) { pattern_mutate(&e->P[p].pat, g, p, q->muts); q->muts++; e->P[p].sig = sig_of(g, p); e->mutated++; }
@@ -431,7 +431,7 @@ void engine_block_part(Engine *e, int p)
         if (until > at) {
             for (int i = 0; i < NV; i++) {
                 Hit *h = &P->v[i]; if (!h->on) continue;
-                memset(tmp + at, 0, sizeof(float) * (size_t)(until - at));
+                memset(tmp + at, 0, sizeof(float) * (unsigned)(until - at));
                 hit_render(h, tmp + at, until - at);
                 float gl = P->vl[i], gr = P->vr[i];
                 for (int j = at; j < until; j++) { P->bus[0][j] += tmp[j] * gl; P->bus[1][j] += tmp[j] * gr; }
@@ -442,7 +442,10 @@ void engine_block_part(Engine *e, int p)
         if (ev >= P->nat && at >= n) break;
     }
     while (ev < P->nat) start_voice(e, P, p, &P->q[ev++]);   /* (none left over; but never dropped) */
-    if (P->nat) { memmove(P->q, P->q + P->nat, sizeof(Ev) * (size_t)(P->nq - P->nat)); P->nq -= P->nat; P->nat = 0; }
+    if (P->nat) {                                /* (the ones played, out: no memmove on the FM-1's library) */
+        for (int i = P->nat; i < P->nq; i++) P->q[i - P->nat] = P->q[i];
+        P->nq -= P->nat; P->nat = 0;
+    }
     /* TONE (the DJ filter), the level, DRIFT's presence: every sample glided */
     float tone_t = clamp01((float)q->tone * 0.01f + P->tone_rnd), lv = (float)q->level * 0.01f, gain_t = lv * fm_sqrtf(lv) * 1.15f;
     float kt = glide_k(P->tone_rnd != 0 ? 0.006f : 0.03f), kg = glide_k(0.02f), kp = glide_k(60.0f / fm_maxf(e->bpm, 30.0f));
@@ -451,9 +454,11 @@ void engine_block_part(Engine *e, int p)
         if ((P->tone_cnt++ & 7) == 0 && fm_fabsf(tone_t - P->tone_now) > 0.0005f) { P->tone_now += (tone_t - P->tone_now) * fm_minf(1.0f, kt * 8.0f); tone_set(P, P->tone_now); }
         P->gain += (gain_t - P->gain) * kg; P->present += (P->present_t - P->present) * kp;
         float g = P->gain * P->present;
+        int use_lp = P->tone_now < 0.505f, use_hp = P->tone_now > 0.495f;   /* (one side at a time; the other held ready) */
         for (int c = 0; c < 2; c++) {
             float x = P->bus[c][i];
-            x = svf_hp(&P->hp[c], svf_lp(&P->lp[c], x));
+            if (use_lp) x = svf_lp(&P->lp[c], x); else { P->lp[c].ic1 = 0; P->lp[c].ic2 = x; }   /* (its state: the sound itself) */
+            if (use_hp) x = svf_hp(&P->hp[c], x); else { P->hp[c].ic1 = 0; P->hp[c].ic2 = 0; }
             P->bus[c][i] = x * g;
         }
         float a = fm_fabsf(P->bus[0][i]) + fm_fabsf(P->bus[1][i]); if (a > pk) pk = a;
@@ -561,8 +566,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             float a = e->lev_pan * span[p];
             e->pan_now[p] += (pm * a - e->pan_now[p]) * 0.002f;
             if (fm_fabsf(e->pan_now[p]) > 0.0005f) {
-                float m = (x0 + x1) * 0.5f, th = (0.5f + 0.5f * clampf(e->pan_now[p], -1.0f, 1.0f)) * PI_F * 0.5f, w = fm_fabsf(e->pan_now[p]);
-                x0 = x0 * (1.0f - w) + m * w * fm_cosf(th) * 1.41f; x1 = x1 * (1.0f - w) + m * w * fm_sinf(th) * 1.41f;
+                float m = (x0 + x1) * 0.5f, th = (0.5f + 0.5f * clampf(e->pan_now[p], -1.0f, 1.0f)) * 0.25f, w = fm_fabsf(e->pan_now[p]);   /* (th in turns) */
+                x0 = x0 * (1.0f - w) + m * w * sine_c(th + 0.25f) * 1.41f; x1 = x1 * (1.0f - w) + m * w * sine_c(th) * 1.41f;
             }
             L += x0; R += x1;
             rl += x0 * sroom[p]; rr += x1 * sroom[p]; dsum += (x0 + x1) * 0.5f * sdly[p];
@@ -619,8 +624,10 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             float da = clampf(e->dt_b + (1.0f - e->dg_rate) * e->dg_ph * gl, 8.0f, (float)(DLY_BUF - 16));
             float db = clampf(e->dt_b + (1.0f - e->dg_rate_t) * phb * gl, 8.0f, (float)(DLY_BUF - 16));
             for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, da) * wa + dl_read(e->dl[c], e->dw, db) * wb;
-        } else
-            for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, e->dt_a) + (dl_read(e->dl[c], e->dw, e->dt_b) - dl_read(e->dl[c], e->dw, e->dt_a)) * e->dxf;
+        } else if (e->dxf >= 1.0f)
+            for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, e->dt_b);
+        else
+            for (int c = 0; c < 2; c++) { float a = dl_read(e->dl[c], e->dw, e->dt_a); o[c] = a + (dl_read(e->dl[c], e->dw, e->dt_b) - a) * e->dxf; }
         float dirt = e->dly_t_now == DT_GRAIN ? 1.0f : 0.0f;
         float w0 = op_lp(&e->dlp[0], dsum + o[1] * dfb), w1 = op_lp(&e->dlp[1], o[0] * dfb);
         if (dirt > 0) { w0 = soft_clip(w0 * 2.2f) * 0.6f; w1 = soft_clip(w1 * 2.2f) * 0.6f; }
@@ -660,11 +667,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->cmp_lvl += (l - e->cmp_lvl) * (l > e->cmp_lvl ? c_att : c_rel);
         float thr = lerpf(0.9f - 0.55f * a, 0.5f - 0.42f * a, sm), ratio_e = lerpf(0.25f + 0.45f * a, 0.5f + 0.4f * a, sm);
         float over = e->cmp_lvl > thr ? e->cmp_lvl / thr : 1.0f;
-        float gt = fm_powf(over, -ratio_e);
+        float gt = over > 1.0005f ? fm_powf(over, -ratio_e) : 1.0f;   /* (under the threshold: no curve to work out) */
         e->cmp_g += (gt - e->cmp_g) * c_g;
         float drive = lerpf(1.0f + 0.6f * a, (1.0f + 5.0f * a * a) * (1.0f + 1.5f * a), sm) * e->cmp_g;
-        float norm = lerpf(1.0f + 0.25f * a, 0.6f + 0.6f * a, sm);
-        float y0 = soft_clip(x0 * drive) / norm * 1.15f, y1 = soft_clip(x1 * drive) / norm * 1.15f;
+        float og = lerpf(1.15f / (1.0f + 0.25f * a), 0.85f, sm);   /* (TAPE SMASH: never past 0.85, however hard it's pushed) */
+        float y0 = soft_clip(x0 * drive) * og, y1 = soft_clip(x1 * drive) * og;
         float mx = clamp01(a * 4.0f);
         outL[i] = x0 + (y0 - x0) * mx; outR[i] = x1 + (y1 - x1) * mx;
     }
@@ -676,8 +683,12 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     for (int i = 0; i < n; i++) {
         float y[2] = { outL[i], outR[i] };
         if (!e->pu_frozen) { e->pb[0][e->pw] = to16(y[0]); e->pb[1][e->pw] = to16(y[1]); }
-        float pu_[2], pd_[2];
-        for (int c = 0; c < 2; c++) shifter_run(&e->shf[c], &y[c], &pu_[c], &pd_[c], 1);
+        float pu_[2] = { 0, 0 }, pd_[2] = { 0, 0 };
+        if (e->pu == PU_PUP || e->pu == PU_PDOWN || want_pu == PU_PUP || want_pu == PU_PDOWN)
+            for (int c = 0; c < 2; c++) shifter_run(&e->shf[c], &y[c], &pu_[c], &pd_[c], 1);
+        else for (int c = 0; c < 2; c++) {        /* (only fed, so it's ready the moment a pitch key is pressed) */
+            Shifter *s = &e->shf[c]; s->buf[s->pos] = to16(y[c] * 0.999f); s->pos = (s->pos + 1) & (SHIM_LINE - 1);
+        }
         int pu = e->pu;
         float tgt = pu && !e->pu_rel ? 1.0f : 0.0f;
         { float st = 1.0f / (0.004f * SR); e->pu_mix += clampf(tgt - e->pu_mix, -st, st); }

@@ -24,14 +24,21 @@ Generative at its core, with macros across the main features, as After Images ha
   mixer: drum parts fading in and out over time; 0 keeps everything as set). Timing lives in MOTION's WARP.
 - The LFO page keeps After Images' MOTION settings by name (LINK, WARP, FLOW, CHAOS), read for drums: LINK the
   parts (and After Images) answering each other, WARP swing and push/drag, FLOW slow drift of the sounds, CHAOS
-  ratchets, skips and displacement.
+  ratchets, skips and displacement. WARP is a humaniser (timing and velocity); SWING is its own setting (GLO's
+  SCALE page), dealt by REC.
+- Velocity is shaped for groove, experimental but groovy (Autechre, Boards of Canada): the bar's weight (downbeats
+  strongest), a drifting accent cycle of 3, 5 or 7 sixteenths, a slow wave; harder hits brighter and heavier.
 - First iteration: IDM in feel and machine-like.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects, in three places:
-  - Punch-ins on the FM-1's keys, OP-XY-style, for performance: a low-pass on the bottom white key and a high-pass
-    on the top white key (pressure sets how far), pitch up and pitch down (the owner especially likes these),
-    repeats, tape stop, reverse, a room freeze, a reverse swell landing on the next bar.
+  - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (about 500 Hz, to be confirmed)
+    on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
+    pitch down (the owner especially likes these), repeats, glitch, tape stop, reverse, a room freeze, a reverse
+    swell, crush, kill kick.
+  - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
+    first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
+    every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
   - FX: SENDS for the chosen part (SEL), as in After Images: ROOM, DELAY, PAN and DUCK (how far it ducks under the
     kick), REC dealing sensible starting amounts. The kick is never sent to ROOM, DELAY or PAN.
   - FX again: the bus amounts, ROOM, COMP, DELAY, PAN. FX a third time: each one's type (a knob each, its name on

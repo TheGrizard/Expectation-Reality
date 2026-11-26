@@ -96,6 +96,23 @@ static void dump(void)
     }
 }
 
+/* DUET=notes.txt (with AIWAV=its audio): After Images' notes heard at their moments, its tempo followed, its audio
+ * mixed in, as over the cable */
+static struct { long at; int ch, note, vel; } dnotes[4096]; static int dn_n, dn_at; static FILE *aiw;
+static void duet_load(void)
+{
+    FILE *f = fopen(getenv("DUET"), "r"); if (!f) return;
+    char line[64]; int bpm = 0;
+    while (fgets(line, sizeof line, f)) {
+        if (line[0] == 'T') { bpm = atoi(line + 2); gr.tempo = (uint8_t)(bpm - 40); }
+        else if (line[0] == 'N' && dn_n < 4096) { sscanf(line + 2, "%ld %d %d %d", &dnotes[dn_n].at, &dnotes[dn_n].ch, &dnotes[dn_n].note, &dnotes[dn_n].vel); dn_n++; }
+    }
+    fclose(f);
+    if (getenv("AISCALE")) for (int s = 0; s < NUM_SCALES; s++) if (!strcmp(SCALES[s].name, getenv("AISCALE"))) gr.scale = (uint8_t)s;
+    if (getenv("AIWAV")) { aiw = fopen(getenv("AIWAV"), "rb"); if (aiw) fseek(aiw, 44, SEEK_SET); }
+    fprintf(stderr, "  duet: %d notes of After Images' at %d BPM\n", dn_n, bpm);
+}
+
 static void run(const char *path, float secs, int punch)
 {
     if (getenv("DUMP")) dump();
@@ -116,6 +133,18 @@ static void run(const char *path, float secs, int punch)
         float k = (float)done / (float)frames;
         if (evosweep) gr.evolve = (uint8_t)(100.0f * k);
         if (actsweep) gr.activity = (uint8_t)(100.0f * k);
+        if (getenv("FXTOUR")) {                    /* every 8 bars the next: the room's four, the compressor smashed, the
+                                                    * delay granular then glitching, the pans */
+            int sec = (int)(eng.beat / 32.0f) % 8;
+            static const uint8_t RT[8] = { RT_ROOM, RT_GATED, RT_REVERSE, RT_FREEZE, RT_ROOM, RT_ROOM, RT_GATED, RT_ROOM };
+            gr.room_t = RT[sec]; gr.room = sec < 4 ? 60 : 30;
+            gr.comp_t = sec == 4 || sec == 7 ? CT_SMASH : CT_CLEAN; gr.comp = sec == 4 || sec == 7 ? 85 : 40;
+            gr.delay_t = sec >= 5 ? DT_GRAIN : DT_CLEAN; gr.delay = sec >= 5 ? 65 : 25; gr.glitch = sec == 6 || sec == 7 ? 70 : 0;
+            gr.dtime = sec == 6 ? 5 : 2; gr.dfb = sec >= 5 ? 70 : 40;
+            gr.pan_t = (uint8_t)(sec % 3); gr.pan = 70;
+            for (int p = 1; p < NPARTS; p++) { gr.p[p].s_room = 55; gr.p[p].s_delay = 50; gr.p[p].s_pan = 70; }
+        }
+        if (getenv("TONESWEEP")) { float u = k * 4.0f; u -= (float)(int)u; u = u < 0.5f ? u * 2.0f : 2.0f - u * 2.0f; for (int p = 0; p < NPARTS; p++) gr.p[p].tone = (uint8_t)(25.0f + 50.0f * u); }   /* (back and forth across 12 o'clock) */
         if (ai) {                                 /* a pretend After Images: GROUND each beat, LIGHT busy */
             float b = eng.beat;
             if ((int)b != (int)last_beat) { engine_hear(&eng, 0, 36 + ((int)b / 4 % 3) * 5, 90); for (int i = 0; i < 3; i++) engine_hear(&eng, 2, 72 + i * 3, 70); }
@@ -129,10 +158,16 @@ static void run(const char *path, float secs, int punch)
                 next++;
             }
         }
+        while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
         engine_block_begin(&eng, ENGINE_SUB);
         for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
         engine_block_mix(&eng, L, R);
-        for (int i = 0; i < BLKN && done + i < frames; i++) wav_put(&w, L[i] * 0.9f, R[i] * 0.9f);
+        float dg = aiw ? 0.62f : 0.9f;
+        for (int i = 0; i < BLKN && done + i < frames; i++) {
+            float al = 0, ar = 0;
+            if (aiw) { int16_t s2[2]; if (fread(s2, 2, 2, aiw) == 2) { al = (float)s2[0] / 32768.0f * 0.85f; ar = (float)s2[1] / 32768.0f * 0.85f; } }
+            wav_put(&w, L[i] * dg + al, R[i] * dg + ar);
+        }
     }
     float cpu = (float)(clock() - t0) / CLOCKS_PER_SEC;
     wav_close(&w, path);
@@ -210,7 +245,9 @@ int main(int argc, char **argv)
     }
     if (argc < 4) return 2;
     if (strcmp(argv[1], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[1], 0, 0), 1);
-    apply_env(&gr); describe(&gr);
+    apply_env(&gr);
+    if (getenv("DUET")) duet_load();
+    describe(&gr);
     run(argv[3], (float)atof(argv[2]), 0);
     return 0;
 }

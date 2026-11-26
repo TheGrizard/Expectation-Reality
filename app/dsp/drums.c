@@ -318,7 +318,7 @@ int hit_render(Hit *h, float *out, int n)
             s = svf_hp(&h->f2, h->hv) * h->env * 0.6f; fade(&h->env, h->ek);
             break; }
         }
-        if (h->n < RAMP) s *= (float)(h->n + 1) * (1.0f / RAMP);
+        if (h->n < RAMP) { float t = (float)(h->n + 1) * (1.0f / RAMP); s *= t * t * (3.0f - 2.0f * t); }   /* (an S-curve: no corner where it ends) */
         if (h->killk > 0) { h->kill -= h->killk; if (h->kill <= 0) { h->on = 0; return 0; } s *= h->kill; }
         out[i] += s * h->vel;
         h->n++;

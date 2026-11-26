@@ -1,0 +1,12 @@
+{
+  "what": "Turns the FM-1 into a generative drum machine. Press REC for a new groove: four parts on their own lengths (polymeters), twelve synthesised drum engines, step components that EVOLVE brings in, punch-in effects on the keys and randomisers on the black keys. Plays under After Images: follows its clock and hears its notes.",
+  "author": "TheGrizard",
+  "kinds": [
+    "drum-machine"
+  ],
+  "play": "https://thegrizard.github.io/Expectation-Reality/emu/",
+  "cheat": "https://thegrizard.github.io/Expectation-Reality/manual/",
+  "image": "docs/screen.png",
+  "color": "#D7FF00",
+  "sounds": "none"
+}
