@@ -11,7 +11,10 @@ Generative at its core, with macros across the main features, as After Images ha
 
 ## Direction from the owner (November 2026)
 
-- A partner firmware to After Images, inheriting the look and feel of its menu system.
+- A partner firmware to After Images, inheriting the look and feel of its menu system. Keep a lot of After Images:
+  its pages and setting names wherever they mean the same thing (EDIT's SOUND page: ENGINE, TONE, WEIGHT, ENTROPY,
+  with TONE as After Images' DJ filter: 12 o'clock open, left a low-pass, right a high-pass); rename only where the
+  drum meaning differs.
 - Always a kit: four roles (KICK, SNARE, PERC, HATS) that hold the groove, with really interesting synthesised
   engines and really interesting patterns: lots of polymeters.
 - REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
@@ -23,9 +26,8 @@ Generative at its core, with macros across the main features, as After Images ha
   parts (and After Images) answering each other, WARP swing and push/drag, FLOW slow drift of the sounds, CHAOS
   ratchets, skips and displacement.
 - First iteration: IDM in feel and machine-like.
-- Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a low-pass on the bottom white key and a high-pass
-  on the top white key); in
-  the menu, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
+- Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
+  low-pass on the bottom white key and a high-pass on the top white key); in the menu, a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
   a tempo-synced delay that can go very fast into Autechre glitch, stereo pan effects, and anything else weird and
   wonderful.
 - Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
