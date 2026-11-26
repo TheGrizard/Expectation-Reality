@@ -17,6 +17,9 @@ Generative at its core, with macros across the main features, as After Images ha
 - REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
   like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on). Performance macros:
   DENSITY, VARIATION, TIMING, EVOLUTION.
+- The LFO page keeps After Images' MOTION settings by name (LINK, WARP, FLOW, CHAOS), read for drums: LINK the
+  parts (and After Images) answering each other, WARP swing and push/drag, FLOW slow drift of the sounds, CHAOS
+  ratchets, skips and displacement.
 - First iteration: IDM in feel and machine-like.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a low-pass on the bottom white key and a high-pass
   on the top white key); in
