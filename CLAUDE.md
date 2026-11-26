@@ -28,7 +28,9 @@ Generative at its core, with macros across the main features, as After Images ha
 - First iteration: IDM in feel and machine-like.
 - Effects: OP-XY-style punch-in effects on the FM-1's keys (the owner especially likes pitch up and pitch down; a
   low-pass on the bottom white key and a high-pass on the top white key). The FX page holds bus effects only (no
-  per-part sends page): a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
+  per-part sends page), and FX again sets each effect's style, as After Images' second effects page does (its DIRT's
+  varieties, CHORUS's ensemble): the compressor from clean to a heavier tape smasher, the delay from clean to a dirty
+  granular one. The kick stays out of the delay and the stereo effects. The effects: a tape-style compressor with the kick hard-wired to its sidechain (simple, musical, extreme when cranked),
   a tempo-synced delay that can go very fast into Autechre glitch, stereo pan effects, and anything else weird and
   wonderful.
 - Visuals undecided; a starting idea is After Images' MATRIX layout with squares instead of circles, more extreme
