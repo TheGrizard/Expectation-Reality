@@ -46,6 +46,10 @@ Generative at its core, with macros across the main features, as After Images ha
   (scattered, not in rows), and it fades back in in that part's colour, so the hits slowly repaint the layout
   (After Images adds a dot on a hit; this removes one). 8x8 by default (the owner loves it), with After Images'
   COUNT setting on the SCREEN page for other sizes. Only loud kicks and snares knock out a 2x2 block.
+  Colours: four clearly contrasting hues a palette, one per part, as After Images' rule has it; REC deals one from a
+  shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's
+  favourites ACID (#d7ff00, #ff00a8, #00e5ff, #ffffff) and ULTRAVIOLET (#8a2bff, #ff00f7, #00f0ff, #f4e8ff), in the
+  order KICK, SNARE, PERC, HATS.
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
   hub port; a small host-mode test firmware first. Fallbacks: a computer, AUM on an iPad or an Ableton Move as host.
 
