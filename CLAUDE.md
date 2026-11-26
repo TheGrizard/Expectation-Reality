@@ -44,7 +44,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - Visuals: After Images' MATRIX turned inside out, squares instead of circles, brighter and more extreme. REC lays
   the grid out anew in a random arrangement of colours; each hit knocks a square out somewhere on the grid
   (scattered, not in rows), and it fades back in in that part's colour, so the hits slowly repaint the layout
-  (After Images adds a dot on a hit; this removes one).
+  (After Images adds a dot on a hit; this removes one). 8x8 by default (the owner loves it), with After Images'
+  COUNT setting on the SCREEN page for other sizes. Only loud kicks and snares knock out a 2x2 block.
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
   hub port; a small host-mode test firmware first. Fallbacks: a computer, AUM on an iPad or an Ableton Move as host.
 
