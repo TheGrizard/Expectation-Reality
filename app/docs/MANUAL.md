@@ -317,7 +317,7 @@ extras that ACTIVITY brings in), a crack or rim on two and four with quiet ghost
 0, eighths as it rises, sixteenth pickups near the top, an open hat into the bar now and then) and a sparse rim or
 shaker for the perc. The hats and snare filtered dark, the kick boomy, and a heavy, lazy swing.
 
-Choosing a personality sets its tempo: BRAINDANCE 100, FLOORS 130, CLOUDS 65, IMPLODE 85 BPM; after that REC keeps
+Choosing a personality sets its tempo: BRAINDANCE 140, FLOORS 130, CLOUDS 65, IMPLODE 85 BPM; after that REC keeps
 your tempo, as always. A saved groove keeps its personality. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in each.
 
 ![SCALE](img/scale.png)

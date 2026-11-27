@@ -666,7 +666,7 @@ static void knob_turn(int k, int d)
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
     if (kn->kind == K_GENRE && v != was) {       /* (a genre's own tempo when you choose it; REC keeps yours after) */
-        static const uint8_t GT[NUM_GENRES] = { 100, 130, 65, 85 };   /* (BRAINDANCE, FLOORS, CLOUDS, IMPLODE) */
+        static const uint8_t GT[NUM_GENRES] = { 140, 130, 65, 85 };   /* (BRAINDANCE, FLOORS, CLOUDS, IMPLODE) */
         set.cur.tempo = (uint8_t)(GT[v % NUM_GENRES] - 40);
     }
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
