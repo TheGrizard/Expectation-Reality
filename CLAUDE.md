@@ -80,7 +80,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - The balance, as After Images': each part held at its MOOD 50 loudness at every MOOD (a table measured in the
   simulator, BS.1770-weighted), the mix tilted slowly to a steady top-to-bottom, a leveller (BAL_RMS; the owner finds
   it hot: never nudge it up), a limiter at -1 dBFS last. The volume knob at full and USB GAIN at 100 are unity.
-- CPU: the device ran 94% with 1136 drops at v0.2. Measure instruction counts (callgrind on the render tool: about
+- CPU: the device ran 94% with 1136 drops at v0.2; v0.7 (reverb and delay at half rate, idle filters and pans skipped)
+  ran 52%, no drops, with every send and the delay's feedback up (some power-ons fell back to one core: 93%). Measure instruction counts (callgrind on the render tool: about
   240 M a second matched 94%) before and after every DSP change; the reverb runs on the second core and rests when
   silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
 - SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
