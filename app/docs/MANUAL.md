@@ -37,8 +37,8 @@ The name is the idea. **Expectation** is the groove REC deals: a fixed loop that
 | HOME held + K1 to K4 | MOOD, ACTIVITY, EVOLVE, DRIFT |
 | HOME tapped at home | the FM-1's health: CPU, drops, saving |
 | HOME elsewhere | back home |
-| REC | a new groove (a new key and tempo too) |
-| REC held | a new groove in the same key and tempo |
+| REC | a new groove (a new key too; one part's sound carried over; the tempo stays as you set it) |
+| REC held | a new groove in the same key |
 | SEL held + REC | the chosen part dealt afresh |
 | OCT- / OCT+ held, as you press a key | hold that punch-in or randomiser: to the loop's end (OCT-) or for good (OCT+) |
 | OCT+ alone | let every hold go |
@@ -72,7 +72,9 @@ settings: switching doesn't mix them up.
 ## 3. The first five minutes
 
 1. **Listen.** It starts playing a groove. Turn **K1 to K4** to set KICK, SNARE, PERC and HATS.
-2. **Press REC.** A new groove: new sounds, new patterns, a new tempo and colours. Press it a few times.
+2. **Press REC.** A new groove: new sounds, new patterns and colours, at the same tempo. One part keeps its sound from
+   the groove before (its SOUND and MIX settings, with a new pattern), so a run of grooves flows like a set: the
+   popup says which. Press it a few times.
 3. **Hold HOME and turn K3 (EVOLVE).** At 0 the groove loops exactly. Turn it up and the groove's hidden details come
    in one by one: ratchets, ghost notes, nudges, conditions. Past about 70 it starts rewriting itself.
 4. **Hold a white key.** The second white key from the bottom repeats the last beat; the ones in the middle pitch
@@ -284,7 +286,9 @@ at full, or USB AUDIO's GAIN at 100, is unity.
 ![SCALE](img/scale.png)
 
 **GLO again: SCALE**: KEY · SCALE · SWING · TEMPO. KEY and SCALE are the perc's notes. SWING delays the off
-sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as IN while it follows a clock).
+sixteenths (REC deals it: mostly straight). TEMPO is yours alone: 100 BPM at every power-on, and nothing changes it
+but you (not REC, not a saved groove, not going back through history), so it holds while you play live. Shown as IN
+while it follows a clock.
 
 ## 13. The keys: punch-ins and randomisers
 

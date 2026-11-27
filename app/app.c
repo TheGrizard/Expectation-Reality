@@ -257,6 +257,7 @@ void app_init(void)
 {
     dsp_init(); drums_init();
     settings_load();
+    set.cur.tempo = 100 - 40;                    /* (100 BPM at every power-on; from then on only you change it) */
     save_end = plat_ms() | 1u;
     engine_init(&eng, &set.cur);
     eng.clock = plat_ticks24;
@@ -349,7 +350,7 @@ static struct {
     /* the holds: OCT- held as a key is pressed latches it to the loop's end, OCT+ for good; pressed again, it's let go;
      * OCT+ alone lets every hold go. w: the white keys, b: the black; until: the tick it ends (0 for good) */
     uint16_t lat_w, lat_b; uint32_t lat_w_until[16], lat_b_until[11]; float lat_w_dep[16], lat_b_dep[11];
-    int oct_used[2];
+    int oct_used[2], kept_ok;
     int pu_shown;
 } ui;
 
@@ -472,23 +473,39 @@ static void palette_next(void)           /* REC's palettes: a shuffled deck, non
 }
 
 static void vis_deal(void);
-static void new_groove(int keep)          /* REC: a new groove (a new key and tempo too); held: in the same key and tempo */
+static void new_groove(int keep)          /* REC: a new groove (a new key too); held: in the same key. The tempo never: it's yours */
 {
     int key = set.cur.key, scale = set.cur.scale, tempo = set.cur.tempo;
+    PartP was[NPARTS]; for (int p = 0; p < NPARTS; p++) was[p] = set.cur.p[p];
     palette_next();
     hist_push();
     uint32_t seed = (set.cur.seed * 1664525u + 1013904223u) ^ plat_ms() * 2654435761u ^ plat_ticks24();
     groove_roll(&set.cur, seed, 1);
-    if (keep || CLK_IN) { set.cur.key = (uint8_t)key; set.cur.scale = (uint8_t)scale; set.cur.tempo = (uint8_t)tempo; }
+    if (keep || CLK_IN) { set.cur.key = (uint8_t)key; set.cur.scale = (uint8_t)scale; }
+    set.cur.tempo = (uint8_t)tempo;   /* (the tempo only ever changed by you: never by REC, live) */
+    /* one part's sound carried over from the last groove, a part at random: its EDIT settings as they were (SOUND:
+     * ENGINE, TONE, WEIGHT, ENTROPY; MIX: LEVEL, DECAY, PITCH, PAN), only its pattern new. Grooves dealt one after
+     * another share a thread, for a set that flows */
+    int kp = (int)((seed >> 11) % NPARTS);
+    {   PartP *q = &set.cur.p[kp]; const PartP *o = &was[kp];
+        q->engine = o->engine; q->tone = o->tone; q->weight = o->weight; q->entropy = o->entropy;
+        q->level = o->level; q->decay = o->decay; q->pitch = o->pitch; q->pan = o->pan;
+    }
+    ui.kept_ok = 0;                              /* (the parts sounding as before: one, at least; for the tests) */
+    for (int p = 0; p < NPARTS; p++) {
+        const PartP *q = &set.cur.p[p], *o = &was[p];
+        if (q->engine == o->engine && q->tone == o->tone && q->weight == o->weight && q->entropy == o->entropy && q->level == o->level
+            && q->decay == o->decay && q->pitch == o->pitch && q->pan == o->pan) ui.kept_ok++;
+    }
     set.slot = 255;
     changed();
     eng.sync_req = set.playing && !CLK_IN;    /* (from the top: its one on the one; following a clock, the leader's) */
     vis_deal();
     char nm[32]; groove_name(seed, nm);
-    {   char n[8];
-        pop(keep ? "SAME KEY + TEMPO" : "NEW GROOVE", nm, PART_C[(seed >> 3) % NPARTS]);
+    {
+        pop(keep ? "SAME KEY" : "NEW GROOVE", nm, PART_C[(seed >> 3) % NPARTS]);
         text_cat(ui.pop_3, NOTE_NAME[set.cur.key]); text_cat(ui.pop_3, " "); text_cat(ui.pop_3, SCALES[set.cur.scale].name);
-        text_cat(ui.pop_3, "  "); int_text(shown_bpm(), n); text_cat(ui.pop_3, n); text_cat(ui.pop_3, " BPM");
+        text_cat(ui.pop_3, "  KEPT: "); text_cat(ui.pop_3, PART_NAME[kp]);
     }
 }
 
@@ -502,7 +519,7 @@ static void new_part(void)
 
 static void hist_step(int d)
 {
-    char nm[32];
+    char nm[32]; uint8_t tempo = set.cur.tempo;   /* (the tempo yours: kept) */
     if (d < 0) {
         if (hist_at == 0) { pop("HISTORY", "THE FIRST", C_SUB); return; }
         if (hist_at == hist_n) { hist_push(); hist_at = hist_n - 1; }
@@ -511,6 +528,7 @@ static void hist_step(int d)
         if (hist_at + 1 >= hist_n) { pop("HISTORY", "THE LATEST", C_SUB); return; }
         set.cur = hist[++hist_at];
     }
+    set.cur.tempo = tempo;
     set.slot = 255;
     changed();
     groove_name(set.cur.seed, nm);
@@ -544,7 +562,8 @@ static void load_step(int d)
     if (!set.nsaved) { pop("NO GROOVES", "SAVE ONE FIRST", C_SUB); return; }
     int at = set.slot == 255 ? (d > 0 ? 0 : set.nsaved - 1) : (set.slot + d % set.nsaved + set.nsaved) % set.nsaved;
     if (set.slot == 255) hist_push();
-    set.slot = (uint8_t)at; set.cur = set.saved[at];
+    { uint8_t tempo = set.cur.tempo; set.slot = (uint8_t)at; set.cur = set.saved[at]; set.cur.tempo = tempo; }   /* (the
+                                                  * tempo yours: a saved groove plays at the one you're at) */
     changed(); set_dirty = 0;
     ui.list_until = plat_ms() + 2000u; ui.pop_until = 0;
     char nm[32]; groove_name(set.cur.seed, nm); say_text("GROOVE", nm);
@@ -1206,6 +1225,7 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "tempo")) *got = 40 + set.cur.tempo;
     else if (!strcmp(what, "mood")) *got = set.cur.mood;
     else if (!strcmp(what, "clean")) *got = eng.clean;
+    else if (!strcmp(what, "kept")) *got = ui.kept_ok >= 1;
     else if (!strcmp(what, "style")) *got = set.style;
     else if (!strcmp(what, "usb_full")) *got = set.usb_full;
     else if (!strcmp(what, "activity")) *got = set.cur.activity;

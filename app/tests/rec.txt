@@ -29,3 +29,13 @@ wait 6000
 expect events0 >4
 expect events3 >4
 expect playing 1
+# the tempo yours: 100 at power-on, and REC never changes it
+expect tempo 100
+tap REC
+wait 300
+expect tempo 100
+tap REC
+wait 300
+expect tempo 100
+# one part's sound carried into each new groove
+expect kept 1

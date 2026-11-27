@@ -12,7 +12,8 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 
 ## What it does
 
-- **One button, a whole groove:** four sounds, four patterns, a tempo, effects, a palette and a name.
+- **One button, a whole groove:** four sounds (one carried over, for a set that flows), four patterns, effects, a
+  palette and a name; the tempo stays yours.
 - **Polymeters:** the kick and snare hold the bar while the perc and hats loop on odd lengths, drifting against it.
 - **Generators, not dice:** a groove map, Euclidean rhythms, Turing machines and broken IDM groupings.
 - **Step components:** ratchets, nudges, conditions, probabilities and ghosts, brought in by EVOLVE one at a time.
@@ -29,7 +30,7 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 
 1. Open the [installer](install/) in Chrome or Edge on a computer, plug in the FM-1 by USB and follow the page.
 2. It starts playing. **K1 to K4** set KICK, SNARE, PERC and HATS.
-3. **REC** for a new groove; **held**, a new groove in the same key and tempo.
+3. **REC** for a new groove; **held**, a new groove in the same key.
 4. **Hold HOME and turn K1 to K4** for the macros: MOOD, ACTIVITY, EVOLVE and DRIFT.
 5. **Hold a white key** for a punch-in; **a black key** for a randomiser.
 6. **SAVE** keeps a groove; ALGORITHM steps through your saved ones.

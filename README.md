@@ -17,7 +17,7 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 
 ## What makes it different
 
-- **Always a kit, never the same groove.** REC deals four sounds, four patterns, a tempo, a palette, the effects and
+- **Always a kit, never the same groove.** REC deals four sounds (one carried over from the last groove), four patterns, a palette, the effects and
   a name. IDM and machine-like first: Autechre, Boards of Canada, Burial, Objekt.
 - **Polymeters.** The kick and snare hold the bar; the perc and hats loop on odd lengths (5, 7, 11, 13 ...), drifting
   against it and meeting again.
@@ -46,7 +46,7 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 1. **Install.** Open the [web installer](https://TheGrizard.github.io/Expectation-Reality/install/) in Chrome or Edge
    on a computer, plug in the FM-1 by USB and follow the page.
 2. **Listen.** It starts playing. **K1 to K4** set the four parts' levels.
-3. **Press REC** for a new groove. Hold it for one in the same key and tempo.
+3. **Press REC** for a new groove (the tempo stays yours). Hold it for one in the same key.
 4. **Hold HOME and turn K1 to K4** for the macros: MOOD, ACTIVITY, EVOLVE and DRIFT.
 5. **Hold a white key** for a punch-in, **a black key** for a randomiser.
 6. **SAVE** keeps a groove; ALGORITHM steps through your saved ones.
