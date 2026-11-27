@@ -71,6 +71,8 @@ Generative at its core, with macros across the main features, as After Images ha
   shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's
   favourites ACID (#d7ff00, #ff00a8, #00e5ff, #ffffff) and ULTRAVIOLET (#8a2bff, #ff00f7, #00f0ff, #f4e8ff), in the
   order KICK, SNARE, PERC, HATS.
+- USB AUDIO as After Images: OUTPUT (MIX, or CLEAN: the kit without FX's effects, the speaker too), CONTROL (MASTER
+  or FIXED), GAIN.
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a
   hub port; a small host-mode test firmware first. Fallbacks: a computer, AUM on an iPad or an Ableton Move as host.
 

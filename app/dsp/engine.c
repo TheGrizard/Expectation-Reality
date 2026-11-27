@@ -571,7 +571,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
 {
     Groove *g = e->g; int n = e->nblk;
     float kb = glide_k(0.05f);
-    float t_room = (float)g->room * 0.01f, t_dly = (float)g->delay * 0.01f, t_comp = (float)g->comp * 0.01f, t_pan = (float)g->pan * 0.01f;
+    float fxon = e->clean ? 0.0f : 1.0f;      /* (OUTPUT CLEAN: the four bus effects glide out, as their amounts do) */
+    float t_room = (float)g->room * 0.01f * fxon, t_dly = (float)g->delay * 0.01f * fxon, t_comp = (float)g->comp * 0.01f * fxon, t_pan = (float)g->pan * 0.01f * fxon;
     float sc_att = glide_k(0.002f), sc_rel = glide_k(0.12f), kk = glide_k(0.005f);
     float duck[NPARTS], sroom[NPARTS], sdly[NPARTS], span[NPARTS];
     for (int p = 0; p < NPARTS; p++) {
@@ -604,12 +605,13 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         float k = fm_fabsf(kL) + fm_fabsf(kR);
         e->sc += (k - e->sc) * (k > e->sc ? sc_att : sc_rel);
         e->lev_pan += (t_pan - e->lev_pan) * kb;
+        e->clean_g += ((float)e->clean - e->clean_g) * kb;   /* (DUCK out with them, glided) */
         e->pan_ph += bps / (8.0f * SR); if (e->pan_ph >= 1.0f) e->pan_ph -= 1.0f;     /* SWEEP: two bars across */
         e->pan_spin += bps * 2.0f / SR; if (e->pan_spin >= 1.0f) e->pan_spin -= 1.0f;   /* SPIN: an eighth round */
         float L = kL, R = kR, rl = 0, rr = 0, dsum = 0;
         for (int p = P_SNARE; p < NPARTS; p++) {
             float x0 = e->P[p].bus[0][i], x1 = e->P[p].bus[1][i];
-            float dk = 1.0f / (1.0f + duck[p] * e->sc);
+            float dk = 1.0f / (1.0f + duck[p] * e->sc * (1.0f - e->clean_g));
             x0 *= dk; x1 *= dk;
             float pm = 0;                         /* PAN: each part moved across the field */
             if (g->pan_t == PT_SWEEP) pm = sine_c(e->pan_ph + (float)p * 0.31f) * 0.9f;

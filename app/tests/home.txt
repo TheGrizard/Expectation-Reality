@@ -84,3 +84,25 @@ expect events1 >2
 expect events2 >2
 expect events3 >8
 expect playing 1
+# USB AUDIO, as After Images has it: OUTPUT MIX or CLEAN (the kit without FX's effects), CONTROL, GAIN; kept
+tap HOME
+wait 100
+tap ARP
+tap ARP
+tap ARP
+wait 100
+expect page 14
+turn K1 1
+wait 200
+expect clean 1
+expect usb_full 2
+turn K3 1
+wait 200
+expect usb_full 3
+turn K3 -1
+turn K1 -1
+wait 200
+expect clean 0
+expect usb_full 0
+tap HOME
+wait 200

@@ -356,8 +356,14 @@ A direct link through a powered USB hub (this FM-1 as the host) is planned; it n
 **ARP again: CHANNELS**: LISTEN CH (the four channels After Images' layers come on), OUT CH, FOLLOW (the perc's key
 from After Images' GROUND).
 
-**ARP a third time: USB AUDIO**: plugged into a computer the FM-1 is a stereo audio input. LEVEL: MASTER (as the
-volume knob) or FIXED (at GAIN, whatever the volume knob says).
+**ARP a third time: USB AUDIO**: OUTPUT · CONTROL · GAIN, as After Images has it. Plugged into a computer the FM-1 is
+a stereo audio input.
+
+- **OUTPUT**: MIX, the kit as you hear it; or CLEAN, the kit without FX's effects (no ROOM, DELAY, COMP, PAN or DUCK),
+  to record dry and add your own. CLEAN goes to the speaker too, so you hear what's recorded; the switch glides, so it
+  never clicks. The punch-ins still play.
+- **CONTROL**: MASTER (the recording follows the volume knob) or FIXED (at GAIN, whatever the volume knob says).
+- **GAIN**: the level with CONTROL at FIXED.
 
 ## 17. When something's not right
 

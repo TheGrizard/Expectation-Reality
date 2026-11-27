@@ -33,7 +33,8 @@ typedef struct {
     uint8_t ver, slot, nsaved, playing;  /* slot: the saved groove playing (255: none) */
     uint8_t sync, midi_on, listen, cc_in; /* CLOCK INT / IN / OUT; NOTES OUT; LISTEN (After Images' notes heard); CC IN */
     uint8_t listen_ch, out_ch, palette, peg_n;   /* LISTEN CH (After Images' four layers from here); OUT CH; the screen */
-    uint8_t fade, usb_full, usb_lvl, bright;     /* SCREEN's FADE; USB AUDIO's LEVEL and GAIN; SCREEN's BRIGHT */
+    uint8_t fade, usb_full, usb_lvl, bright;     /* SCREEN's FADE; USB AUDIO's CONTROL (bit 0: FIXED) and OUTPUT (bit 1:
+                                                  * CLEAN, the kit without FX's effects), and GAIN; SCREEN's BRIGHT */
     Groove cur;
     Groove saved[NSAVED];
 } settings_t;
@@ -66,7 +67,7 @@ static int settings_ok(void)
 {
     if (set.magic != SET_MAGIC || set.ver < 1 || set.ver > SET_VER || set.nsaved > NSAVED || (set.slot != 255 && set.slot >= set.nsaved)) return 0;
     if (set.sync >= NSYNC || set.midi_on > 1 || set.listen > 1 || set.cc_in > 1 || set.listen_ch > 12 || set.out_ch > 15) return 0;
-    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 1 || set.usb_lvl > 100 || set.bright > 100) return 0;
+    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100) return 0;
     if (!groove_ok(&set.cur)) return 0;
     for (int i = 0; i < set.nsaved; i++) if (!groove_ok(&set.saved[i])) return 0;
     return 1;
@@ -265,7 +266,7 @@ static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX",
                                                 "MACROS", "SCALE", "SCREEN", "MIDI", "CHANNELS", "USB AUDIO" };
 static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
 enum { K_NONE, K_PCT, K_ENGINE, K_GEN, K_LEN, K_RATE, K_PITCH, K_PAN, K_TONE, K_SEND, K_RT, K_CT, K_DT, K_PT, K_DTIME,
-       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY };
+       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE };
 typedef struct { const char *name; uint8_t kind, where; uint16_t off; } Knob;   /* where: 0 the groove, 1 the part, 2 the settings */
 #define GO(f) (uint16_t)__builtin_offsetof(Groove, f)
 #define PO(f) (uint16_t)__builtin_offsetof(PartP, f)
@@ -285,7 +286,7 @@ static const Knob PAGES[NPAGES][4] = {
     { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "", K_NONE, 2, 0 } },
     { { "CLOCK", K_SYNC, 2, SO(sync) }, { "NOTES OUT", K_ONOFF, 2, SO(midi_on) }, { "LISTEN", K_ONOFF, 2, SO(listen) }, { "CC IN", K_ONOFF, 2, SO(cc_in) } },
     { { "LISTEN CH", K_LCH, 2, SO(listen_ch) }, { "OUT CH", K_CH, 2, SO(out_ch) }, { "FOLLOW", K_ONOFF, 0, GO(follow) }, { "", K_NONE, 2, 0 } },
-    { { "LEVEL", K_REC, 2, SO(usb_full) }, { "", K_NONE, 2, 0 }, { "", K_NONE, 2, 0 }, { "GAIN", K_ULVL, 2, SO(usb_lvl) } },
+    { { "OUTPUT", K_ROUTE, 2, SO(usb_full) }, { "", K_NONE, 2, 0 }, { "CONTROL", K_REC, 2, SO(usb_full) }, { "GAIN", K_ULVL, 2, SO(usb_lvl) } },
 };
 static int page_has_part(int pg) { return pg == PG_SOUND || pg == PG_SEQ || pg == PG_MIX || pg == PG_SENDS; }
 
@@ -350,6 +351,7 @@ static void knob_text(int pg, int k, char *s)
     case K_NONE: break;
     case K_SEND: if (ui.sel == P_KICK && kn->off != PO(s_duck)) text_cat(s, "DRY"); else if (ui.sel == P_KICK) text_cat(s, "-"); else int_text(v, s); break;
     case K_REC: text_cat(s, v & 1 ? "FIXED" : "MASTER"); break;
+    case K_ROUTE: text_cat(s, v >> 1 & 1 ? "CLEAN" : "MIX"); break;
     case K_ULVL: int_text(v, s); break;
     case K_TONE: if (v >= 48 && v <= 52) text_cat(s, "OPEN"); else { text_cat(s, v < 50 ? "LP " : "HP "); int_text(v < 50 ? (50 - v) * 2 : (v - 50) * 2, s + strlen_(s)); } break;
     case K_PEGN: int_text(PEG_NS[v % NPEG_NS], s); break;
@@ -381,6 +383,7 @@ static float knob_frac(int pg, int k)
     switch (kn->kind) {
     case K_NONE: return 0.0f;
     case K_REC: return (float)(v & 1);
+    case K_ROUTE: return (float)(v >> 1 & 1);
     case K_PEGN: return (float)v / (NPEG_NS - 1);
     case K_SYNC: return (float)v / (NSYNC - 1);
     case K_ENGINE: return (float)v / (NUM_ENGINES - 1);
@@ -559,11 +562,11 @@ static void select_part(int p)
 static void knob_turn(int k, int d)
 {
     const Knob *kn = knob_of(ui.page, k); uint8_t *p = knob_ptr(ui.page, k);
-    int v = kn->kind == K_PITCH ? (int8_t)*p : *p, lo = 0, hi = 100, step = 2, wrap = 0;
+    int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : *p, lo = 0, hi = 100, step = 2, wrap = 0;
     if (kn->kind == K_NONE) return;
     if (kn->kind == K_SEND && ui.sel == P_KICK) { pop("KICK", "ALWAYS DRY", PART_C[P_KICK]); return; }   /* (the kick: never into the room, the delay, the pan) */
     switch (kn->kind) {
-    case K_REC: hi = 1; step = 1; break;
+    case K_REC: case K_ROUTE: hi = 1; step = 1; break;
     case K_ULVL: step = 5; break;
     case K_PEGN: hi = NPEG_NS - 1; step = 1; break;
     case K_SYNC: hi = NSYNC - 1; step = 1; break;
@@ -590,6 +593,8 @@ static void knob_turn(int k, int d)
     if (wrap) v = ((v - lo) % (hi - lo + 1) + (hi - lo + 1)) % (hi - lo + 1) + lo;
     else v = v < lo ? lo : v > hi ? hi : v;
     if (kn->kind == K_PITCH) *(int8_t *)p = (int8_t)v;
+    else if (kn->kind == K_REC) *p = (uint8_t)((*p & 2u) | (unsigned)v);          /* (CONTROL and OUTPUT share a byte) */
+    else if (kn->kind == K_ROUTE) *p = (uint8_t)((*p & 1u) | (unsigned)v << 1);
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
@@ -602,6 +607,7 @@ static void knob_turn(int k, int d)
 static void settings_apply(void)
 {
     plat_usb_audio_full(set.usb_full & 1);
+    eng.clean = set.usb_full >> 1 & 1;   /* OUTPUT CLEAN: the kit without FX's effects, to the computer and the speaker */
     palette_apply();
 }
 
@@ -1156,6 +1162,8 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "seed")) *got = (int)(set.cur.seed & 0x7FFFFFFF);
     else if (!strcmp(what, "tempo")) *got = 40 + set.cur.tempo;
     else if (!strcmp(what, "mood")) *got = set.cur.mood;
+    else if (!strcmp(what, "clean")) *got = eng.clean;
+    else if (!strcmp(what, "usb_full")) *got = set.usb_full;
     else if (!strcmp(what, "activity")) *got = set.cur.activity;
     else if (!strcmp(what, "evolve")) *got = set.cur.evolve;
     else if (!strcmp(what, "drift")) *got = set.cur.drift;

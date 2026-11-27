@@ -67,6 +67,7 @@ struct Engine {
     float pan_ph, pan_spin, pan_now[NPARTS];
     float lev_room, lev_dly, lev_comp, lev_pan;   /* the bus amounts, glided */
     /* the punch-ins */
+    volatile int clean; float clean_g;      /* USB AUDIO's OUTPUT CLEAN: FX's effects (ROOM, DELAY, COMP, PAN, DUCK) out, glided */
     volatile int pu_want; volatile float pu_press;   /* the key held (PU_*), its pressure 0..1 (from the UI) */
     int pu, pu_rel; float pu_mix; int16_t pb[2][PUNCH_BUF]; int pw, ps0, pu_frozen;
     float rpos, rlen, rnext; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;

@@ -161,6 +161,7 @@ static void run(const char *path, float secs, int punch)
             }
         }
         while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
+        if (getenv("CLEANAT")) eng.clean = (float)done / SR >= (float)atof(getenv("CLEANAT"));   /* (OUTPUT CLEAN from then on) */
         engine_block_begin(&eng, ENGINE_SUB);
         for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
         engine_block_mix(&eng, L, R);
