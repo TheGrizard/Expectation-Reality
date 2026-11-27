@@ -59,19 +59,23 @@ expect page 9
 tap GLO
 wait 200
 expect page 10
-shot scale.png
+shot genre.png
 tap GLO
 wait 200
 expect page 11
-tap ARP
+tap GLO
 wait 200
 expect page 12
+shot scale.png
 tap ARP
 wait 200
 expect page 13
 tap ARP
 wait 200
 expect page 14
+tap ARP
+wait 200
+expect page 15
 tap HOME
 wait 200
 expect page 0
@@ -91,7 +95,7 @@ tap ARP
 tap ARP
 tap ARP
 wait 100
-expect page 14
+expect page 15
 turn K1 1
 wait 200
 expect clean 1

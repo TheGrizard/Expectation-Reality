@@ -57,7 +57,7 @@ static void apply_env(Groove *g)
     g->link = (uint8_t)env_i("LINK", g->link); g->warp = (uint8_t)env_i("WARP", g->warp);
     g->flow = (uint8_t)env_i("FLOW", g->flow); g->chaos = (uint8_t)env_i("CHAOS", g->chaos);
     g->room = (uint8_t)env_i("ROOM", g->room); g->comp = (uint8_t)env_i("COMP", g->comp);
-    g->delay = (uint8_t)env_i("DELAY", g->delay); g->pan = (uint8_t)env_i("PAN", g->pan);
+    g->pan = (uint8_t)env_i("PAN", g->pan);
     g->room_t = (uint8_t)env_i("RT", g->room_t); g->comp_t = (uint8_t)env_i("CT", g->comp_t);
     g->delay_t = (uint8_t)env_i("DT", g->delay_t); g->pan_t = (uint8_t)env_i("PT", g->pan_t);
     g->dtime = (uint8_t)env_i("DTIME", g->dtime); g->glitch = (uint8_t)env_i("GLITCH", g->glitch);
@@ -75,10 +75,10 @@ static void apply_env(Groove *g)
             }
     }
     if (getenv("SOLO")) { int k = atoi(getenv("SOLO")); for (int p = 0; p < NPARTS; p++) if (p != k) g->p[p].level = 0; }   /* (one part alone) */
-    if (getenv("DRY")) { const char *d = getenv("DRY"); if (strchr(d, 'r')) g->room = 0; if (strchr(d, 'd')) g->delay = 0; if (strchr(d, 'c')) g->comp = 0; if (strchr(d, 'p')) g->pan = 0; }   /* (r d c p: effects off) */
+    if (getenv("DRY")) { const char *d = getenv("DRY"); if (strchr(d, 'r')) g->room = 0; if (strchr(d, 'c')) g->comp = 0; if (strchr(d, 'p')) g->pan = 0; }   /* (r d c p: effects off) */
     if (getenv("SMOOTH")) {                       /* a smooth kit (sines only): any step in the output is a click */
         g->p[P_KICK].engine = D_MEMBRANE; g->p[P_SNARE].level = 0; g->p[P_HATS].level = 0; g->p[P_PERC].engine = D_MATERIAL;
-        g->p[P_KICK].entropy = 10; g->p[P_PERC].entropy = 30; g->room = 0; g->delay = 0;
+        g->p[P_KICK].entropy = 10; g->p[P_PERC].entropy = 30; g->room = 0;
     }
     for (int p = 0; p < NPARTS; p++) {
         char k[16];
@@ -94,8 +94,8 @@ static void describe(const Groove *g)
     fprintf(stderr, "%s, %d BPM; ", nm, g->tempo + 40);
     for (int p = 0; p < NPARTS; p++) fprintf(stderr, "%s %s %s %d/%s w%d e%d%s", PART_NAME[p], ENGINE_NAME[g->p[p].engine], GEN_NAME[g->p[p].gen],
                                              g->p[p].len, RATE_NAME[g->p[p].rate], g->p[p].weight, g->p[p].entropy, p < 3 ? "; " : "\n");
-    fprintf(stderr, "  room %d %s, comp %d %s, delay %d %s %s, pan %d %s; macros mood %d act %d evolve %d drift %d\n", g->room, RT_NAME[g->room_t],
-            g->comp, CT_NAME[g->comp_t], g->delay, DT_NAME[g->delay_t], DTIME_NAME[g->dtime], g->pan, PT_NAME[g->pan_t], g->mood, g->activity, g->evolve, g->drift);
+    fprintf(stderr, "  room %d %s, comp %d %s, genre %s, delay %s %s, pan %d %s; macros mood %d act %d evolve %d drift %d\n", g->room, RT_NAME[g->room_t],
+            g->comp, CT_NAME[g->comp_t], GENRE_NAME[g->genre % NUM_GENRES], DT_NAME[g->delay_t], DTIME_NAME[g->dtime], g->pan, PT_NAME[g->pan_t], g->mood, g->activity, g->evolve, g->drift);
 }
 
 static void dump(void)
@@ -134,6 +134,7 @@ static void puscan(uint32_t seed)
     static const int PUS[] = { PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_REVERSE, PU_FREEZE, PU_SWELL, PU_MASH, PU_PDOWN };
     static float L[BLKN], R[BLKN];
     Groove base = gr;
+    base.genre = (uint8_t)env_i("GENRE", base.genre);   /* (0 IDM, 1 TECHNO: what's dealt) */
     if (seed) groove_roll(&base, seed, 1);
     apply_env(&base);
     for (unsigned u = 0; u < sizeof PUS / sizeof PUS[0]; u++) {
@@ -200,7 +201,7 @@ static void run(const char *path, float secs, int punch)
             static const uint8_t RT[8] = { RT_ROOM, RT_GATED, RT_REVERSE, RT_FREEZE, RT_ROOM, RT_ROOM, RT_GATED, RT_ROOM };
             gr.room_t = RT[sec]; gr.room = sec < 4 ? 60 : 30;
             gr.comp_t = sec == 4 || sec == 7 ? CT_SMASH : CT_CLEAN; gr.comp = sec == 4 || sec == 7 ? 85 : 40;
-            gr.delay_t = sec >= 5 ? DT_GRAIN : DT_CLEAN; gr.delay = sec >= 5 ? 65 : 25; gr.glitch = sec == 6 || sec == 7 ? 70 : 0;
+            gr.delay_t = sec >= 5 ? DT_GRAIN : DT_CLEAN; gr.glitch = sec == 6 || sec == 7 ? 70 : 0;
             gr.dtime = sec == 6 ? 5 : 2; gr.dfb = sec >= 5 ? 70 : 40;
             gr.pan_t = (uint8_t)(sec % 3); gr.pan = 70;
             for (int p = 1; p < NPARTS; p++) { gr.p[p].s_room = 55; gr.p[p].s_delay = 50; gr.p[p].s_pan = 70; }
@@ -379,12 +380,14 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "sweep") && argc > 3) { int e = engine_by_name(argv[2]); if (e < 0) return 2; sweep(e, argv[3]); return 0; }
     groove_default(&gr);
     if (!strcmp(argv[1], "punch") && argc > 3) {
+        gr.genre = (uint8_t)env_i("GENRE", gr.genre);
         if (strcmp(argv[2], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[2], 0, 0), 1);
         apply_env(&gr); describe(&gr);
         run(argv[3], 76.0f * 60.0f / (float)(gr.tempo + 40), 1);
         return 0;
     }
     if (argc < 4) return 2;
+    gr.genre = (uint8_t)env_i("GENRE", gr.genre);
     if (strcmp(argv[1], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[1], 0, 0), 1);
     apply_env(&gr);
     if (getenv("DUET")) duet_load();

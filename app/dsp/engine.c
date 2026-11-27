@@ -266,13 +266,17 @@ static void deal_step(Engine *e, int p, uint32_t s)
      * of the rest of the pattern's hits (DENSITY a little more or less, After Images busier more) */
     int plays = 0;
     if (st->lvl > 0) {
-        static const float CORE[NPARTS] = { 2.0f, 2.0f, 1.0f, 2.0f };
+        static const float CORE[NPARTS] = { 2.0f, 2.0f, 1.0f, 2.0f }, TCORE[NPARTS] = { 4.0f, 2.0f, 1.0f, 2.0f };   /* (TECHNO: the kick's
+                                                  * core its four on the floor) */
+        int techno = g->genre == GENRE_TECHNO;
         float spb16 = (float)BAR / (float)tps;   /* (its steps a bar) */
-        int core_n = (int)((float)len * CORE[p] / spb16 + 0.5f); if (core_n < 1) core_n = 1;
+        int core_n = (int)((float)len * (techno ? TCORE : CORE)[p] / spb16 + 0.5f); if (core_n < 1) core_n = 1;
         int above = 0, hits = 0;
         for (int k = 0; k < len; k++) { if (pt->s[k].lvl > st->lvl) above++; if (pt->s[k].lvl >= 60) hits++; }
-        static const float FRAC[NPARTS] = { 0.25f, 0.12f, 0.6f, 0.68f };   /* (at 100: what 40 was in v0.2, measured) */
-        float frac = clampf(A * FRAC[p] + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.2f * clamp01((e->ai_act - 4.0f) / 16.0f), 0.0f, 1.0f);
+        static const float FRAC[NPARTS] = { 0.25f, 0.12f, 0.6f, 0.68f }, TFRAC[NPARTS] = { 0.6f, 0.45f, 0.6f, 0.68f };   /* (at 100: what 40
+                                                  * was in v0.2, measured; TECHNO: the kick's pounding extras and the
+                                                  * snare's ghosts in reach) */
+        float frac = clampf(A * (techno ? TFRAC : FRAC)[p] + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.2f * clamp01((e->ai_act - 4.0f) / 16.0f), 0.0f, 1.0f);
         int allowed = core_n + (int)((float)(hits > core_n ? hits - core_n : 0) * frac + 0.5f);
         if (infill && (p == P_PERC || p == P_HATS)) {   /* (a fill: the perc and hats busier, more of their own pattern's
                                                          * steps, on the sixteenths, never rolled; or, ACTIVITY up, back
@@ -285,6 +289,8 @@ static void deal_step(Engine *e, int p, uint32_t s)
     }
     if (!on16 && A < 0.35f && rng_f(&e->rng) > A / 0.35f) plays = 0;   /* (low ACTIVITY: the 32nds and off-grid steps thinned) */
     if (p == P_KICK && ls == 0 && E < 0.9f && st->lvl >= 250) plays = 1;   /* (the one: always, till EVOLVE is right up) */
+    int floor_k = p == P_KICK && g->genre == GENRE_TECHNO && st->lvl >= 250 && !infill;   /* (TECHNO: the four on the floor) */
+    if (floor_k) plays = 1;
     float vel = (float)st->vel / 127.0f, pitch = (float)st->pitch, off = 0;
     int alt = st->alt, ratch = 1;
     int comp = st->ct && (int)(E * 100.0f + 0.5f) >= st->cu ? st->ct : C_NONE;
@@ -301,6 +307,7 @@ static void deal_step(Engine *e, int p, uint32_t s)
     case C_ACCENT: vel += (float)st->ca / 127.0f; break;
     default: break;
     }
+    if (floor_k) plays = 1;                       /* (no condition takes a floor kick away) */
     /* LINK: the parts, and After Images, answering each other */
     if (p == P_KICK && e->ai_ground_new && L > 0) {
         e->ai_ground_new = 0;
@@ -352,7 +359,7 @@ static void deal_step(Engine *e, int p, uint32_t s)
         /* the kick held firm, whatever ACTIVITY, LINK or a ghost adds: a few more hits a bar as ACTIVITY rises (2 to 4
          * in 16 sixteenths, beside the ones written strong), and no two on neighbouring sixteenths unless the pattern wrote both strong */
         if (bar != e->kick_bar) { e->kick_bar = bar; e->kick_in_bar = 0; }
-        int cap = 2 + (int)(A * 2.0f + 0.5f), strong = st->lvl >= 200;
+        int cap = (g->genre == GENRE_TECHNO ? 4 : 2) + (int)(A * 2.0f + 0.5f), strong = st->lvl >= 200;
         if (!strong && (e->kick_in_bar >= cap || (e->kick_n && t0 - e->kick_last <= 24u && t0 != e->kick_last))) return;
         e->kick_in_bar++; e->kick_last = t0;
         e->kick_ticks[e->kick_n++ & 7] = t0;

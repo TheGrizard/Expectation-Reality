@@ -4,7 +4,7 @@
 wait 2500
 tap ARP
 wait 100
-expect page 12
+expect page 13
 turn K1 1
 wait 100
 expect sync 1

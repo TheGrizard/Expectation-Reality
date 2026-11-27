@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: MPL-2.0
+# GLO's GENRE (GLO twice): what REC deals. TECHNO chosen: its tempo, 135; REC keeps the genre and your tempo; a saved
+# groove keeps its genre; IDM again: 100
+wait 3000
+expect genre 0
+tap GLO
+tap GLO
+wait 100
+expect page 10
+turn K1 1
+wait 300
+expect genre 1
+expect tempo 135
+tap HOME
+wait 100
+tap REC
+wait 500
+expect genre 1
+expect tempo 135
+tap SAVE
+wait 1500
+tap GLO
+tap GLO
+wait 100
+turn K1 -1
+wait 300
+expect genre 0
+expect tempo 100
+tap HOME
+wait 100
+tap REC
+wait 500
+expect genre 0

@@ -44,8 +44,10 @@ tap HOME
 wait 100
 tap GLO
 tap GLO
+tap GLO
+tap GLO
 wait 100
-expect page 10
+expect page 12
 turn K4 10 250
 wait 300
 expect tempo 110
@@ -56,6 +58,8 @@ wait 100
 tap REC
 wait 300
 expect tempo 110
+tap GLO
+tap GLO
 tap GLO
 tap GLO
 wait 100

@@ -21,7 +21,7 @@ repeat; past it, it flows freely and rewrites itself.
 9. The grooves and their step components
 10. Effects
 11. Motion
-12. Key, swing and tempo
+12. Genre, key, swing and tempo
 13. The keys: punch-ins and randomisers
 14. Saving your grooves
 15. Playing with After Images
@@ -54,7 +54,7 @@ repeat; past it, it flows freely and rewrites itself.
 | ENV | MIX |
 | FX, again, again, again | SENDS, EFFECTS, TYPES, DELAY |
 | LFO | MOTION |
-| GLO, twice, three times | MACROS, SCALE, SCREEN |
+| GLO, twice, three, four times | MACROS, GENRE, VISUALS, SCALE |
 | ARP, twice, three times | MIDI, CHANNELS, USB AUDIO |
 | white keys | punch-in effects (section 13) |
 | black keys | randomisers (section 13) |
@@ -98,7 +98,7 @@ ULTRAVIOLET, and five neon ones, LASER, TOXIC, MIAMI, PLASMA and CANDY.
 
 ![TONES](img/tones.png)
 
-SCREEN's **STYLE** (GLO three times) has a second look, **TONES**: the squares in shades from dark grey to white
+VISUALS' **STYLE** (GLO three times) has a second look, **TONES**: the squares in shades from dark grey to white
 (each part's grey the shade closest to its colour's own lightness, each square a little either side of it), and a hit floods its square with the
 part's colour, fading back to its grey. The palettes still change with each REC, so the colours come and go over the
 same tonal layout.
@@ -293,11 +293,27 @@ at full, or USB AUDIO's GAIN at 100, is unity.
 - **FLOW**: each part's sound slowly wandering.
 - **CHAOS**: rolls, skipped hits and hits pushed off the grid, at random (never the kick's).
 
-## 12. Key, swing and tempo
+## 12. Genre, key, swing and tempo
+
+![GENRE](img/genre.png)
+
+**GLO twice: GENRE**: what REC deals. **IDM** is the groove as it has always been: broken, shuffled, machine-like.
+**TECHNO** deals:
+
+- the kick four on the floor, every beat, always: ACTIVITY only adds a pounding extra on top (a pickup into the one, a
+  rolling double), and nothing (EVOLVE, CHAOS, conditions) takes a floor kick away; FILL still drops it for a bar, as
+  a breakdown;
+- the snare (mostly a clap) on two and four, with ghosts that ACTIVITY brings in;
+- the perc as Euclidean rhythms on odd loop lengths (5, 7, 9, 11, 13 steps) against the bar, and the hats off-beat
+  with a looping sixteenth machine round them, often on a length that isn't 16: polymeters, hypnotic;
+- the punchier kicks, the clap, the metallic and digital hats; and next to no swing.
+
+Choosing TECHNO sets the tempo to 135 BPM (IDM, 100); after that REC keeps your tempo, as always. A saved groove
+keeps its genre. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in both.
 
 ![SCALE](img/scale.png)
 
-**GLO again: SCALE**: KEY · SCALE · SWING · TEMPO. KEY and SCALE are the perc's notes. SWING delays the off
+**GLO four times: SCALE**: KEY · SCALE · SWING · TEMPO. KEY and SCALE are the perc's notes. SWING delays the off
 sixteenths (REC deals it: mostly straight). TEMPO is yours: 100 BPM at every power-on, and REC never changes it, so it
 holds while you play live. A saved groove keeps its own tempo: recall it and it comes back at that tempo, and REC
 goes on from there (going back through history likewise). Shown as IN
@@ -426,7 +442,7 @@ a stereo audio input.
 - **No sound**: is it stopped (STOPPED on the screen)? Press PLAY. Are the levels at home turned up?
 - **Following a clock and nothing plays**: with CLOCK IN it waits for the leader's Start. Press play on the
   leader, or set CLOCK to INT.
-- **The perc sounds out of key with After Images**: set the same KEY and SCALE (GLO again), or turn FOLLOW on.
+- **The perc sounds out of key with After Images**: set the same KEY and SCALE (GLO four times), or turn FOLLOW on.
 - **It seems busy or tired, or crackles**: tap HOME at home: it shows the processor's load, any audio drops (each
   drop is a crackle) and 2 CORES or 1 CORE. Drops climbing? Tell me what it shows, the groove and the settings.
 - **At power-on**: it stays silent until it has read the volume knob, then fades in, so with the volume down nothing

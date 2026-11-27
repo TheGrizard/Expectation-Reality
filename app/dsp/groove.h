@@ -14,6 +14,8 @@ extern const char *const PART_NAME[NPARTS];
 
 enum { G_MAP, G_EUCLID, G_TURING, G_BROKEN, NUM_GENS };   /* SEQ's TYPE */
 extern const char *const GEN_NAME[NUM_GENS];
+enum { GENRE_IDM, GENRE_TECHNO, NUM_GENRES };                 /* GLO's GENRE: what REC deals */
+extern const char *const GENRE_NAME[NUM_GENRES];
 enum { R_16, R_8, R_32, R_16T, R_8T, NUM_RATES };          /* SEQ's RATE */
 extern const char *const RATE_NAME[NUM_RATES];
 extern const uint8_t RATE_TICKS[NUM_RATES];                 /* ticks a step (96 a beat) */
@@ -42,8 +44,9 @@ typedef struct {
     uint8_t mood, activity, evolve, drift;        /* HOME held: the macros */
     uint8_t link, warp, flow, chaos;              /* LFO: MOTION */
     uint8_t key, scale, follow, tempo;            /* GLO again: SCALE (tempo: BPM - 40; follow: the key from After Images' notes) */
-    uint8_t room, comp, delay, pan;               /* FX again: REVERB SIZE (room), COMP AMOUNT, (delay: unused since v0.3:
-                                                   * the sends set it), PAN AMOUNT */
+    uint8_t room, comp, genre, pan;               /* FX again: REVERB SIZE (room), COMP AMOUNT, PAN AMOUNT; genre: GLO's
+                                                   * GENRE, what REC deals (here since v0.10: the byte was an old delay
+                                                   * level, unused since v0.3, cleared when older settings are brought on) */
     uint8_t room_t, comp_t, delay_t, pan_t;       /* FX a third time: their types */
     uint8_t dtime, dfb, glitch, mapx;             /* FX a fourth time: DELAY's TIME (index), FEEDBACK, GLITCH; the groove map's place */
     uint8_t mapy, swing, accent, breathe;         /* swing: SWING (GLO again), 0..100: straight .. 68 %; accent: the accent
