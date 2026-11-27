@@ -212,6 +212,7 @@ static uint8_t balance(void)             /* the split that leaves the busier cor
 }
 static volatile uint32_t c2_late;
 
+static volatile int vol_ready;            /* the volume knob's reading settled (app_frame) */
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 {
     static float L[BLKN], R[BLKN];
@@ -219,8 +220,14 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
      * through faintly), the rest as it was */
     float mq = (float)master_q12 < 6.0f ? 0.0f : ((float)master_q12 - 6.0f) / (4096.0f - 6.0f);
     float g = muted || save_hold ? 0.0f : mq * OUT_GAIN;
-    static uint32_t since_boot;
-    if (since_boot < (uint32_t)(1.1f * SR)) { since_boot += n; g *= clamp01(((float)since_boot - 0.8f * SR) / (0.3f * SR)); }
+    /* power-on: silent until the volume knob has really been read (the FM-1 starts it at halfway and eases it to the
+     * knob a step each pass of its loop, slow while it's busy starting: turned down, that was a blast), at least 0.8 s,
+     * then faded in over 0.3 s */
+    static uint32_t since_boot, since_ok;
+    if (since_ok < (uint32_t)(0.3f * SR)) {
+        if (since_boot < (uint32_t)(0.8f * SR)) since_boot += n; else if (vol_ready) since_ok += n;
+        g *= clamp01((float)since_ok / (0.3f * SR));
+    }
     if (set.usb_full & 1) { float u = (float)set.usb_lvl * 0.01f; g *= u * u; }
     int nsub = (int)(n / BLK);
     if (nsub > ENGINE_SUB) nsub = ENGINE_SUB;
@@ -705,10 +712,38 @@ static void holds_clear(void)
     ui.lat_w = 0; ui.lat_b = 0;
 }
 
+/* a key held (OCT-: to the loop's end, 2 OCT+: for good). One punch-in held at a time (they never play together: pitch
+ * up and down would cancel, two loops fight), so it takes the place of the one before; the two filters and FILL are
+ * held alongside it */
+static void hold_w(int i, int hold, uint32_t keys)
+{
+    static const uint8_t WK[16] = PLAT_WHITE_KEYS;
+    int pu = PU_KEY[i], filt = pu == PU_HPF || pu == PU_LPF || pu == PU_FILL;
+    if (!filt) for (int k = 2; k < 15; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }
+    ui.lat_w |= (uint16_t)(1u << i); ui.lat_w_until[i] = hold == 2 ? 0 : loop_end();
+    ui.lat_w_dep[i] = key_depth(WK[i], i == 0); ui.oct_used[hold - 1] = 1;
+    pop(hold == 2 ? "HELD" : "HELD TO THE LOOP'S END", PU_NAME[pu], C_TXT);
+    ui.pop_until = plat_ms() + 700u;
+}
+#define RND_WHAT(j) (RND_KEY[j].bits == 7 ? "TONE, WEIGHT, ENTROPY" : RND_KEY[j].bits == 1 ? "TONE" : RND_KEY[j].bits == 2 ? "WEIGHT" : "ENTROPY")
+static void hold_b(int j, int hold)
+{
+    static const uint8_t BK[11] = PLAT_BLACK_KEYS;
+    const char *what = RND_KEY[j].part < 0 ? "EVERY PART" : PART_NAME[RND_KEY[j].part];
+    uint16_t c = RND_KEY[j].part < 0 ? C_TXT : PART_C[RND_KEY[j].part];
+    ui.lat_b |= (uint16_t)(1u << j); ui.lat_b_until[j] = hold == 2 ? 0 : loop_end();
+    ui.lat_b_dep[j] = 0.4f + 0.6f * key_depth((uint32_t)BK[j], 1); ui.oct_used[hold - 1] = 1;
+    pop(hold == 2 ? "RANDOM, HELD" : "RANDOM, TO THE LOOP'S END", what, c);
+    text_cat(ui.pop_3, RND_WHAT(j)); ui.pop_until = plat_ms() + 900u;
+}
+
 static void keys_input(uint32_t keys, uint32_t btn)
 {
     static const uint8_t WK[16] = PLAT_WHITE_KEYS, BK[11] = PLAT_BLACK_KEYS;
     int hold = btn >> B_OCTUP & 1u ? 2 : btn >> B_OCTDN & 1u ? 1 : 0;   /* (OCT+: for good; OCT-: to the loop's end) */
+    /* or the other way round: a key held, then OCT- or OCT+ tapped */
+    static uint32_t btn_was; uint32_t bdn = btn & ~btn_was; btn_was = btn;
+    int tap = bdn >> B_OCTUP & 1u ? 2 : bdn >> B_OCTDN & 1u ? 1 : 0;
     uint32_t now_t = eng.tick;
     /* the holds that have reached the loop's end */
     for (int i = 0; i < 16; i++)
@@ -725,10 +760,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
             if (hold) {                          /* a hold: one punch-in held at a time (they never play together: pitch up and
                                                   * down would cancel, two loops fight), so it takes the place of the one
                                                   * before; the two filters are held alongside it */
-                if (!filt) for (int k = 2; k < 15; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }
-                ui.lat_w |= (uint16_t)(1u << i); ui.lat_w_until[i] = hold == 2 ? 0 : loop_end();
-                ui.lat_w_dep[i] = key_depth(kk, i == 0); ui.oct_used[hold - 1] = 1;
-                pop(hold == 2 ? "HELD" : "HELD TO THE LOOP'S END", PU_NAME[pu], C_TXT);
+                hold_w(i, hold, keys);
             } else if (ui.lat_w >> i & 1u) {     /* pressed again: its hold let go (it plays while pressed) */
                 ui.lat_w &= (uint16_t)~(1u << i);
                 pop("LET GO", PU_NAME[pu], C_TXT);
@@ -736,6 +768,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
             if (!filt) { pu_drop(i); if (ui.pu_n < 16) ui.pu_order[ui.pu_n++] = (uint8_t)i; }
             ui.pop_until = plat_ms() + 700u;
         }
+        else if ((keys & b) && tap) hold_w(i, tap, keys);   /* (held, then OCT- or OCT+ tapped: held from now) */
         if (!(keys & b) && (ui.keys & b) && !(ui.lat_w >> i & 1u)) pu_drop(i);   /* let go, not held */
     }
     int top = ui.pu_n ? ui.pu_order[ui.pu_n - 1] : -1;
@@ -752,15 +785,11 @@ static void keys_input(uint32_t keys, uint32_t btn)
         if (pressed) {
             const char *what = RND_KEY[j].part < 0 ? "EVERY PART" : PART_NAME[RND_KEY[j].part];
             uint16_t c = RND_KEY[j].part < 0 ? C_TXT : PART_C[RND_KEY[j].part];
-            if (hold) {
-                ui.lat_b |= (uint16_t)(1u << j); ui.lat_b_until[j] = hold == 2 ? 0 : loop_end();
-                ui.lat_b_dep[j] = 0.4f + 0.6f * key_depth((uint32_t)kk, 1); ui.oct_used[hold - 1] = 1;
-                pop(hold == 2 ? "RANDOM, HELD" : "RANDOM, TO THE LOOP'S END", what, c);
-            } else if (ui.lat_b >> j & 1u) { ui.lat_b &= (uint16_t)~(1u << j); pop("RANDOM, LET GO", what, c); }
+            if (hold) hold_b(j, hold);
+            else if (ui.lat_b >> j & 1u) { ui.lat_b &= (uint16_t)~(1u << j); pop("RANDOM, LET GO", what, c); }
             else pop("RANDOM", what, c);
-            text_cat(ui.pop_3, RND_KEY[j].bits == 7 ? "TONE, WEIGHT, ENTROPY" : RND_KEY[j].bits == 1 ? "TONE" : RND_KEY[j].bits == 2 ? "WEIGHT" : "ENTROPY");
-            ui.pop_until = plat_ms() + 900u;
-        }
+            if (!hold) { text_cat(ui.pop_3, RND_WHAT(j)); ui.pop_until = plat_ms() + 900u; }
+        } else if (held && tap) hold_b(j, tap);   /* (held, then OCT- or OCT+ tapped: held from now) */
         float d = held ? 0.4f + 0.6f * key_depth((uint32_t)kk, 1) : ui.lat_b >> j & 1u ? ui.lat_b_dep[j] : -1.0f;
         if (d < 0) continue;
         for (int p = 0; p < NPARTS; p++) if (RND_KEY[j].part < 0 || RND_KEY[j].part == p) { bits[p] |= RND_KEY[j].bits; if (d > dep[p]) dep[p] = d; }
@@ -1011,11 +1040,38 @@ static void draw_view(void)
     }
 }
 
+/* the beat: a square in the header's corner lit on every beat (white), the bar's downbeat in the kick's colour, dark
+ * between; for timing the punch-ins, which start on the next beat. Redrawn the moment it changes, not every 100 ms */
+#define BEAT_X 214
+#define BEAT_Y 5
+#define BEAT_S 18
+static int beat_state(void)
+{
+    if (!set.playing) return 0;
+    float b = eng.beat, ph = b - fm_floorf(b);
+    if (ph >= 0.2f) return 0;
+    return (int)b % 4 == 0 ? 2 : 1;
+}
+static void beat_rect(int x, int y, int st)
+{
+    uint16_t c = st == 2 ? PART_C[P_KICK] : st == 1 ? C_WHITE : RGB(34, 34, 42);
+    cv_rect(x, y, BEAT_S, BEAT_S, c);
+}
+static int beat_shown = -1;
+static void beat_box(void)
+{
+    int st = beat_state();
+    if (st == beat_shown || full_now()) return;
+    beat_shown = st;
+    cv_begin(BEAT_S, BEAT_S, C_BLACK);
+    beat_rect(0, 0, st);
+    cv_blit(BEAT_X, BEAT_Y);
+}
+
 static void draw_header(void)
 {
-    char name[40], right[32] = "";
+    char name[40];
     groove_label(name);
-    text_cat(right, NOTE_NAME[set.cur.key]); text_cat(right, " "); text_cat(right, SCALES[set.cur.scale].name);
     cv_begin(240, HEAD_H, C_BLACK);
     cv_text(4, 2, &FONT_B, name, C_TXT);
     {
@@ -1024,7 +1080,7 @@ static void draw_header(void)
         int x = 4 + text_w(&FONT_XS, t) + 10;
         for (int p = 0; p < NPARTS; p++) { cv_rect(x, 19, 6, 6, dim(PART_C[p], 0.3f + 0.7f * eng.meter[p])); x += 10; }
     }
-    cv_text(236 - text_w(&FONT_XS, right), 4, &FONT_XS, right, C_SUB);
+    beat_shown = beat_state(); beat_rect(BEAT_X, BEAT_Y, beat_shown);
     cv_rect(0, HEAD_H - 1, 240, 1, C_RULE);
     cv_blit(0, 0);
 }
@@ -1165,6 +1221,14 @@ void app_ui_init(void)
 
 void app_frame(void)
 {
+    if (!vol_ready) {                            /* the volume knob: settled once its reading has stopped moving for a
+                                                  * dozen passes (or after 5 s, whatever) */
+        static uint32_t last_m = 0xFFFFFFFFu; static int calm, passes;
+        uint32_t m = plat_master();
+        if (last_m != 0xFFFFFFFFu && (m > last_m ? m - last_m : last_m - m) <= 4u) calm++; else calm = 0;
+        last_m = m; passes++;
+        if ((passes >= 20 && calm >= 12) || plat_ms() > 5000u) vol_ready = 1;
+    }
     uint32_t now = plat_ms();
     {   uint32_t xr = plat_xruns();
         if (xr != xr_seen) { if (save_end && now - save_end < 500u) xr_saves += xr - xr_seen; xr_seen = xr; }
@@ -1208,6 +1272,7 @@ void app_frame(void)
         save_hold = 0;
     }
     if (now - ui.last_head >= 100u && !full_now()) { ui.last_head = now; draw_header(); }
+    else beat_box();
 }
 
 #ifdef PLAT_HOST

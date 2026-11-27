@@ -132,3 +132,28 @@ expect pu 9
 wait 9000
 expect pu 0
 expect playing 1
+# or the other way round: a key held, then OCT- or OCT+ tapped; let go of the key, it's still held. OCT+ alone: all go
+key w7 down 100
+wait 100
+press OCT+
+wait 50
+release OCT+
+wait 50
+key w7 up
+wait 400
+expect pu 7
+key b0 down 100
+wait 100
+press OCT-
+wait 50
+release OCT-
+key b0 up
+wait 300
+expect rnd0 1
+expect pu 7
+press OCT+
+wait 50
+release OCT+
+wait 400
+expect pu 0
+expect rnd0 0

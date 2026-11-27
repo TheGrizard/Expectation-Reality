@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <xmmintrin.h>
 #include "../dsp/engine.h"
 
 static Engine eng;
@@ -153,6 +154,8 @@ static void run(const char *path, float secs, int punch)
             gr.pan_t = (uint8_t)(sec % 3); gr.pan = 70;
             for (int p = 1; p < NPARTS; p++) { gr.p[p].s_room = 55; gr.p[p].s_delay = 50; gr.p[p].s_pan = 70; }
         }
+        if (getenv("FILLDEMO")) { float b = eng.beat - 16.0f * (float)(int)(eng.beat / 16.0f); eng.fill_want = b >= 7.5f && b < 8.5f; }   /* (FILL tapped
+                                                    * in every fourth bar's run-up: the third bar of four the fill) */
         if (getenv("TONESWEEP")) { float u = k * 4.0f; u -= (float)(int)u; u = u < 0.5f ? u * 2.0f : 2.0f - u * 2.0f; for (int p = 0; p < NPARTS; p++) gr.p[p].tone = (uint8_t)(25.0f + 50.0f * u); }   /* (back and forth across 12 o'clock) */
         if (ai) {                                 /* a pretend After Images: GROUND each beat, LIGHT busy */
             float b = eng.beat;
@@ -312,6 +315,8 @@ static void bench(void)
 
 int main(int argc, char **argv)
 {
+    if (getenv("FTZ")) _mm_setcsr(_mm_getcsr() | 0x8040u);   /* (tiny numbers flushed to 0: timed against without, any
+                                                               * difference is time spent on them, as the FM-1 would) */
     dsp_init(); drums_init();
     if (argc < 2) { fprintf(stderr, "render SEED|default SECONDS OUT.wav | sweep ENGINE OUT.wav | punch SEED OUT.wav | calibrate | bench\n"); return 2; }
     if (!strcmp(argv[1], "calibrate")) { calibrate(); return 0; }

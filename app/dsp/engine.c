@@ -202,7 +202,7 @@ static void deal_step(Engine *e, int p, uint32_t s)
 {
     Part *P = &e->P[p]; Groove *g = e->g; Pattern *pt = &P->pat;
     int len = pt->len; uint32_t tps = RATE_TICKS[pt->rate % NUM_RATES], t0 = s * tps;
-    uint32_t bar = t0 / BAR; int on16 = t0 % 24u == 0;
+    uint32_t bar = t0 / BAR; int on16 = t0 % 24u == 0, infill = 0;
     {   /* the fills by themselves: the last beat of every 8 bars (every 4, EVOLVE well up), now and then, decided as the bar
          * begins; then, in a fill, the groove's variation in place of the pattern */
         float Ef = (float)g->evolve * 0.01f;
@@ -211,7 +211,8 @@ static void deal_step(Engine *e, int p, uint32_t s)
             if (g->evolve >= 30 && (bar % 8u == 7u || (Ef > 0.6f && bar % 4u == 3u)) && rng_chance(&e->rng, 0.3f + 0.5f * Ef)
                 && !(e->fill_to > bar * BAR)) fill_start(e, bar * BAR + 3u * TPB, (bar + 1u) * BAR);
         }
-        if (t0 >= e->fill_from && t0 < e->fill_to && e->fpat[p].len == len) pt = &e->fpat[p];
+        infill = t0 >= e->fill_from && t0 < e->fill_to;
+        if (infill && e->fpat[p].len == len) pt = &e->fpat[p];
     }
     float E = (float)g->evolve * 0.01f, A = (float)g->activity * 0.01f, L = (float)g->link * 0.01f, W = (float)g->warp * 0.01f, C = (float)g->chaos * 0.01f;
     int fill = bar % 4u == 3u;
@@ -242,6 +243,11 @@ static void deal_step(Engine *e, int p, uint32_t s)
         static const float FRAC[NPARTS] = { 0.25f, 0.12f, 0.6f, 0.68f };   /* (at 100: what 40 was in v0.2, measured) */
         float frac = clampf(A * FRAC[p] + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.2f * clamp01((e->ai_act - 4.0f) / 16.0f), 0.0f, 1.0f);
         int allowed = core_n + (int)((float)(hits > core_n ? hits - core_n : 0) * frac + 0.5f);
+        if (infill && (p == P_PERC || p == P_HATS)) {   /* (a fill: the perc and hats busier, more of their own pattern's
+                                                         * steps, on the sixteenths, never rolled) */
+            static const float MORE[NPARTS] = { 0, 0, 4.0f, 5.0f };   /* (a bar's worth more) */
+            allowed += (int)((float)len * MORE[p] / spb16 + 0.5f) + (hits > allowed ? (hits - allowed) / 2 : 0);
+        }
         plays = above < allowed;
     }
     if (!on16 && A < 0.35f && rng_f(&e->rng) > A / 0.35f) plays = 0;   /* (low ACTIVITY: the 32nds and off-grid steps thinned) */
@@ -277,6 +283,11 @@ static void deal_step(Engine *e, int p, uint32_t s)
             hp.note = (float)(e->ai_light % 12 + 48) + (float)g->p[P_PERC].pitch;
             push_ev(P, t0, 48.0f, &hp, hit_pan(e, p), 0);
         }
+    }
+    if (p == P_KICK && infill) {                 /* a fill: the kick on the bar's downbeat alone (whatever its pattern has
+                                                  * there), the rest of it left to the perc and hats */
+        plays = t0 % BAR == 0;
+        if (plays && st->lvl == 0) vel = fm_maxf((float)pt->s[0].vel / 127.0f, 0.75f);
     }
     /* CHAOS: rolls, gaps and hits pushed off the grid, at random */
     if (plays && p != P_KICK && rng_chance(&e->rng, C * 0.25f)) ratch = ratch > 1 ? ratch : 2 + rng_int(&e->rng, 3);
@@ -606,6 +617,19 @@ static void punch_engage(Engine *e, int pu, int at)   /* (at: the sample of this
         if (to < beat * 0.125f) to += beat * 0.5f;
         if (to > half) to = half;
         e->swell_len = e->swell_left = (int)to;
+        /* what it swells into: the strongest hit in the memory (the nearer the better), reached backwards just as the
+         * beat lands, so there is always something there to swell, however staccato the kit */
+        int len = (int)to, best = len; float bv = -1.0f;
+        for (int d = len; d <= PUNCH_BUF - len - 64; d += 16) {
+            int rd = e->pw - d; while (rd < 0) rd += PUNCH_BUF;
+            float v = (fm_fabsf(from16(e->pb[0][rd])) + fm_fabsf(from16(e->pb[1][rd]))) * (1.0f - 0.35f * (float)d / (float)PUNCH_BUF);
+            if (v > bv) { bv = v; best = d; }
+        }
+        e->sw_off = best - len;
+    }
+    if (pu == PU_FREEZE) {                       /* FREEZE catches the whole kit's last half beat from the memory, whatever
+                                                  * is sent to the room and wherever it's pressed */
+        e->frz_len = e->frz_left = (int)fm_minf(beat * 0.5f, (float)(PUNCH_BUF - 512));
     }
     /* the repeats, GLITCH and REVERSE are held to the grid: the slice starts on the last line of its own grid
      * (an eighth, a sixteenth...) before the key, so it loops in time with the groove however late it was pressed. The
@@ -707,7 +731,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             float dip_t = 0;
             if (e->pu == PU_SWELL && e->swell_left > 0) {
                 int ks = e->swell_len - e->swell_left;
-                int rd = e->ps0 - 1 - ks; while (rd < 0) rd += PUNCH_BUF;
+                int rd = e->ps0 - 1 - e->sw_off - ks; while (rd < 0) rd += PUNCH_BUF;
                 float t = e->swell_len ? (float)ks / (float)e->swell_len : 1.0f;
                 float gsw = t * t * e->pu_mix * (e->swell_left < 132 ? (float)e->swell_left / 132.0f : 1.0f);   /* (its last 3 ms faded) */
                 float r0 = from16(e->pb[0][rd % PUNCH_BUF]) * gsw, r1 = from16(e->pb[1][rd % PUNCH_BUF]) * gsw;
@@ -741,10 +765,17 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         outL[i] = L; outR[i] = R;
         /* the room's input: through the gated room's pre-delay, held a moment at FREEZE (a punch-in) */
         float feed = 1.0f - fz * (1.0f - e->frz_feed);
-        /* FREEZE takes the kick in too (whatever its ROOM send): while it's catching its moment, faded in and out over
-         * ~7 ms */
-        e->frz_k += ((e->pu == PU_FREEZE && !e->pu_rel && e->frz_feed > 0 ? 1.0f : 0.0f) - e->frz_k) * 0.003f;
-        if (e->frz_k > 1e-5f) { rl += kL * 0.7f * e->frz_k; rr += kR * 0.7f * e->frz_k; } else e->frz_k = 0;
+        /* FREEZE's catch: the whole kit (the kick too), its last half beat played into the room from the memory, its
+         * ends faded over 3 ms */
+        if (e->frz_left > 0) {
+            if (e->pu != PU_FREEZE) e->frz_left = 0;
+            else {
+                int ks = e->frz_len - e->frz_left, rd = e->ps0 - e->frz_len + ks; while (rd < 0) rd += PUNCH_BUF;
+                float w = fm_minf(1.0f, fm_minf((float)ks, (float)e->frz_left) / 132.0f) * 0.8f;
+                rl += from16(e->pb[0][rd % PUNCH_BUF]) * w; rr += from16(e->pb[1][rd % PUNCH_BUF]) * w;
+                e->frz_left--;
+            }
+        }
         if (pre) {
             float m = (rl + rr) * 0.5f;
             e->room_buf[e->room_w] = to16(m);
@@ -905,7 +936,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         { float st = 1.0f / (0.004f * SR); e->pu_mix += clampf(tgt - e->pu_mix, -st, st); }
         if (pu && e->pu_rel && e->pu_mix < 0.0005f) { e->pu = pu = 0; e->pu_rel = 0; e->pu_frozen = 0; e->pu_mix = 0; }   /* (FREEZE's hold fades on, below) */
         if (pu == PU_FREEZE) {                    /* FREEZE: the room fed a moment, then held, the groove going on over it */
-            e->frz_feed = e->rpos < beat * 0.125f ? 1.0f : 0.0f;
+            e->frz_feed = e->rpos < (float)e->frz_len ? 1.0f : 0.0f;
             e->frz += ((e->pu_rel ? 0.0f : 1.0f) - e->frz) * 0.0004f;
             e->rpos += 1.0f;
         } else if (e->frz > 0) { e->frz += (0.0f - e->frz) * 0.0004f; if (e->frz < 1e-4f) e->frz = 0; }

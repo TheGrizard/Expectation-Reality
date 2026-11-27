@@ -40,7 +40,7 @@ The name is the idea. **Expectation** is the groove REC deals: a fixed loop that
 | REC | a new groove (a new key too; one part's sound carried over; the tempo stays as you set it) |
 | REC held | a new groove in the same key |
 | SEL held + REC | the chosen part dealt afresh |
-| OCT- / OCT+ held, as you press a key | hold that punch-in or randomiser: to the loop's end (OCT-) or for good (OCT+) |
+| OCT- / OCT+ held as you press a key, or tapped while you hold it | hold that punch-in or randomiser: to the loop's end (OCT-) or for good (OCT+) |
 | OCT+ alone | let every hold go |
 | HOME held + OCT- / OCT+ | back and forward through the grooves REC replaced |
 | SAVE | keep the groove |
@@ -101,8 +101,9 @@ SCREEN's **STYLE** (GLO three times) has a second look, **TONES**: the squares i
 part's colour, fading back to its grey. The palettes still change with each REC, so the colours come and go over the
 same tonal layout.
 
-On the other pages the top shows the groove's name, its tempo and four lights (the parts, as they play), and the
-bottom shows the page's four settings, After Images' way: the one you turn last shows big.
+On the other pages the top shows the groove's name, its tempo and four lights (the parts, as they play), and in the
+top right corner a square that flashes on every beat: white, and in the kick's colour on the bar's downbeat. The
+punch-ins start on the next beat, so it shows you where they'll land. The bottom shows the page's four settings, After Images' way: the one you turn last shows big.
 
 ## 5. The four parts
 
@@ -227,8 +228,8 @@ The velocities have a shape of their own, dealt by REC: the bar's weight (the on
 four, the offbeats softest; the kick leaning on it most), an accent every three, five or seven sixteenths drifting
 across the bar, and a slow swell over a few bars.
 
-Every eight bars (every four, EVOLVE well up) a fill may come on the last beat: the groove changed a little for that
-beat (a hit moved, two traded), then back. The FILL key (section 13) plays one whenever you like.
+Every eight bars (every four, EVOLVE well up) a fill may come on the last beat: the kick steps out, the perc and hats
+get busier, the snare plays a little variation, then the groove comes back. The FILL key (section 13) plays one whenever you like.
 
 ## 10. Effects
 
@@ -300,7 +301,7 @@ while it follows a clock.
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
-| 2 | FILL: the groove changes a little from the next beat, for a bar; held, for as long as you hold it |
+| 2 | FILL: from the next beat, for a bar (held, for as long as you hold it): the kick on the downbeat alone, the perc and hats busier |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
@@ -310,15 +311,20 @@ while it follows a clock.
 | 9 | PITCH UP an octave |
 | 10 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more |
 | 11 | REVERSE: the eighth before, backwards, in time |
-| 12 | FREEZE: the room held as an endless wash (the kick in it too), the groove going on over it |
-| 13 | SWELL: the last moments backwards, swelling into the next beat |
+| 12 | FREEZE: the last half beat of the whole kit caught in the room and held as an endless wash, the groove going on over it |
+| 13 | SWELL: the latest strong hit played backwards, swelling into the next beat |
 | 14 | CRUSH |
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
 
-FILL plays alongside the punch-ins and filters. A fill is a simple change of the groove, not a roll: every part plays
-a slight variation of its own pattern (a snare hit moved next door, a couple of hats and perc shifted, the kick
-barely touched), then the groove comes back as it was. Each fill is a different variation.
+FILL plays alongside the punch-ins and filters. A fill is a simple change of the groove, not a roll: the kick steps
+out (only the bar's downbeat, if the fill reaches one), the perc and hats bring in more of their own patterns (on the
+sixteenths, never rolled or speeding up), the snare plays a slight variation of its own, then the groove comes back as
+it was. Each fill is a different variation.
+
+FREEZE and SWELL always have something to work with, whatever is sent to the reverb and wherever you press: FREEZE
+takes the whole kit's last half beat, kick included; SWELL finds the latest strong hit and plays it backwards, landing
+on the beat.
 
 **On the beat.** While it plays, a punch-in waits for the next beat to start (pressed up to a sixteenth late, it starts
 at once) and ends on the sixteenth after you let go, so a loose press still lands in time. A quick tap let go before
@@ -328,8 +334,9 @@ the instant you press, and stopped, everything is instant.
 The repeats, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
 line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
 
-**Holds.** Hold **OCT-** as you press a key and it stays on to the end of the loop (the kick's pattern, at least a
-beat away); hold **OCT+** as you press it and it stays on for good. A held key stays lit. Press it again to let it go,
+**Holds.** Hold **OCT-** as you press a key, or hold the key and tap OCT-, and it stays on to the end of the loop
+(the kick's pattern, at least a beat away); **OCT+** the same way and it stays on for good. Either order works, for
+the white keys and the black. A held key stays lit. Press it again to let it go,
 or press OCT+ on its own to let every hold go. One punch-in plays at a time (pitch up and down would cancel, two loops
 would fight), so holding a new one lets go of the one held before; the two filters can be held alongside it, and any
 number of black keys. While a punch-in is held, pressing another plays that one for as long as you press it. The latest key held plays; the two filters work alongside
@@ -403,7 +410,9 @@ a stereo audio input.
 - **Following a clock and nothing plays**: with CLOCK IN it waits for the leader's Start. Press play on the
   leader, or set CLOCK to INT.
 - **The perc sounds out of key with After Images**: set the same KEY and SCALE (GLO again), or turn FOLLOW on.
-- **It seems busy or tired, or crackles**: tap HOME at home: it shows the processor's load and any audio drops (each
-  drop is a crackle). Drops climbing? Tell me the groove and the settings.
+- **It seems busy or tired, or crackles**: tap HOME at home: it shows the processor's load, any audio drops (each
+  drop is a crackle) and 2 CORES or 1 CORE. Drops climbing? Tell me what it shows, the groove and the settings.
+- **At power-on**: it stays silent until it has read the volume knob, then fades in, so with the volume down nothing
+  comes through.
 
 Expectation Reality is free and open source (MPL-2.0), by TheGrizard, built on fm1-base by Charles Vestal.

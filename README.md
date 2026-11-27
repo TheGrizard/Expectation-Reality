@@ -32,7 +32,8 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
   fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
   through the whole hit; MOOD plays the kit heavy and long or bright and short.
 - **Punch-ins on the white keys** (high-pass, a fill key, repeats, glitch, pitch down and up, tape mash, reverse, freeze, swell,
-  crush, kill kick, low-pass; the repeats held to the grid) and **randomisers on the black keys** (each part's colours thrown at every hit).
+  crush, kill kick, low-pass; quantised to the beat, the repeats held to the grid, a beat light in the corner of the
+  screen, holds on OCT- and OCT+ in either order) and **randomisers on the black keys** (each part's colours thrown at every hit).
 - **The kit's bus.** Sends a part: REVERB, DELAY, PAN, COMP (all dry as dealt). A tape compressor with the kick wired to
   its sidechain (CLEAN or TAPE SMASH); a reverb that is ROOM, GATED, REVERSE or FREEZE, its size yours; a delay CLEAN or
   GRANULAR, with GLITCH. The mix balanced as After Images' is, and limited under -1 dBFS.
