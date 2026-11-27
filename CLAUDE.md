@@ -81,9 +81,9 @@ Generative at its core, with macros across the main features, as After Images ha
   (scattered, not in rows), and it fades back in in that part's colour, so the hits slowly repaint the layout
   (After Images adds a dot on a hit; this removes one). Whole squares meet edge to edge (no black line); a knocked-out
   one grows back. 8x8 by default (the owner loves it), with After Images'
-  COUNT setting on the SCREEN page for other sizes. Only loud kicks and snares knock out a 2x2 block, and every hit
-  in the loop's first beat (the kick and snare patterns' cycle): those in one contrasting colour (the furthest from
-  the palette), settling into their own, so the top of the loop shows on the home grid.
+  COUNT setting on the SCREEN page for other sizes. Only loud kicks and snares knock out a 2x2 block. The top of
+  the loop (the kick and snare patterns' cycle) clears the middle of the grid (4x4 at 8x8, half its width at other
+  sizes), growing back; in TONES, black fading back to grey.
   Colours: four clearly contrasting hues a palette, one per part, as After Images' rule has it; REC deals one from a
   shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's
   favourites ACID (#d7ff00, #ff00a8, #00e5ff, #ffffff) and ULTRAVIOLET (#8a2bff, #ff00f7, #00f0ff, #f4e8ff), in the

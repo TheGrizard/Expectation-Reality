@@ -92,9 +92,9 @@ At home the whole screen is a grid of squares in four colours, one for each part
 the grid, somewhere at random, and it grows back in that part's colour, as fast as the sound dies away: a hat
 blinks, a tom leaves a hole that slowly fills. Whole squares fill their cells and meet their neighbours edge to edge,
 so the colours lie in solid fields. Loud kicks and snares knock out a block of four. **The top of the loop** shows:
-every hit in the loop's first beat (the kick's and snare's patterns, one or two bars) knocks out a block of four that
-grows back in one contrasting colour (whichever stands out most from the palette: white, red, yellow, cyan, magenta
-or green), then settles into its own colour. So the hits slowly
+at the start of each loop (the kick's and snare's patterns, one or two bars) the middle of the grid clears, a 4x4
+block at the default size (half the grid's width at others), and grows back; in TONES it goes black and fades back
+to its greys. So the hits slowly
 repaint the grid: a groove heavy with hats drifts towards their colour. Each REC lays the grid out afresh in a new
 palette, dealt from a shuffled deck of sixteen (none twice until all have come): After Images' nine, ACID and
 ULTRAVIOLET, and five neon ones, LASER, TOXIC, MIAMI, PLASMA and CANDY.
