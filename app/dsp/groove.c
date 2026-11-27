@@ -78,14 +78,17 @@ static void deal_part(Groove *g, int p, Rng *r, int keep_seq)
     q->level = LV[p]; q->decay = 50; q->pitch = 0;
     static const uint8_t PAN[NPARTS] = { 50, 52, 38, 64 };
     q->pan = (uint8_t)clampi(PAN[p] + (p >= P_PERC ? rng_int(r, 17) - 8 : 0), 0, 100);
-    if (p == P_KICK) { q->s_room = q->s_delay = q->s_pan = q->s_duck = 0; }
+    /* the sends: every part dealt dry (REVERB, DELAY, PAN and COMP are yours to add, the kick's too).
+     * (the old amounts still drawn and dropped, so the rest of the groove deals as it did) */
+    if (p == P_KICK) { q->s_room = q->s_delay = q->s_pan = q->s_comp = 0; }
     else {
         static const uint8_t RM[NPARTS][2] = { { 0, 0 }, { 35, 62 }, { 10, 35 }, { 5, 20 } }, DL[NPARTS][2] = { { 0, 0 }, { 0, 12 }, { 20, 60 }, { 10, 30 } };
         static const uint8_t PN[NPARTS][2] = { { 0, 0 }, { 0, 30 }, { 30, 70 }, { 20, 60 } }, DU[NPARTS][2] = { { 0, 0 }, { 20, 50 }, { 20, 60 }, { 40, 80 } };
         q->s_room = (uint8_t)(RM[p][0] + rng_int(r, RM[p][1] - RM[p][0] + 1));
         q->s_delay = (uint8_t)(DL[p][0] + rng_int(r, DL[p][1] - DL[p][0] + 1));
         q->s_pan = (uint8_t)(PN[p][0] + rng_int(r, PN[p][1] - PN[p][0] + 1));
-        q->s_duck = (uint8_t)(DU[p][0] + rng_int(r, DU[p][1] - DU[p][0] + 1));
+        (void)rng_int(r, DU[p][1] - DU[p][0] + 1);
+        q->s_room = q->s_delay = q->s_pan = q->s_comp = 0;
     }
 }
 
@@ -132,7 +135,7 @@ int groove_ok(const Groove *g)
         if (q->engine >= NUM_ENGINES || q->tone > 100 || q->weight > 100 || q->entropy > 100) return 0;
         if (q->gen >= NUM_GENS || q->len < MINLEN || q->len > MAXLEN || q->density > 100 || q->rate >= NUM_RATES) return 0;
         if (q->level > 100 || q->decay > 100 || q->pitch < -24 || q->pitch > 24 || q->pan > 100) return 0;
-        if (q->s_room > 100 || q->s_delay > 100 || q->s_pan > 100 || q->s_duck > 100) return 0;
+        if (q->s_room > 100 || q->s_delay > 100 || q->s_pan > 100 || q->s_comp > 100) return 0;
     }
     return 1;
 }

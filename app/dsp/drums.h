@@ -77,7 +77,7 @@ typedef struct {
      * (how wide and long it spreads), stretched as the hit gets longer: a softened start, a click that leaves the body
      * ringing, a noise snap that leaves a rasp, a zap that keeps diving, a ring-modulated edge, a crushed stutter */
     struct { Svf f, f2; float click, nzv, nzk, zf, zf0, zf1, zk, za, zak, zph, rm, rmf, rmk, rph, rdf, cr, crf, crk, crr, cph, cv,
-             gph, gdf, gs, fol, tn, tz, tres; uint16_t atk, len, zper, zcnt; uint8_t ring, tail; } fr;
+             gph, gdf, gs, fol, tn, tz, tres, zt; uint16_t atk, len, zper, zcnt; uint8_t ring, tail; } fr;
     union { float comb[160]; int16_t ks[KS_LEN]; } line;   /* (last: hit_start clears all before it; the engines fill it) */
 } Hit;
 

@@ -26,15 +26,16 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 - **Step components.** Like an Elektron's or an OP-Z's: ratchets, nudges, conditions (1:2, 3:4, FILL), probabilities,
   ghosts, open hats, pitches, accents. Each switches on at its own point on EVOLVE.
 - **A groove that breathes.** Velocities shaped by the bar's weight, a drifting accent cycle and a slow swell; WARP a
-  humaniser; machine-like fills, and a FILL key.
+  humaniser; fills that change the groove a little, and a FILL key.
 - **Eighteen drum engines**: 808, MEMBRANE, BOX, FM KICK, CLAP, WIRES, GRAIN, CRACK, BENT (circuit-bent), MATERIAL,
   FM PERC, STRING, FOLEY (boxes, wood, footsteps, drags), METAL, DUST, DIGITAL, VOX, CLICK. WEIGHT sets a hit's
   fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
   through the whole hit; MOOD plays the kit heavy and long or bright and short.
 - **Punch-ins on the white keys** (high-pass, a fill key, repeats, glitch, pitch down and up, tape mash, reverse, freeze, swell,
   crush, kill kick, low-pass; the repeats held to the grid) and **randomisers on the black keys** (each part's colours thrown at every hit).
-- **The kit's bus.** Sends a part: ROOM, DELAY, PAN, DUCK. A tape compressor with the kick wired to its sidechain
-  (CLEAN or TAPE SMASH); a room that is ROOM, GATED, REVERSE or FREEZE; a delay CLEAN or GRANULAR, with GLITCH.
+- **The kit's bus.** Sends a part: REVERB, DELAY, PAN, COMP (all dry as dealt). A tape compressor with the kick wired to
+  its sidechain (CLEAN or TAPE SMASH); a reverb that is ROOM, GATED, REVERSE or FREEZE, its size yours; a delay CLEAN or
+  GRANULAR, with GLITCH. The mix balanced as After Images' is, and limited under -1 dBFS.
 - **Plays with After Images.** Follows its MIDI clock to the beat and the bar and hears its notes: busier when it's
   busier, the kick leaning into GROUND, the perc in its key and answering LIGHT.
 - **After Images' look.** The same pages, knobs and names, and its MATRIX turned inside out: every hit knocks a

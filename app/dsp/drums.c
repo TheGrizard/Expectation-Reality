@@ -92,9 +92,9 @@ static void front_start(Hit *h, const HitP *p, float E, float w, float b, int en
 
 static inline float front_run(Hit *h, float s)
 {
-    float t = (float)h->n, a = fm_fabsf(s);
-    h->fr.fol += (a - h->fr.fol) * (a > h->fr.fol ? 0.02f : 0.0015f);   /* (the body's level, followed) */
-    if (h->fr.atk && t < (float)h->fr.atk) { float u = t / (float)h->fr.atk; s *= u * u * (3.0f - 2.0f * u); }   /* (softened) */
+    if (h->fr.tn > 0 || h->fr.tz > 0) { float a = fm_fabsf(s); h->fr.fol += (a - h->fr.fol) * (a > h->fr.fol ? 0.02f : 0.0015f); }   /* (the
+                                                  * body's level, followed: only for the tails that ride it) */
+    if (h->fr.atk && h->n < h->fr.atk) { float u = (float)h->n / (float)h->fr.atk; s *= u * u * (3.0f - 2.0f * u); }   /* (softened) */
     if (h->fr.rm > 0) {                                   /* a ring-modulated edge: the body times a fast sine, settling lighter */
         h->fr.rph += h->fr.rdf; if (h->fr.rph >= 1.0f) h->fr.rph -= 1.0f;
         s *= 1.0f - h->fr.rm + h->fr.rm * sine_c(h->fr.rph) * 1.6f; h->fr.rm = h->fr.rmf + (h->fr.rm - h->fr.rmf) * h->fr.rmk; if (h->fr.rm - h->fr.rmf < 1e-5f) h->fr.rm = h->fr.rmf;
@@ -111,12 +111,16 @@ static inline float front_run(Hit *h, float s)
     if (h->fr.ring) ex = bpn(&h->fr.f, x + s * h->fr.tres);   /* (the click and snap ringing out in their band, the body with them) */
     if (h->fr.tn > 0) ex += bpn(&h->fr.f2, nz(&h->ns)) * h->fr.fol * h->fr.tn;
     if (h->fr.tz > 0 && --h->fr.zcnt == 0) {              /* the zap again, as loud as the body is now */
-        h->fr.zcnt = h->fr.zper; h->fr.zf = h->fr.zf1; h->fr.za = fm_maxf(h->fr.za, h->fr.fol * h->fr.tz);
+        h->fr.zcnt = h->fr.zper; h->fr.zf = h->fr.zf1; h->fr.zt = h->fr.fol * h->fr.tz;   /* (risen to, not jumped to) */
+    }
+    if (h->fr.zt > 0) {                                   /* (each zap again eased in over half a millisecond: no click) */
+        h->fr.za += (h->fr.zt - h->fr.za) * 0.1f;
+        if (h->fr.za >= h->fr.zt * 0.98f) h->fr.zt = 0;
     }
     if (h->fr.za > 0) {                                   /* the zap: a sine diving from high to low, fast */
         h->fr.zf = h->fr.zf0 + (h->fr.zf - h->fr.zf0) * h->fr.zk;
         h->fr.zph += h->fr.zf / SR; if (h->fr.zph >= 1.0f) h->fr.zph -= 1.0f;
-        ex += sine_c(h->fr.zph) * h->fr.za; fade(&h->fr.za, h->fr.zak);
+        ex += sine_c(h->fr.zph) * h->fr.za; if (h->fr.zt == 0) fade(&h->fr.za, h->fr.zak);
     }
     return s + ex;
 }
@@ -652,5 +656,7 @@ int hit_render(Hit *h, float *out, int n)
     default: break;
     }
     if (lvl < LIVE) h->on = 0;
+    else if (lvl < 3e-4f && h->killk == 0) h->killk = 1.0f / (0.004f * SR);   /* (at -70 dB, below the mix: faded out
+                                                    * over 4 ms and done, rather than rendered on to silence) */
     return h->on;
 }

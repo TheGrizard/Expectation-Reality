@@ -10,6 +10,8 @@ const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "FILL", "REPEAT 1/8", "REP
 /* the pool: the engine and the screen's canvas (29 KB) must fit the FM-1's 336 KB, with room for fm1-base's own */
 typedef char engine_fits_the_pool[sizeof(Engine) <= 285u * 1024u ? 1 : -1];
 
+#include "balance.h"
+int engine_balance_raw;                  /* (the simulator's measuring: 1 no balance, 2 the parts' gains alone) */
 #define LOOK 12                          /* ticks dealt ahead: room for a hit nudged early */
 #define BAR (TPB * 4)
 
@@ -134,12 +136,15 @@ static void make_hit(Engine *e, int p, float vel, float pitch, int alt, HitP *hp
     uint32_t hsh = (g->seed ^ (uint32_t)q->salt * 2654435761u) * 2246822519u;
     float own = (float)(hsh >> 8) * (1.0f / 16777216.0f) - 0.5f;   /* (the part's place, -0.5..0.5: fixed for the groove) */
     float c = clamp01(mood + own * spread * 1.1f + rng_bi(&e->rng) * 0.08f * spread);
+    float craw = c;
+    if (p == P_KICK) c = 0.5f + (c - 0.5f) * 0.35f;   /* (the kick: MOOD moves its tone and weight a third as far: the anchor) */
     hp->engine = q->engine;
     hp->vel = clamp01(vel);
     hp->weight = clamp01((float)q->weight * 0.01f + (c - 0.45f) * 0.3f + P->fw_v);
     hp->entropy = clamp01((float)q->entropy * 0.01f + P->fe_v);
     hp->bright = clamp01(0.88f - 0.7f * c + P->fb_v);
-    hp->decay = fm_exp2f(((float)q->decay - 50.0f) * 0.04f) * fm_exp2f(lerpf(-1.2f, p == P_KICK ? 0.8f : 1.3f, c));   /* (x0.44 .. x2.5; the kick x1.7) */
+    hp->decay = fm_exp2f(((float)q->decay - 50.0f) * 0.04f) * (p == P_KICK ? fm_exp2f(lerpf(-0.15f, 0.5f, craw)) : fm_exp2f(lerpf(-1.2f, 1.3f, c)));   /* (x0.44 .. x2.5;
+                                                    * the kick only x0.9 .. x1.4: never cut short at MOOD's bright end) */
     hp->soft = clamp01((c - 0.55f) / 0.45f);
     hp->bright = clamp01(hp->bright + (hp->vel - 0.7f) * 0.25f);   /* (harder: brighter, and a little heavier) */
     hp->weight = clamp01(hp->weight + (hp->vel - 0.7f) * 0.12f);
@@ -174,49 +179,40 @@ static void make_hit(Engine *e, int p, float vel, float pitch, int alt, HitP *hp
 static float hit_pan(Engine *e, int p)
 {
     const Groove *g = e->g;
-    if (p == P_KICK) return 0.5f;
-    float pan = (float)g->p[p].pan * 0.01f;
+    float pan = p == P_KICK ? 0.5f : (float)g->p[p].pan * 0.01f;   /* (the kick in the middle; scattered only if sent to PAN) */
     if (g->pan_t == PT_SCATTER) pan += rng_bi(&e->rng) * 0.5f * (float)g->pan * 0.01f * (float)g->p[p].s_pan * 0.01f;   /* (each hit thrown somewhere) */
     return clamp01(pan);
 }
 
-/* a fill: one beat, machine-like and on the grid (never speeding up): a broken snare in 32nds, a run down the perc in
- * 16ths, hats in 32nds accented in threes, the snare and perc trading 16ths, or snare triplets building. The kick
- * keeps the groove under it */
-static void fill_roll(Engine *e, uint32_t t0)
+/* a fill: a simple change of the groove, not a roll. Every part plays a slight variation of its own pattern (a hit
+ * moved next door, two steps traded: the snare most, the perc and hats a little, the kick barely), from t0 to t1.
+ * Each fill its own, the variation dealt from the pattern as it is now */
+static void fill_start(Engine *e, uint32_t t0, uint32_t t1)
 {
-    int kind = rng_int(&e->rng, 5);
-    switch (kind) {
-    case 0: for (int k = 0; k < 8; k++) if (k == 0 || rng_chance(&e->rng, 0.6f)) {
-            HitP hp; make_hit(e, P_SNARE, k % 2 ? 0.45f + 0.2f * rng_f(&e->rng) : 0.8f, 0, k % 4 == 3, &hp);
-            push_ev(&e->P[P_SNARE], t0, (float)(k * 12), &hp, hit_pan(e, P_SNARE), 0);
-        } break;
-    case 1: for (int k = 0; k < 4; k++) {
-            HitP hp; make_hit(e, P_PERC, 0.85f - 0.1f * (float)k, (float)(4 - 2 * k), 0, &hp);
-            push_ev(&e->P[P_PERC], t0, (float)(k * 24), &hp, hit_pan(e, P_PERC), 0);
-        } break;
-    case 2: for (int k = 0; k < 8; k++) {
-            HitP hp; make_hit(e, P_HATS, k % 3 == 0 ? 0.9f : 0.5f, 0, 0, &hp);
-            push_ev(&e->P[P_HATS], t0, (float)(k * 12), &hp, hit_pan(e, P_HATS), 0);
-        } break;
-    case 3: for (int k = 0; k < 4; k++) {
-            int p = k % 2 ? P_PERC : P_SNARE;
-            HitP hp; make_hit(e, p, 0.8f, p == P_PERC ? (float)(2 - k) : 0.0f, 0, &hp);
-            push_ev(&e->P[p], t0, (float)(k * 24), &hp, hit_pan(e, p), 0);
-        } break;
-    default: for (int k = 0; k < 6; k++) {
-            HitP hp; make_hit(e, P_SNARE, 0.4f + 0.1f * (float)k, 0, 0, &hp);
-            push_ev(&e->P[P_SNARE], t0, (float)(k * 16), &hp, hit_pan(e, P_SNARE), 0);
-        } break;
+    static const int MUT[NPARTS] = { 1, 3, 2, 2 };
+    e->fill_n++;
+    for (int p = 0; p < NPARTS; p++) {
+        e->fpat[p] = e->P[p].pat;
+        for (int k = 0; k < MUT[p]; k++) pattern_mutate(&e->fpat[p], e->g, p, 0x40000u + e->fill_n * 8u + (uint32_t)k);
     }
-    e->fill_until = t0 + TPB;
+    e->fill_from = t0; e->fill_to = t1;
 }
 
 static void deal_step(Engine *e, int p, uint32_t s)
 {
     Part *P = &e->P[p]; Groove *g = e->g; Pattern *pt = &P->pat;
     int len = pt->len; uint32_t tps = RATE_TICKS[pt->rate % NUM_RATES], t0 = s * tps;
-    uint32_t bar = t0 / BAR; int in16 = (int)((t0 % BAR) / 24u), on16 = t0 % 24u == 0;
+    uint32_t bar = t0 / BAR; int on16 = t0 % 24u == 0;
+    {   /* the fills by themselves: the last beat of every 8 bars (every 4, EVOLVE well up), now and then, decided as the bar
+         * begins; then, in a fill, the groove's variation in place of the pattern */
+        float Ef = (float)g->evolve * 0.01f;
+        if (bar != e->afill_bar) {
+            e->afill_bar = bar;
+            if (g->evolve >= 30 && (bar % 8u == 7u || (Ef > 0.6f && bar % 4u == 3u)) && rng_chance(&e->rng, 0.3f + 0.5f * Ef)
+                && !(e->fill_to > bar * BAR)) fill_start(e, bar * BAR + 3u * TPB, (bar + 1u) * BAR);
+        }
+        if (t0 >= e->fill_from && t0 < e->fill_to && e->fpat[p].len == len) pt = &e->fpat[p];
+    }
     float E = (float)g->evolve * 0.01f, A = (float)g->activity * 0.01f, L = (float)g->link * 0.01f, W = (float)g->warp * 0.01f, C = (float)g->chaos * 0.01f;
     int fill = bar % 4u == 3u;
     /* EVOLVE past 85: now and then a beat played from another beat of the pattern (reality) */
@@ -228,11 +224,26 @@ static void deal_step(Engine *e, int p, uint32_t s)
     int ls = (int)((s + (uint32_t)P->remap) % (uint32_t)len);
     uint32_t cyc = s / (uint32_t)len;
     const Step *st = &pt->s[ls];
-    /* ACTIVITY: at 0 each part's core only (the strongest hits: the kick's, the snare's backbeat, a few perc and hats: a
-     * simple, sparse beat), more coming in as it rises (After Images busier: busier) */
-    float act = 0.235f + A * 0.55f + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.3f * clamp01((e->ai_act - 4.0f) / 16.0f);
-    float thr = 255.0f * (1.0f - clampf(act, 0.21f, 1.0f));
-    int plays = st->lvl > 0 && (float)st->lvl >= thr;
+    /* ACTIVITY: at 0 stripped back (each part's very strongest hits: the kick's, the snare's backbeat, a perc or hat or
+     * two), more coming in as it rises, to a full but never frantic groove at 100 (what 40 was in v0.2); After Images
+     * busier: busier */
+    float act = 0.14f + A * 0.315f + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.3f * clamp01((e->ai_act - 4.0f) / 16.0f);
+    float thr = 255.0f * (1.0f - clampf(act, 0.12f, 1.0f));
+    /* what plays: by rank within the part's own pattern, so every generator thins alike. Its core always (its strongest
+     * hits, about two a bar, the perc one), then the next strongest coming in as ACTIVITY rises: at 100 about a third
+     * of the rest of the pattern's hits (DENSITY a little more or less, After Images busier more) */
+    int plays = 0;
+    if (st->lvl > 0) {
+        static const float CORE[NPARTS] = { 2.0f, 2.0f, 1.0f, 2.0f };
+        float spb16 = (float)BAR / (float)tps;   /* (its steps a bar) */
+        int core_n = (int)((float)len * CORE[p] / spb16 + 0.5f); if (core_n < 1) core_n = 1;
+        int above = 0, hits = 0;
+        for (int k = 0; k < len; k++) { if (pt->s[k].lvl > st->lvl) above++; if (pt->s[k].lvl >= 60) hits++; }
+        static const float FRAC[NPARTS] = { 0.25f, 0.12f, 0.6f, 0.68f };   /* (at 100: what 40 was in v0.2, measured) */
+        float frac = clampf(A * FRAC[p] + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.2f * clamp01((e->ai_act - 4.0f) / 16.0f), 0.0f, 1.0f);
+        int allowed = core_n + (int)((float)(hits > core_n ? hits - core_n : 0) * frac + 0.5f);
+        plays = above < allowed;
+    }
     if (!on16 && A < 0.35f && rng_f(&e->rng) > A / 0.35f) plays = 0;   /* (low ACTIVITY: the 32nds and off-grid steps thinned) */
     if (p == P_KICK && ls == 0 && E < 0.9f && st->lvl >= 250) plays = 1;   /* (the one: always, till EVOLVE is right up) */
     float vel = (float)st->vel / 127.0f, pitch = (float)st->pitch, off = 0;
@@ -292,18 +303,12 @@ static void deal_step(Engine *e, int p, uint32_t s)
         vel *= 1.0f + 0.14f * B * sine_c((float)(t0 % (BAR * 3u)) / (float)(BAR * 3u));   /* (three bars: against the fours) */
     }
     if (off < -(float)LOOK) off = -(float)LOOK;
-    /* a fill: the last beat of every 8 bars (every 4, EVOLVE well up) */
-    if (p == P_SNARE && on16 && in16 == 12 && g->evolve >= 30 && (bar % 8u == 7u || (E > 0.6f && fill)) && rng_chance(&e->rng, 0.3f + 0.5f * E)) {
-        fill_roll(e, t0);
-        return;
-    }
-    if ((p == P_KICK || p == P_SNARE) && t0 < e->fill_until && t0 + TPB > e->fill_until && in16 > 12) plays = 0;
     if (!plays) return;
     if (p == P_KICK) {
-        /* the kick held firm, whatever ACTIVITY, LINK or a ghost adds: a few more hits a bar as ACTIVITY rises (3 to 6
-         * in 16 sixteenths), and no two on neighbouring sixteenths unless the pattern wrote both strong */
+        /* the kick held firm, whatever ACTIVITY, LINK or a ghost adds: a few more hits a bar as ACTIVITY rises (2 to 4
+         * in 16 sixteenths, beside the ones written strong), and no two on neighbouring sixteenths unless the pattern wrote both strong */
         if (bar != e->kick_bar) { e->kick_bar = bar; e->kick_in_bar = 0; }
-        int cap = 3 + (int)(A * 3.0f + 0.5f), strong = st->lvl >= 200;
+        int cap = 2 + (int)(A * 2.0f + 0.5f), strong = st->lvl >= 200;
         if (!strong && (e->kick_in_bar >= cap || (e->kick_n && t0 - e->kick_last <= 24u && t0 != e->kick_last))) return;
         e->kick_in_bar++; e->kick_last = t0;
         e->kick_ticks[e->kick_n++ & 7] = t0;
@@ -371,7 +376,7 @@ void engine_block_begin(Engine *e, int nsub)
     e->rate = r;
     if (e->shed != e->shed_seen) { e->shed_seen = e->shed; e->gov = fm_maxf(0.3f, e->gov * 0.8f); }
     if (e->sync_req) {
-        e->sync_req = 0; e->tick = 0; e->frac = 0; e->clk_tick = 0; e->last_bar = 0; e->fill_until = 0;
+        e->sync_req = 0; e->tick = 0; e->frac = 0; e->clk_tick = 0; e->last_bar = 0; e->fill_from = e->fill_to = 0; e->afill_bar = 0xFFFFFFFFu;
         for (int p = 0; p < NPARTS; p++) { e->P[p].step = 0; e->P[p].nq = 0; e->P[p].remap = 0; }
     }
     for (int p = 0; p < NPARTS; p++) {           /* a pattern's settings changed (a knob, REC, a saved groove): written anew */
@@ -403,9 +408,14 @@ void engine_block_begin(Engine *e, int nsub)
     for (int p = 0; p < NPARTS; p++) if (e->off_left[p] && --e->off_left[p] == 0 && e->midi) e->midi(0x08u | (0x80u | e->midi_ch) << 8 | (uint32_t)e->off_note[p] << 16);
     float span = r * (float)n, endf = e->frac + span;
     uint32_t end = e->tick + (uint32_t)endf;      /* (the block's last tick, whole) */
-    if (e->playing && e->fill_want) {           /* the FILL key: a fill on each beat while it's held, from the next */
+    if (e->playing && e->fill_want) {           /* the FILL key: the groove's variation from the next beat, for a bar; held,
+                                                  * for as long as it's held */
         uint32_t nb = (e->tick / TPB + 1u) * TPB;
-        if (nb != e->mfill_last && nb <= end + (uint32_t)LOOK + 1u) { e->mfill_last = nb; fill_roll(e, nb); }
+        if (nb != e->mfill_last && nb <= end + (uint32_t)LOOK + 1u) {
+            e->mfill_last = nb;
+            if (e->fill_to > nb && e->fill_from <= nb) { if (e->fill_to < nb + TPB) e->fill_to = nb + TPB; }   /* (still held: on) */
+            else fill_start(e, nb, nb + BAR);
+        }
     }
     if (e->playing) {
         /* the bars turning */
@@ -451,7 +461,8 @@ void engine_block_begin(Engine *e, int nsub)
 static void start_voice(Engine *e, Part *P, int p, const Ev *v)
 {
     int sounding = 0, free_v = -1, quiet = -1; float ql = 1e9f;
-    int cap = e->gov < 0.6f ? 2 : e->gov < 0.85f ? 3 : 4;
+    static const int CAP[NPARTS] = { 2, 3, 3, 3 };   /* (at most this many ringing at once: the oldest faintest let go) */
+    int cap = e->gov < 0.6f ? 1 + (p != P_KICK) : e->gov < 0.85f ? 2 + (p == P_SNARE) : CAP[p];
     for (int i = 0; i < NV; i++) {
         Hit *h = &P->v[i];
         if (!h->on) { if (free_v < 0) free_v = i; continue; }
@@ -507,11 +518,24 @@ void engine_block_part(Engine *e, int p)
     float tone_t = clamp01((float)q->tone * 0.01f + P->tone_rnd), lv = (float)q->level * 0.01f, gain_t = lv * fm_sqrtf(lv) * 1.15f;
     float kt = glide_k(P->tone_rnd != 0 ? 0.006f : 0.03f), kg = glide_k(0.02f), kp = glide_k(60.0f / fm_maxf(e->bpm, 30.0f));
     float pk = 0;
+    {   /* a silent part (no voice, its filters died away): nothing to filter, its glides simply arrive */
+        int any = 0; for (int i = 0; i < NV; i++) any |= P->v[i].on;
+        float st = 0; for (int c = 0; c < 2; c++) st += fm_fabsf(P->lp[c].ic1) + fm_fabsf(P->lp[c].ic2) + fm_fabsf(P->hp[c].ic1) + fm_fabsf(P->hp[c].ic2) + fm_fabsf(P->floor[c].ic1) + fm_fabsf(P->floor[c].ic2);
+        if (!any && st < 1e-6f) {
+            for (int c = 0; c < 2; c++) { P->lp[c].ic1 = P->lp[c].ic2 = P->hp[c].ic1 = P->hp[c].ic2 = P->floor[c].ic1 = P->floor[c].ic2 = 0; }
+            P->gain = gain_t; P->present += (P->present_t - P->present) * fm_minf(1.0f, kp * (float)n);
+            if (fm_fabsf(tone_t - P->tone_now) > 0.0005f) { P->tone_now = tone_t; tone_set(P, P->tone_now); }
+            P->meter *= 0.92f; e->meter[p] = P->meter;
+            if (e->clock) e->cost[p] = (float)(e->clock() - c0);
+            return;
+        }
+    }
     for (int i = 0; i < n; i++) {
         if ((P->tone_cnt++ & 7) == 0 && fm_fabsf(tone_t - P->tone_now) > 0.0005f) { P->tone_now += (tone_t - P->tone_now) * fm_minf(1.0f, kt * 8.0f); tone_set(P, P->tone_now); }
         P->gain += (gain_t - P->gain) * kg; P->present += (P->present_t - P->present) * kp;
         float g = P->gain * P->present;
-        int use_lp = P->tone_now < 0.505f, use_hp = P->tone_now > 0.495f;   /* (one side at a time; the other held ready) */
+        int use_lp = P->tone_now < 0.495f, use_hp = P->tone_now > 0.505f;   /* (one side at a time, none at 12 o'clock (open);
+                                                    * the other held ready, its state the sound itself) */
         for (int c = 0; c < 2; c++) {
             float x = P->bus[c][i];
             if (use_lp) x = svf_lp(&P->lp[c], x); else { P->lp[c].ic1 = 0; P->lp[c].ic2 = x; }   /* (its state: the sound itself) */
@@ -524,6 +548,24 @@ void engine_block_part(Engine *e, int p)
     P->meter += (fm_minf(1.0f, pk) - P->meter) * (pk > P->meter ? 0.6f : 0.08f);
     e->meter[p] = P->meter;
     if (e->clock) e->cost[p] = (float)(e->clock() - c0);
+}
+
+/* ------------------------------------------------------------------ the reverb, beside the parts (the second core)
+ * The last block's sends (a block late: 6 ms, part of the room's own pre-delay). Silent (nothing sent, its tail gone
+ * below hearing) it rests: no work at all */
+void engine_block_reverb(Engine *e)
+{
+    int n = e->nblk;
+    uint32_t c0 = e->clock ? e->clock() : 0;
+    if (!e->rv_fed && e->rv_quiet > 8) {
+        if (e->rv_quiet == 9) { memset(e->rv_out, 0, sizeof e->rv_out); e->rv_quiet++; }
+        e->rv_cost = 0;
+        return;
+    }
+    reverb_run(&e->rv, e->rv_in[0], e->rv_in[1], e->rv_out[0], e->rv_out[1], n);
+    float mx = 0; for (int i = 0; i < n; i++) mx = fm_maxf(mx, fm_fabsf(e->rv_out[0][i]) + fm_fabsf(e->rv_out[1][i]));
+    if (e->rv_fed || mx > 2e-5f) e->rv_quiet = 0; else if (e->rv_quiet < 9) e->rv_quiet++;
+    if (e->clock) e->rv_cost = (float)(e->clock() - c0);
 }
 
 /* ------------------------------------------------------------------ a block: the bus */
@@ -594,22 +636,29 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     Groove *g = e->g; int n = e->nblk;
     float kb = glide_k(0.05f);
     float fxon = e->clean ? 0.0f : 1.0f;      /* (OUTPUT CLEAN: the four bus effects glide out, as their amounts do) */
-    float t_room = (float)g->room * 0.01f * fxon, t_dly = (float)g->delay * 0.01f * fxon, t_comp = (float)g->comp * 0.01f * fxon, t_pan = (float)g->pan * 0.01f * fxon;
+    /* the reverb's and delay's returns at a set level (each part's sends say how much goes in); REVERB SIZE its length;
+     * COMP AMOUNT and PAN AMOUNT as they were */
+    float size = (float)g->room * 0.01f;
+    float t_room = fxon, t_dly = 0.8f * fxon, t_comp = (float)g->comp * 0.01f * fxon, t_pan = (float)g->pan * 0.01f * fxon;
     float sc_att = glide_k(0.002f), sc_rel = glide_k(0.12f), kk = glide_k(0.005f);
-    float duck[NPARTS], sroom[NPARTS], sdly[NPARTS], span[NPARTS];
+    float scmp[NPARTS], sroom[NPARTS], sdly[NPARTS], span[NPARTS], pgt[NPARTS];
+    {   /* each part's gain from the balance table (MOOD 0, 25, 50, 75, 100; dB), glided per sample below */
+        float m = (float)g->mood * 0.04f; int j = (int)m; if (j > 3) j = 3; m -= (float)j;
+        for (int p = 0; p < NPARTS; p++) pgt[p] = engine_balance_raw == 1 ? 1.0f : fm_exp2f((BAL[p][j] + (BAL[p][j + 1] - BAL[p][j]) * m) * 0.16609f);
+    }
     for (int p = 0; p < NPARTS; p++) {
         const PartP *q = &g->p[p];
-        float d = (float)q->s_duck * 0.01f; duck[p] = p == P_KICK ? 0.0f : d * d * 10.0f;
-        sroom[p] = p == P_KICK ? 0.0f : (float)q->s_room * 0.01f;
-        sdly[p] = p == P_KICK ? 0.0f : (float)q->s_delay * 0.01f;
-        span[p] = p == P_KICK ? 0.0f : (float)q->s_pan * 0.01f;
+        scmp[p] = (float)q->s_comp * 0.01f;
+        sroom[p] = (float)q->s_room * 0.01f;      /* (the kick's too: dry unless you send it) */
+        sdly[p] = (float)q->s_delay * 0.01f;
+        span[p] = (float)q->s_pan * 0.01f;
     }
     /* the room's type and size; its type changed: a dip, the switch, back */
     float fz = e->frz;
     if (g->room_t != e->room_t_now) { e->room_dip -= (float)n / (0.02f * SR); if (e->room_dip <= 0) { e->room_dip = 0; e->room_t_now = g->room_t; e->gate = 0; e->rchunk = 0; e->room_w = 0; } }
     else if (e->room_dip < 1.0f) e->room_dip = fm_minf(1.0f, e->room_dip + (float)n / (0.02f * SR));
     int rt = (int)e->room_t_now;
-    float rt60 = rt == RT_GATED ? 1.6f : rt == RT_REVERSE ? 1.2f + 1.5f * t_room : rt == RT_FREEZE ? 25.0f : 0.4f + 2.4f * t_room;
+    float rt60 = rt == RT_GATED ? 0.8f + 1.6f * size : rt == RT_REVERSE ? 0.8f + 2.0f * size : rt == RT_FREEZE ? 25.0f : 0.3f + 3.2f * size;
     reverb_set(&e->rv, lerpf(rt60, 40.0f, fz), lerpf(rt == RT_FREEZE ? 9000.0f : 6500.0f, 12000.0f, fz));
     float beat = 60.0f / e->bpm * SR;
     int pre = rt == RT_GATED ? clampi((int)(beat / 8.0f), 1, ROOM_BUF - 1) : 0;   /* (a 1/32's pre-delay) */
@@ -620,6 +669,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     float dfb = fm_minf(0.92f, (float)g->dfb * 0.0092f), want = dly_samples(e, g->dtime);
     float sm_t = g->comp_t == CT_SMASH ? 1.0f : 0.0f;
     float bps = e->bpm / 60.0f;
+    float c_att = glide_k(0.003f), c_rel = glide_k(0.15f), c_g = glide_k(0.004f);
+    int fed = 0, comp_on = 0, dl_in = 0, dl_rest = e->dl_quiet > 8; float dl_mx = 0;
+    for (int p = 0; p < NPARTS; p++) if (sdly[p] > 0) dl_rest = 0;   /* (sent to: awake at once) */
+    for (int p = 0; p < NPARTS; p++) if (scmp[p] > 0) comp_on = 1;
+    if (!comp_on && e->lev_comp < 0.0005f && t_comp * (1.0f - e->clean_g) < 0.0005f) e->lev_comp = 0;
     /* pass 1: the parts into the dry mix and the sends, the kick ducking the rest */
     for (int i = 0; i < n; i++) {
         float kL = e->P[P_KICK].bus[0][i] * e->kill_g, kR = e->P[P_KICK].bus[1][i] * e->kill_g;
@@ -630,11 +684,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->clean_g += ((float)e->clean - e->clean_g) * kb;   /* (DUCK out with them, glided) */
         e->pan_ph += bps / (8.0f * SR); if (e->pan_ph >= 1.0f) e->pan_ph -= 1.0f;     /* SWEEP: two bars across */
         e->pan_spin += bps * 2.0f / SR; if (e->pan_spin >= 1.0f) e->pan_spin -= 1.0f;   /* SPIN: an eighth round */
-        float L = kL, R = kR, rl = 0, rr = 0, dsum = 0;
-        for (int p = P_SNARE; p < NPARTS; p++) {
-            float x0 = e->P[p].bus[0][i], x1 = e->P[p].bus[1][i];
-            float dk = 1.0f / (1.0f + duck[p] * e->sc * (1.0f - e->clean_g));
-            x0 *= dk; x1 *= dk;
+        float L = 0, R = 0, rl = 0, rr = 0, dsum = 0, kx0 = kL, kx1 = kR, cl = 0, cr = 0;
+        for (int p = P_KICK; p < NPARTS; p++) {
+            if (e->pg[p] <= 0) e->pg[p] = pgt[p];
+            e->pg[p] += (pgt[p] - e->pg[p]) * kb;
+            float x0 = (p == P_KICK ? kL : e->P[p].bus[0][i]) * e->pg[p], x1 = (p == P_KICK ? kR : e->P[p].bus[1][i]) * e->pg[p];
             float pm = 0;                         /* PAN: each part moved across the field */
             if (g->pan_t == PT_SWEEP) pm = sine_c(e->pan_ph + (float)p * 0.31f) * 0.9f;
             else if (g->pan_t == PT_SPIN) pm = sine_c(e->pan_spin + (float)p * 0.25f) * 0.9f;
@@ -645,6 +699,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 x0 = x0 * (1.0f - w) + m * w * sine_c(th + 0.25f) * 1.41f; x1 = x1 * (1.0f - w) + m * w * sine_c(th) * 1.41f;
             }
             L += x0; R += x1;
+            if (p == P_KICK) { kx0 = x0; kx1 = x1; }
+            cl += x0 * scmp[p]; cr += x1 * scmp[p];
             rl += x0 * sroom[p]; rr += x1 * sroom[p]; dsum += (x0 + x1) * 0.5f * sdly[p];
         }
         {   /* SWELL: the last moments backwards, swelling into the room, landing on the beat; the kit dipped under it */
@@ -660,13 +716,33 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 if (--e->swell_left <= 0) e->pu_rel = 1;
             }
             e->sw_dip += (dip_t - e->sw_dip) * sc_att * 0.7f;   /* (the dip glided, in and out: ~3 ms) */
-            if (e->sw_dip > 0.0001f) { float k2 = 1.0f - e->sw_dip; L = kL + (L - kL) * k2; R = kR + (R - kR) * k2; }
+            if (e->sw_dip > 0.0001f) { float k2 = 1.0f - e->sw_dip; L = kx0 + (L - kx0) * k2; R = kx1 + (R - kx1) * k2; }
+        }
+        if (comp_on || e->lev_comp > 0) {   /* COMP: what each part sends through it (COMP on SENDS), glued (CLEAN) or squashed
+             * into tape (TAPE SMASH); the kick hard-wired to it: always heard by it, so whatever is sent pumps under the
+             * kick. The rest passes by. (Nothing sent: nothing to do) */
+            e->lev_comp += (t_comp * (1.0f - e->clean_g) - e->lev_comp) * kb;
+            e->smash += (sm_t - e->smash) * kb;
+            float a = e->lev_comp, sm = e->smash;
+            float l = fm_fabsf(cl) + fm_fabsf(cr) + k;
+            e->cmp_lvl += (l - e->cmp_lvl) * (l > e->cmp_lvl ? c_att : c_rel);
+            if ((i & 3) == 0) {                       /* (its gain worked out every fourth sample, glided between) */
+                float thr = lerpf(0.9f - 0.55f * a, 0.5f - 0.42f * a, sm), ratio_e = lerpf(0.25f + 0.45f * a, 0.5f + 0.4f * a, sm);
+                float over = e->cmp_lvl > thr ? e->cmp_lvl / thr : 1.0f;
+                e->cmp_gt = over > 1.0005f ? fm_powf(over, -ratio_e) : 1.0f;   /* (under the threshold: no curve to work out) */
+            }
+            e->cmp_g += (e->cmp_gt - e->cmp_g) * c_g;
+            float drive = lerpf(1.0f + 0.6f * a, (1.0f + 5.0f * a * a) * (1.0f + 1.5f * a), sm) * e->cmp_g;
+            float og = lerpf(1.15f / (1.0f + 0.25f * a), 0.85f, sm);   /* (TAPE SMASH: never past 0.85, however hard it's pushed) */
+            float mx = clamp01(a * 4.0f);
+            if (comp_on) { L += (soft_clip(cl * drive) * og - cl) * mx; R += (soft_clip(cr * drive) * og - cr) * mx; }
+            if (!comp_on && e->lev_comp < 0.0005f) e->lev_comp = 0;
         }
         outL[i] = L; outR[i] = R;
         /* the room's input: through the gated room's pre-delay, held a moment at FREEZE (a punch-in) */
         float feed = 1.0f - fz * (1.0f - e->frz_feed);
-        /* FREEZE takes the kick in too (the kick is never sent to the room otherwise): while it's catching its moment,
-         * faded in and out over ~7 ms */
+        /* FREEZE takes the kick in too (whatever its ROOM send): while it's catching its moment, faded in and out over
+         * ~7 ms */
         e->frz_k += ((e->pu == PU_FREEZE && !e->pu_rel && e->frz_feed > 0 ? 1.0f : 0.0f) - e->frz_k) * 0.003f;
         if (e->frz_k > 1e-5f) { rl += kL * 0.7f * e->frz_k; rr += kR * 0.7f * e->frz_k; } else e->frz_k = 0;
         if (pre) {
@@ -682,44 +758,49 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         }
         e->gate_s[i] = e->gate;                  /* (each sample's: the room after it gated sample by sample, no step a block) */
         e->rv_in[0][i] = rl * feed * (rt == RT_FREEZE ? 0.35f : 1.0f); e->rv_in[1][i] = rr * feed * (rt == RT_FREEZE ? 0.35f : 1.0f);
-        /* the delay: two taps crossfaded (a new time, GLITCH's jumps), ping-pong; GRANULAR: grains read from it, jittered,
-         * some an octave off, dirty in its loop */
-        uint32_t st16 = (e->tick + (uint32_t)((float)i * e->rate)) / 24u;
-        if (st16 != e->dl_step) {
-            e->dl_step = st16;
-            if (g->glitch && rng_f(&e->rng) * 100.0f < (float)g->glitch && e->dxf >= 1.0f) {
-                e->dt_a = e->dt_b; e->dt_b = rng_chance(&e->rng, 0.3f) ? want : dly_samples(e, 3 + rng_int(&e->rng, 5)); e->dxf = 0;
+        if (rl != 0.0f || rr != 0.0f) fed = 1;
+        if (!dl_rest) {   /* (the delay resting: nothing sent, its echoes died away) */
+            /* the delay: two taps crossfaded (a new time, GLITCH's jumps), ping-pong; GRANULAR: grains read from it, jittered,
+             * some an octave off, dirty in its loop */
+            uint32_t st16 = (e->tick + (uint32_t)((float)i * e->rate)) / 24u;
+            if (st16 != e->dl_step) {
+                e->dl_step = st16;
+                if (g->glitch && rng_f(&e->rng) * 100.0f < (float)g->glitch && e->dxf >= 1.0f) {
+                    e->dt_a = e->dt_b; e->dt_b = rng_chance(&e->rng, 0.3f) ? want : dly_samples(e, 3 + rng_int(&e->rng, 5)); e->dxf = 0;
+                }
             }
+            if (!g->glitch && fm_fabsf(want - e->dt_b) > 1.0f && e->dxf >= 1.0f) { e->dt_a = e->dt_b; e->dt_b = want; e->dxf = 0; }
+            if (e->dxf < 1.0f) e->dxf = fm_minf(1.0f, e->dxf + 1.0f / (0.004f * SR));
+            float o[2];
+            if (e->dly_t_now == DT_GRAIN) {
+                float gl = clampf(e->dt_b * 0.5f, 600.0f, 4000.0f);   /* a grain: half the time, 14 to 90 ms */
+                e->dg_ph += 1.0f / gl;
+                if (e->dg_ph >= 1.0f) { e->dg_ph -= 1.0f; e->dg_rate = grain_rate(e); }
+                float phb = e->dg_ph + 0.5f; if (phb >= 1.0f) phb -= 1.0f;
+                if (phb < 1.0f / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
+                float wa = sine_c(e->dg_ph * 0.5f), wb = sine_c(phb * 0.5f); wa *= wa; wb *= wb;   /* (sin^2: the two sum to one) */
+                float da = clampf(e->dt_b + (1.0f - e->dg_rate) * e->dg_ph * gl, 8.0f, (float)(DLY_BUF - 16));
+                float db = clampf(e->dt_b + (1.0f - e->dg_rate_t) * phb * gl, 8.0f, (float)(DLY_BUF - 16));
+                for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, da) * wa + dl_read(e->dl[c], e->dw, db) * wb;
+            } else if (e->dxf >= 1.0f)
+                for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, e->dt_b);
+            else
+                for (int c = 0; c < 2; c++) { float a = dl_read(e->dl[c], e->dw, e->dt_a); o[c] = a + (dl_read(e->dl[c], e->dw, e->dt_b) - a) * e->dxf; }
+            float dirt = e->dly_t_now == DT_GRAIN ? 1.0f : 0.0f;
+            float w0 = op_lp(&e->dlp[0], dsum + o[1] * dfb), w1 = op_lp(&e->dlp[1], o[0] * dfb);
+            if (dirt > 0) { w0 = soft_clip(w0 * 2.2f) * 0.6f; w1 = soft_clip(w1 * 2.2f) * 0.6f; }
+            e->dl[0][e->dw] = to16(soft_clip(w0)); e->dl[1][e->dw] = to16(soft_clip(w1));
+            if (++e->dw >= DLY_BUF) e->dw = 0;
+            e->lev_dly += (t_dly - e->lev_dly) * kb;
+            float dg = e->lev_dly * e->dly_dip * 1.1f;
+            outL[i] += o[0] * dg; outR[i] += o[1] * dg;
+        dl_mx = fm_maxf(dl_mx, fm_fabsf(o[0]) + fm_fabsf(o[1])); if (dsum != 0.0f) dl_in = 1;
         }
-        if (!g->glitch && fm_fabsf(want - e->dt_b) > 1.0f && e->dxf >= 1.0f) { e->dt_a = e->dt_b; e->dt_b = want; e->dxf = 0; }
-        if (e->dxf < 1.0f) e->dxf = fm_minf(1.0f, e->dxf + 1.0f / (0.004f * SR));
-        float o[2];
-        if (e->dly_t_now == DT_GRAIN) {
-            float gl = clampf(e->dt_b * 0.5f, 600.0f, 4000.0f);   /* a grain: half the time, 14 to 90 ms */
-            e->dg_ph += 1.0f / gl;
-            if (e->dg_ph >= 1.0f) { e->dg_ph -= 1.0f; e->dg_rate = grain_rate(e); }
-            float phb = e->dg_ph + 0.5f; if (phb >= 1.0f) phb -= 1.0f;
-            if (phb < 1.0f / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
-            float wa = sine_c(e->dg_ph * 0.5f), wb = sine_c(phb * 0.5f); wa *= wa; wb *= wb;   /* (sin^2: the two sum to one) */
-            float da = clampf(e->dt_b + (1.0f - e->dg_rate) * e->dg_ph * gl, 8.0f, (float)(DLY_BUF - 16));
-            float db = clampf(e->dt_b + (1.0f - e->dg_rate_t) * phb * gl, 8.0f, (float)(DLY_BUF - 16));
-            for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, da) * wa + dl_read(e->dl[c], e->dw, db) * wb;
-        } else if (e->dxf >= 1.0f)
-            for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, e->dt_b);
-        else
-            for (int c = 0; c < 2; c++) { float a = dl_read(e->dl[c], e->dw, e->dt_a); o[c] = a + (dl_read(e->dl[c], e->dw, e->dt_b) - a) * e->dxf; }
-        float dirt = e->dly_t_now == DT_GRAIN ? 1.0f : 0.0f;
-        float w0 = op_lp(&e->dlp[0], dsum + o[1] * dfb), w1 = op_lp(&e->dlp[1], o[0] * dfb);
-        if (dirt > 0) { w0 = soft_clip(w0 * 2.2f) * 0.6f; w1 = soft_clip(w1 * 2.2f) * 0.6f; }
-        e->dl[0][e->dw] = to16(soft_clip(w0)); e->dl[1][e->dw] = to16(soft_clip(w1));
-        if (++e->dw >= DLY_BUF) e->dw = 0;
-        e->lev_dly += (t_dly - e->lev_dly) * kb;
-        float dg = e->lev_dly * e->dly_dip * 1.1f;
-        outL[i] += o[0] * dg; outR[i] += o[1] * dg;
     }
-    /* the room */
-    reverb_run(&e->rv, e->rv_in[0], e->rv_in[1], e->rv_out[0], e->rv_out[1], n);
-    for (int i = 0; i < n; i++) {
+    e->rv_fed = fed;
+    if (!dl_rest) { if (dl_in || dl_mx > 2e-5f) e->dl_quiet = 0; else if (e->dl_quiet < 9) e->dl_quiet++; }
+    /* the room: its sound from engine_block_reverb (the last block's sends, run beside the parts) */
+    for (int i = 0; i < n && !(e->rv_quiet > 8 && rt != RT_REVERSE && e->lev_room > 0.999f * t_room && t_room > 0); i++) {
         float wl = e->rv_out[0][i], wr = e->rv_out[1][i];
         if (rt == RT_GATED) { wl *= e->gate_s[i] * 1.4f; wr *= e->gate_s[i] * 1.4f; }
         if (rt == RT_REVERSE) {                   /* the room's sound in chunks, each played backwards as the next is kept */
@@ -735,25 +816,44 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         float rg = (e->lev_room * 0.9f + fz * 0.5f) * e->room_dip;
         outL[i] += wl * rg; outR[i] += wr * rg;
     }
-    /* COMP: the whole kit, kick and all, glued (CLEAN) or squashed into tape (TAPE SMASH); the kick its sidechain,
-     * through each part's DUCK above */
-    float c_att = glide_k(0.003f), c_rel = glide_k(0.15f), c_g = glide_k(0.004f);
-    for (int i = 0; i < n; i++) {
-        e->lev_comp += (t_comp - e->lev_comp) * kb;
-        e->smash += (sm_t - e->smash) * kb;
-        float a = e->lev_comp, sm = e->smash;
-        float x0 = outL[i], x1 = outR[i];
-        float l = fm_fabsf(x0) + fm_fabsf(x1);
-        e->cmp_lvl += (l - e->cmp_lvl) * (l > e->cmp_lvl ? c_att : c_rel);
-        float thr = lerpf(0.9f - 0.55f * a, 0.5f - 0.42f * a, sm), ratio_e = lerpf(0.25f + 0.45f * a, 0.5f + 0.4f * a, sm);
-        float over = e->cmp_lvl > thr ? e->cmp_lvl / thr : 1.0f;
-        float gt = over > 1.0005f ? fm_powf(over, -ratio_e) : 1.0f;   /* (under the threshold: no curve to work out) */
-        e->cmp_g += (gt - e->cmp_g) * c_g;
-        float drive = lerpf(1.0f + 0.6f * a, (1.0f + 5.0f * a * a) * (1.0f + 1.5f * a), sm) * e->cmp_g;
-        float og = lerpf(1.15f / (1.0f + 0.25f * a), 0.85f, sm);   /* (TAPE SMASH: never past 0.85, however hard it's pushed) */
-        float y0 = soft_clip(x0 * drive) * og, y1 = soft_clip(x1 * drive) * og;
-        float mx = clamp01(a * 4.0f);
-        outL[i] = x0 + (y0 - x0) * mx; outR[i] = x1 + (y1 - x1) * mx;
+    /* the balance, as After Images': the mix's lows (under 150 Hz) and highs (over 3 kHz) weighed over seconds, the mix
+     * tilted round 800 Hz towards the grooves' usual top-to-bottom (up to 5 dB, slowly; held while stopped), then a
+     * leveller: every groove, every MOOD, at about the same loudness (+-6 dB at most, over seconds, never pumping) */
+    if (!engine_balance_raw) {   /* (1: no balance at all; 2: the parts' gains alone) */
+        const float alo = 1.0f - 0.9789f, ahi = 1.0f - 0.6526f, at = 1.0f - 0.8923f;   /* (one-poles: 150 Hz, 3 kHz, 800 Hz) */
+        float slo = 0, shi = 0, ss = 0;
+        for (int i = 0; i < n; i++) {
+            float m = 0.5f * (outL[i] + outR[i]);
+            e->tl_lo += alo * (m - e->tl_lo); e->tl_hi += ahi * (m - e->tl_hi);
+            float h = m - e->tl_hi; slo += e->tl_lo * e->tl_lo; shi += h * h;
+        }
+        float bs = (float)n / SR;
+        if (e->playing) {
+            e->tl_elo += (slo / (float)n - e->tl_elo) * (bs / 5.0f); e->tl_ehi += (shi / (float)n - e->tl_ehi) * (bs / 5.0f);
+            if (e->tl_elo > 1e-9f && e->tl_ehi > 1e-9f) {
+                float now_db = 10.0f * 0.30103f * fm_log2f(e->tl_ehi / e->tl_elo);
+                float tw = clampf(0.6f * (BAL_TILT - now_db), -5.0f, 5.0f);
+                e->tl_db += (tw - e->tl_db) * (bs / 4.0f);
+            }
+        }
+        float g1 = fm_exp2f(-e->tl_db * (3.3219f / 40.0f)), gg = e->tl_g > 0 ? e->tl_g : g1, gi = 1.0f / gg;
+        float dg = (g1 - gg) / (float)n, dgi = (1.0f / g1 - gi) / (float)n;   /* (glided sample by sample: no step a block) */
+        for (int i = 0; i < n; i++) {
+            gg += dg; gi += dgi;
+            e->tl_s[0] += at * (outL[i] - e->tl_s[0]); e->tl_s[1] += at * (outR[i] - e->tl_s[1]);
+            outL[i] = e->tl_s[0] * gg + (outL[i] - e->tl_s[0]) * gi; outR[i] = e->tl_s[1] * gg + (outR[i] - e->tl_s[1]) * gi;
+            ss += outL[i] * outL[i] + outR[i] * outR[i];
+        }
+        e->tl_g = g1;
+        e->lev_ss += (ss / (2.0f * (float)n) - e->lev_ss) * (bs / 4.0f);
+        float lg0 = e->lev_g > 0 ? e->lev_g : 1.0f, lg1 = lg0;
+        if (e->lev_ss > 1e-6f && e->playing) {   /* (stopped: held, so fading tails aren't lifted) */
+            float lw = clampf(BAL_RMS * fm_rsqrtf(e->lev_ss), 0.5f, 2.0f);
+            lg1 = lg0 + (lw - lg0) * (bs / 3.0f);
+        }
+        float dl = (lg1 - lg0) / (float)n, lg = lg0;
+        for (int i = 0; i < n; i++) { lg += dl; outL[i] *= lg; outR[i] *= lg; }
+        e->lev_g = lg1;
     }
     /* the punch-ins */
     int want_pu = e->pu_want;

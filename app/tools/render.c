@@ -64,6 +64,13 @@ static void apply_env(Groove *g)
         char buf[128]; strncpy(buf, getenv("ENGS"), sizeof buf - 1); buf[sizeof buf - 1] = 0;
         int p = 0; for (char *t = strtok(buf, ","); t && p < NPARTS; t = strtok(NULL, ","), p++) { int e = engine_by_name(t); if (e >= 0) { g->p[p].engine = (uint8_t)e; groove_part_engine(g, p); } }
     }
+    { extern int engine_balance_raw; if (getenv("BALRAW")) engine_balance_raw = atoi(getenv("BALRAW")); }
+    if (getenv("SEND")) {   /* (SEND=part,room,delay,pan: a part's sends, e.g. 0,40,30,50 the kick's) */
+        int sp = 0, sr = 0, sd = 0, sn = 0;
+        if (sscanf(getenv("SEND"), "%d,%d,%d,%d", &sp, &sr, &sd, &sn) == 4 && sp >= 0 && sp < NPARTS) {
+            g->p[sp].s_room = (uint8_t)sr; g->p[sp].s_delay = (uint8_t)sd; g->p[sp].s_pan = (uint8_t)sn;
+        }
+    }
     if (getenv("SOLO")) { int k = atoi(getenv("SOLO")); for (int p = 0; p < NPARTS; p++) if (p != k) g->p[p].level = 0; }   /* (one part alone) */
     if (getenv("DRY")) { const char *d = getenv("DRY"); if (strchr(d, 'r')) g->room = 0; if (strchr(d, 'd')) g->delay = 0; if (strchr(d, 'c')) g->comp = 0; if (strchr(d, 'p')) g->pan = 0; }   /* (r d c p: effects off) */
     if (getenv("SMOOTH")) {                       /* a smooth kit (sines only): any step in the output is a click */
@@ -164,6 +171,7 @@ static void run(const char *path, float secs, int punch)
         while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
         if (getenv("CLEANAT")) eng.clean = (float)done / SR >= (float)atof(getenv("CLEANAT"));   /* (OUTPUT CLEAN from then on) */
         engine_block_begin(&eng, ENGINE_SUB);
+        engine_block_reverb(&eng);
         for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
         engine_block_mix(&eng, L, R);
         float dg = aiw ? 0.62f : 0.9f;
@@ -175,8 +183,8 @@ static void run(const char *path, float secs, int punch)
     }
     float cpu = (float)(clock() - t0) / CLOCKS_PER_SEC;
     wav_close(&w, path);
-    fprintf(stderr, "  hits %d %d %d %d; %.2f s to render %.0f s (%.1f%% of real time); EVOLVE's rewrites %u\n", eng.events[0], eng.events[1],
-            eng.events[2], eng.events[3], (double)cpu, (double)secs, (double)(cpu / secs * 100.0f), eng.mutated);
+    fprintf(stderr, "  hits %d %d %d %d; %.2f s to render %.0f s (%.1f%% of real time); EVOLVE's rewrites %u; fills %u\n", eng.events[0], eng.events[1],
+            eng.events[2], eng.events[3], (double)cpu, (double)secs, (double)(cpu / secs * 100.0f), eng.mutated, eng.fill_n);
 }
 
 static void sweep(int engine, const char *path)

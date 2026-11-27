@@ -40,12 +40,12 @@ Generative at its core, with macros across the main features, as After Images ha
   strongest), a drifting accent cycle of 3, 5 or 7 sixteenths, a slow wave; harder hits brighter and heavier.
 - First iteration: IDM in feel and machine-like.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
-  polymeters, on-grid fills (no accelerating bouncing-ball rolls), probability and ghost notes.
+  polymeters, fills as simple groove changes (no rolls, nothing accelerating), probability and ghost notes.
 - Effects, in three places:
   - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (from about 350 Hz)
     on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
-    pitch down (the owner especially likes these), FILL on the second white key (a machine-like, on-grid fill each
-    beat while held; never accelerating rolls, which the owner finds cheesy), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
+    pitch down (the owner especially likes these), FILL on the second white key (a simple change of the groove, every
+    part a slight variation of its pattern, for a bar or while held; never rolls or frenetic runs, never accelerating), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
     room freeze, a reverse swell, crush, kill kick. Repeats, glitch and reverse are held to the grid. FREEZE takes the kick in too.
     Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
     is let go; OCT+ alone lets every hold go. One punch-in at a time (a new hold replaces the old), the filters and
@@ -53,9 +53,12 @@ Generative at its core, with macros across the main features, as After Images ha
   - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
     first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
     every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
-  - FX: SENDS for the chosen part (SEL), as in After Images: ROOM, DELAY, PAN and DUCK (how far it ducks under the
-    kick), REC dealing sensible starting amounts. The kick is never sent to ROOM, DELAY or PAN.
-  - FX again: the bus amounts, ROOM, COMP, DELAY, PAN. FX a third time: each one's type (a knob each, its name on
+  - The three FX pages in one order, REVERB, DELAY, PAN, COMP. FX: SENDS for the chosen part (SEL): REVERB, DELAY,
+    PAN, COMP (how much goes through the compressor, which always hears the kick: it pumps; this replaced DUCK). REC
+    deals every part dry; the owner adds them. The kick can be sent too.
+  - FX again: REVERB SIZE, DELAY TIME, PAN AMOUNT, COMP AMOUNT (CCs 24-27 in that order; the reverb's and delay's
+    levels come from the sends). FX a fourth time: DELAY's FEEDBACK and GLITCH. FX a third time: each one's type,
+    REVERB TYPE, DELAY TYPE, PAN TYPE, COMP TYPE (a knob each, its name on
     screen, a change crossfaded), as After Images' second effects page offers DIRT's varieties and CHORUS's
     ensemble. ROOM: room, gated (pre-delay and gate synced to the tempo), reverse, freeze. COMP: clean, tape smash.
     DELAY: clean, granular (dirty). PAN: sweep, spin, scatter.
@@ -72,6 +75,15 @@ Generative at its core, with macros across the main features, as After Images ha
   shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's
   favourites ACID (#d7ff00, #ff00a8, #00e5ff, #ffffff) and ULTRAVIOLET (#8a2bff, #ff00f7, #00f0ff, #f4e8ff), in the
   order KICK, SNARE, PERC, HATS.
+- The balance, as After Images': each part held at its MOOD 50 loudness at every MOOD (a table measured in the
+  simulator, BS.1770-weighted), the mix tilted slowly to a steady top-to-bottom, a leveller (BAL_RMS; the owner finds
+  it hot: never nudge it up), a limiter at -1 dBFS last. The volume knob at full and USB GAIN at 100 are unity.
+- CPU: the device ran 94% with 1136 drops at v0.2. Measure instruction counts (callgrind on the render tool: about
+  240 M a second matched 94%) before and after every DSP change; the reverb runs on the second core and rests when
+  silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
+- SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
+  colour, fading back to its grey).
+- ACTIVITY by rank within each pattern: 0 stripped back (each part's core), 100 what 40 was in v0.2.
 - USB AUDIO as After Images: OUTPUT (MIX, or CLEAN: the kit without FX's effects, the speaker too), CONTROL (MASTER
   or FIXED), GAIN.
 - Linking two FM-1s: this one as USB host (fm1-base `usb_host`) through a mains-powered hub, After Images' FM-1 in a

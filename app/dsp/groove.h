@@ -31,7 +31,8 @@ typedef struct {
     uint8_t engine, tone, weight, entropy;        /* EDIT: SOUND */
     uint8_t gen, len, density, rate;              /* SEQ: GROOVE (gen, rate indexes; len in steps) */
     uint8_t level, decay; int8_t pitch; uint8_t pan;   /* ENV: MIX (decay 0..100, 50 as dealt; pitch semitones; pan 0..100) */
-    uint8_t s_room, s_delay, s_pan, s_duck;       /* FX: SENDS */
+    uint8_t s_room, s_delay, s_pan, s_comp;       /* FX: SENDS: REVERB, DELAY, PAN, COMP (how much goes through the
+                                                   * compressor, pumping under the kick; DUCK's byte before v0.3) */
     uint16_t salt;                                /* the part's own share of the seed (a part dealt anew alone) */
     uint16_t muts;                                /* how many times EVOLVE has rewritten its pattern (SAVE keeps it) */
 } PartP;
@@ -41,7 +42,8 @@ typedef struct {
     uint8_t mood, activity, evolve, drift;        /* HOME held: the macros */
     uint8_t link, warp, flow, chaos;              /* LFO: MOTION */
     uint8_t key, scale, follow, tempo;            /* GLO again: SCALE (tempo: BPM - 40; follow: the key from After Images' notes) */
-    uint8_t room, comp, delay, pan;               /* FX again: the bus's amounts */
+    uint8_t room, comp, delay, pan;               /* FX again: REVERB SIZE (room), COMP AMOUNT, (delay: unused since v0.3:
+                                                   * the sends set it), PAN AMOUNT */
     uint8_t room_t, comp_t, delay_t, pan_t;       /* FX a third time: their types */
     uint8_t dtime, dfb, glitch, mapx;             /* FX a fourth time: DELAY's TIME (index), FEEDBACK, GLITCH; the groove map's place */
     uint8_t mapy, swing, accent, breathe;         /* swing: SWING (GLO again), 0..100: straight .. 68 %; accent: the accent

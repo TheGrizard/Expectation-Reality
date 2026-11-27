@@ -92,6 +92,13 @@ so the colours lie in solid fields. Loud kicks and snares knock out a block of f
 repaint the grid: a groove heavy with hats drifts towards their colour. Each REC lays the grid out afresh in a new
 palette.
 
+![TONES](img/tones.png)
+
+SCREEN's **STYLE** (GLO three times) has a second look, **TONES**: the squares in shades from near-black to near-white
+(each part's grey follows its colour's own lightness, each square its own shade), and a hit floods its square with the
+part's colour, fading back to its grey. The palettes still change with each REC, so the colours come and go over the
+same tonal layout.
+
 On the other pages the top shows the groove's name, its tempo and four lights (the parts, as they play), and the
 bottom shows the page's four settings, After Images' way: the one you turn last shows big.
 
@@ -115,10 +122,12 @@ Hold **HOME** and turn K1 to K4 (they're also on GLO's first page):
 
 - **MOOD**: how the hits are played. To the left, heavy, long, full and soft, darker; to the right, bright, short,
   hard and staccato. In the middle a mix: each part is dealt its own place between the two (some tight, some ringing), and
-  every hit varies a little around it.
-- **ACTIVITY**: how much of each pattern plays. At 0, each part's core: the kick's main hits, the snare's backbeat, a
-  few perc and hats, a simple sparse beat. Turned up, the rest comes in. The kick stays firm however high it goes (a few
-  more hits a bar at most, never rolling).
+  every hit varies a little around it. The kick moves least: never much shorter than as dealt.
+  The mix stays balanced across MOOD: each part is held at the same loudness against the others at every setting,
+  and the whole kit at about the same level (After Images' balance: see section 10).
+- **ACTIVITY**: how much of each pattern plays. At 0, stripped back: each part's core (about two kicks and two snares a
+  bar, a perc and a couple of hats). Turned up, each part's next strongest hits come in, in order, to a full but never
+  frantic groove at 100. The kick stays firm however high it goes (a few more hits a bar at most, never rolling).
 - **EVOLVE**: expectation to reality. At 0 the groove loops exactly. Turning up brings in each step's component
   (see section 9) at its own point on the knob. Past about 70 the patterns start to rewrite themselves, a step at a
   time, and SAVE keeps how far they've got. Near the top, now and then a beat is played from another part of the
@@ -216,9 +225,8 @@ The velocities have a shape of their own, dealt by REC: the bar's weight (the on
 four, the offbeats softest; the kick leaning on it most), an accent every three, five or seven sixteenths drifting
 across the bar, and a slow swell over a few bars.
 
-Every eight bars (every four, EVOLVE well up) a fill may come on the last beat, machine-like and on the grid: a broken
-snare in 32nds, a run down the perc, hats in 32nds, the snare and perc trading 16ths, or snare triplets building. The
-FILL key (section 13) plays one whenever you like.
+Every eight bars (every four, EVOLVE well up) a fill may come on the last beat: the groove changed a little for that
+beat (a hit moved, two traded), then back. The FILL key (section 13) plays one whenever you like.
 
 ## 10. Effects
 
@@ -226,28 +234,37 @@ There are three effects pages, and the keys have their own (section 13).
 
 ![SENDS](img/sends.png)
 
-**FX: SENDS**, for the chosen part: ROOM · DELAY · PAN · DUCK. How much of the part goes into each effect, and DUCK:
-how far it dips each time the kick hits. The kick is always dry (it never goes into the room, the delay or the pan);
-it is wired to the compressor instead.
+The three pages keep the same order: REVERB, DELAY, PAN, COMP.
+
+**FX: SENDS**, for the chosen part: REVERB · DELAY · PAN · COMP. How much of the part goes into each effect. COMP is how
+much of it goes through the compressor, which always listens to the kick: whatever you send pumps under the kick (that
+replaces DUCK). Every part starts dry when REC deals a groove: the effects are yours to add, the kick's too.
 
 ![EFFECTS](img/effects.png)
 
-**FX again: EFFECTS**, the whole kit's: ROOM · COMP · DELAY · PAN.
+**FX again: EFFECTS**, the whole kit's: REVERB SIZE (how big the room is, how long it rings) · DELAY TIME (1/4 down
+to 1/128, where it turns into a pitched buzz) · PAN AMOUNT · COMP AMOUNT (how hard it works). How much of each part
+reaches the reverb and delay is set by its sends.
 
 ![TYPES](img/types.png)
 
-**FX a third time: TYPES**, each effect's kind:
+**FX a third time: TYPES**, each effect's kind, in the same order:
 
-- **ROOM**: ROOM (a plain space), GATED (cut off in time: its pre-delay and gate follow the tempo), REVERSE (the
+- **REVERB TYPE**: ROOM (a plain space), GATED (cut off in time: its pre-delay and gate follow the tempo), REVERSE (the
   room's sound played backwards, swelling into the hits), FREEZE (an endless wash).
-- **COMP**: CLEAN (glue) or TAPE SMASH (squashed into tape, pumping off the kick; extreme turned right up). It takes
-  the whole kit, kick and all.
-- **DELAY**: CLEAN or GRANULAR (dirty: grains of the echo, some an octave up or down).
-- **PAN**: SWEEP (the parts drifting across over two bars), SPIN (round you every eighth), SCATTER (each hit thrown
+- **DELAY TYPE**: CLEAN or GRANULAR (dirty: grains of the echo, some an octave up or down).
+- **PAN TYPE**: SWEEP (the parts drifting across over two bars), SPIN (round you every eighth), SCATTER (each hit thrown
   somewhere new).
+- **COMP TYPE**: CLEAN (glue) or TAPE SMASH (squashed into tape, pumping off the kick; extreme turned right up).
 
-**FX a fourth time: DELAY**: TIME (1/4 down to 1/128, where it turns into a pitched buzz), FEEDBACK, GLITCH (how
-often the time jumps to another, every sixteenth: Autechre's stutter).
+**FX a fourth time: DELAY**: FEEDBACK, GLITCH (how often the time jumps to another, every sixteenth: Autechre's
+stutter).
+
+**The balance** (always on, as After Images has it): each part is held at the same loudness against the others at
+every MOOD (measured in the simulator, weighted as the ear hears it), the mix's tone tilts slowly towards a steady
+top-to-bottom, and a leveller keeps every groove at about the same loudness. At the very end a limiter holds the
+output under -1 dBFS, so the speaker, the line out and a recorder are never driven past full scale. The volume knob
+at full, or USB AUDIO's GAIN at 100, is unity.
 
 ## 11. Motion
 
@@ -278,7 +295,7 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
-| 2 | FILL: a fill on the next beat; held, a new one every beat (the kick keeps going under it) |
+| 2 | FILL: the groove changes a little from the next beat, for a bar; held, for as long as you hold it |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
@@ -294,8 +311,9 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
 
-FILL plays alongside the punch-ins and filters. Its fills are machine-like and on the grid: a broken snare in
-32nds, a run down the perc, hats in 32nds, the snare and perc trading 16ths, or snare triplets building.
+FILL plays alongside the punch-ins and filters. A fill is a simple change of the groove, not a roll: every part plays
+a slight variation of its own pattern (a snare hit moved next door, a couple of hats and perc shifted, the kick
+barely touched), then the groove comes back as it was. Each fill is a different variation.
 
 The repeats, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
 line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
@@ -355,7 +373,7 @@ A direct link through a powered USB hub (this FM-1 as the host) is planned; it n
 - **NOTES OUT**: every hit sent as a MIDI note on OUT CH (channel 10 by default): kick 36, snare 38, perc its own
   note, closed hat 42, open hat 46.
 - **LISTEN**: After Images' notes heard.
-- **CC IN**: CC 20-23 move the macros, 24-27 the effects (ROOM, COMP, DELAY, PAN), 28-31 MOTION.
+- **CC IN**: CC 20-23 move the macros, 24-27 the effects (REVERB SIZE, DELAY TIME, PAN AMOUNT, COMP AMOUNT), 28-31 MOTION.
 
 **ARP again: CHANNELS**: LISTEN CH (the four channels After Images' layers come on), OUT CH, FOLLOW (the perc's key
 from After Images' GROUND).
@@ -363,11 +381,11 @@ from After Images' GROUND).
 **ARP a third time: USB AUDIO**: OUTPUT · CONTROL · GAIN, as After Images has it. Plugged into a computer the FM-1 is
 a stereo audio input.
 
-- **OUTPUT**: MIX, the kit as you hear it; or CLEAN, the kit without FX's effects (no ROOM, DELAY, COMP, PAN or DUCK),
+- **OUTPUT**: MIX, the kit as you hear it; or CLEAN, the kit without FX's effects (no REVERB, DELAY, PAN or COMP),
   to record dry and add your own. CLEAN goes to the speaker too, so you hear what's recorded; the switch glides, so it
   never clicks. The punch-ins still play.
 - **CONTROL**: MASTER (the recording follows the volume knob) or FIXED (at GAIN, whatever the volume knob says).
-- **GAIN**: the level with CONTROL at FIXED.
+- **GAIN**: the level with CONTROL at FIXED; 100 is unity, never past -1 dBFS.
 
 ## 17. When something's not right
 
@@ -375,6 +393,7 @@ a stereo audio input.
 - **Following a clock and nothing plays**: with CLOCK IN it waits for the leader's Start. Press play on the
   leader, or set CLOCK to INT.
 - **The perc sounds out of key with After Images**: set the same KEY and SCALE (GLO again), or turn FOLLOW on.
-- **It seems busy or tired**: tap HOME at home: it shows the processor's load and any audio drops.
+- **It seems busy or tired, or crackles**: tap HOME at home: it shows the processor's load and any audio drops (each
+  drop is a crackle). Drops climbing? Tell me the groove and the settings.
 
 Expectation Reality is free and open source (MPL-2.0), by TheGrizard, built on fm1-base by Charles Vestal.

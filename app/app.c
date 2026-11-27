@@ -25,7 +25,7 @@ static Engine eng PLAT_POOL;
 
 /* ------------------------------------------------------------------ settings */
 #define SET_MAGIC 0x45524731u            /* "ERG1" */
-#define SET_VER 2                        /* the settings' version (2: MOOD turned round): each update that adds to them moves this on, and
+#define SET_VER 3                        /* the settings' version (2: MOOD turned round; 3: SCREEN's STYLE): each update that adds to them moves this on, and
                                           * settings_load brings an older one's forward (nothing saved is ever lost) */
 #define NSAVED 16
 typedef struct {
@@ -37,7 +37,10 @@ typedef struct {
                                                   * CLEAN, the kit without FX's effects), and GAIN; SCREEN's BRIGHT */
     Groove cur;
     Groove saved[NSAVED];
+    uint8_t style, rsv[3];               /* SCREEN's STYLE: 0 KNOCKOUT (a hit knocks its square out), 1 TONES (the squares in
+                                          * greys, a hit flooding one with its colour, fading back to its grey) */
 } settings_t;
+#define SET_V2_SIZE ((int)__builtin_offsetof(settings_t, style))   /* (versions 1 and 2: all up to here) */
 static settings_t set;
 static uint8_t save_over;
 static uint32_t xr_seen, xr_saves, save_end;
@@ -67,7 +70,7 @@ static int settings_ok(void)
 {
     if (set.magic != SET_MAGIC || set.ver < 1 || set.ver > SET_VER || set.nsaved > NSAVED || (set.slot != 255 && set.slot >= set.nsaved)) return 0;
     if (set.sync >= NSYNC || set.midi_on > 1 || set.listen > 1 || set.cc_in > 1 || set.listen_ch > 12 || set.out_ch > 15) return 0;
-    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100) return 0;
+    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100 || set.style > 1) return 0;
     if (!groove_ok(&set.cur)) return 0;
     for (int i = 0; i < set.nsaved; i++) if (!groove_ok(&set.saved[i])) return 0;
     return 1;
@@ -82,10 +85,13 @@ static void settings_load(void)
     uint32_t magic = n >= 4 ? *(const uint32_t *)raw : 0;
     int ver = n >= 5 ? raw[4] : 0;
     if (magic == SET_MAGIC && ver == SET_VER && n == (int)sizeof set) memcpy(&set, raw, sizeof set);
-    else if (magic == SET_MAGIC && ver == 1 && n == (int)sizeof set) {   /* 1 (v0.1): the same, but MOOD ran the other way */
-        memcpy(&set, raw, sizeof set); set.ver = SET_VER;
-        if (set.cur.mood <= 100) set.cur.mood = (uint8_t)(100 - set.cur.mood);
-        for (int i = 0; i < set.nsaved && i < NSAVED; i++) if (set.saved[i].mood <= 100) set.saved[i].mood = (uint8_t)(100 - set.saved[i].mood);
+    else if (magic == SET_MAGIC && (ver == 1 || ver == 2) && n == SET_V2_SIZE) {   /* 1 (v0.1), 2 (v0.2): all but STYLE;
+                                                  * in 1, MOOD ran the other way */
+        memset(&set, 0, sizeof set); memcpy(&set, raw, (size_t)SET_V2_SIZE); set.ver = SET_VER; set.style = 0;
+        if (ver == 1) {
+            if (set.cur.mood <= 100) set.cur.mood = (uint8_t)(100 - set.cur.mood);
+            for (int i = 0; i < set.nsaved && i < NSAVED; i++) if (set.saved[i].mood <= 100) set.saved[i].mood = (uint8_t)(100 - set.saved[i].mood);
+        }
         if (settings_ok()) store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
     }
     else n = -1;
@@ -113,7 +119,9 @@ static void hist_push(void)
 }
 
 /* ------------------------------------------------------------------ sound */
-#define OUT_GAIN 1.1f
+#define OUT_GAIN 1.0f                    /* (unity: the volume knob, or USB GAIN at FIXED, at 100) */
+#define LIM_CEIL 0.891f                  /* the output's ceiling: -1 dBFS */
+static float lim_g = 1.0f;
 static volatile int muted;
 static float gain_now;
 static volatile float out_lvl;
@@ -121,11 +129,11 @@ static volatile int save_hold;
 static int two_cores;
 static uint8_t on2_mask = 0x6u;
 
-static inline float soft(float x)
+static inline float soft(float x)              /* (a last safety, past the limiter: only ever touched above -0.5 dBFS) */
 {
     float a = fm_fabsf(x);
-    if (a < 0.75f) return x;
-    float y = 0.75f + 0.25f * fm_tanhf((a - 0.75f) / 0.25f);
+    if (a < 0.944f) return x;
+    float y = 0.944f + 0.056f * fm_tanhf((a - 0.944f) / 0.056f);
     return x < 0 ? -y : y;
 }
 
@@ -176,9 +184,10 @@ static void midi_in(void)
         else if (ty == 0x90u || ty == 0x80u) {
             if (set.listen && ch >= set.listen_ch && ch < set.listen_ch + 4u) engine_hear(&eng, (int)(ch - set.listen_ch), (int)d1, ty == 0x90u ? (int)d2 : 0);
         } else if (ty == 0xB0u && set.cc_in) {
-            uint8_t *g[12] = { &set.cur.mood, &set.cur.activity, &set.cur.evolve, &set.cur.drift, &set.cur.room, &set.cur.comp,
-                               &set.cur.delay, &set.cur.pan, &set.cur.link, &set.cur.warp, &set.cur.flow, &set.cur.chaos };
-            if (d1 >= 20u && d1 < 32u) cc_set(g[d1 - 20u], d2);
+            uint8_t *g[12] = { &set.cur.mood, &set.cur.activity, &set.cur.evolve, &set.cur.drift, &set.cur.room, &set.cur.dtime,
+                               &set.cur.pan, &set.cur.comp,   /* (as the EFFECTS page's knobs) */ &set.cur.link, &set.cur.warp, &set.cur.flow, &set.cur.chaos };
+            if (d1 == 25u) set.cur.dtime = (uint8_t)(d2 * (uint32_t)NUM_DTIMES / 128u);   /* (DELAY TIME: its steps) */
+            else if (d1 >= 20u && d1 < 32u) cc_set(g[d1 - 20u], d2);
         }
     }
     if (ext_bpm > 0 && plat_ms() - ext_at > 1000u) ext_bpm = 0;
@@ -186,13 +195,15 @@ static void midi_in(void)
 }
 
 static void parts_job(uint32_t mask) { for (int p = 0; p < NPARTS; p++) if (mask >> p & 1u) engine_block_part(&eng, p); }
+static void core2_job(uint32_t mask) { parts_job(mask); engine_block_reverb(&eng); }   /* (the second core's: its parts, the reverb) */
 static uint8_t balance(void)             /* the split that leaves the busier core least to do */
 {
     uint8_t best = 0x6u; float best_t = 1e30f, total = 0;
     for (int p = 0; p < NPARTS; p++) total += eng.cost[p];
+    total += eng.rv_cost;
     if (total <= 0) return best;
-    for (uint8_t m = 1; m < 15; m++) {
-        float t2 = 0;
+    for (uint8_t m = 0; m < 15; m++) {
+        float t2 = eng.rv_cost;                  /* (the reverb: always the second core's) */
         for (int p = 0; p < NPARTS; p++) if (m >> p & 1u) t2 += eng.cost[p];
         float t1 = total - t2, t = t2 > t1 ? t2 : t1;
         if (t < best_t - 1.0f) { best_t = t; best = m; }
@@ -204,7 +215,10 @@ static volatile uint32_t c2_late;
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
 {
     static float L[BLKN], R[BLKN];
-    float g = muted || save_hold ? 0.0f : (float)master_q12 / 4096.0f * OUT_GAIN;
+    /* the volume knob: its bottom few percent silent (the knob rarely reads a true 0 there, and the drums' hits came
+     * through faintly), the rest as it was */
+    float mq = (float)master_q12 < 6.0f ? 0.0f : ((float)master_q12 - 6.0f) / (4096.0f - 6.0f);
+    float g = muted || save_hold ? 0.0f : mq * OUT_GAIN;
     static uint32_t since_boot;
     if (since_boot < (uint32_t)(1.1f * SR)) { since_boot += n; g *= clamp01(((float)since_boot - 0.8f * SR) / (0.3f * SR)); }
     if (set.usb_full & 1) { float u = (float)set.usb_lvl * 0.01f; g *= u * u; }
@@ -218,17 +232,22 @@ void app_render(int32_t *lr, uint32_t n, uint32_t master_q12)
     }
     engine_block_begin(&eng, nsub);
     uint8_t mask = two_cores && plat_cpu2_on() ? on2_mask : 0;
-    int sent = two_cores && plat_cpu2_on() && plat_cpu2_run(parts_job, mask);
+    int sent = two_cores && plat_cpu2_on() && plat_cpu2_run(core2_job, mask);
     parts_job(sent ? (uint32_t)(~mask & 0xFu) : 0xFu);
-    if (sent && plat_cpu2_wait() != 0) { c2_late++; parts_job(mask); }
+    if (sent && plat_cpu2_wait() != 0) { c2_late++; core2_job(mask); }
+    if (!sent) engine_block_reverb(&eng);
     engine_block_mix(&eng, L, R);
     if (two_cores) on2_mask = balance();
     uint32_t frames = n < (uint32_t)(nsub * BLK) ? n : (uint32_t)(nsub * BLK);
     for (uint32_t i = 0; i < frames; i++) {
         gain_now += (g - gain_now) * 0.002f;
         out_lvl += (fm_fabsf(L[i]) + fm_fabsf(R[i]) - out_lvl) * 0.0005f;
-        lr[2 * i] = (int32_t)(soft(L[i] * gain_now) * 8388000.0f);
-        lr[2 * i + 1] = (int32_t)(soft(R[i] * gain_now) * 8388000.0f);
+        /* the limiter: the two sides together, held under -1 dBFS (a peak over it turned down at once, let back up over
+         * ~80 ms), so neither the speaker, the line out nor a recorder is ever driven past full scale */
+        float l = L[i] * gain_now, r = R[i] * gain_now, pk = fm_maxf(fm_fabsf(l), fm_fabsf(r));
+        if (pk * lim_g > LIM_CEIL) lim_g = LIM_CEIL / pk; else lim_g += (1.0f - lim_g) * 0.00028f;
+        lr[2 * i] = (int32_t)(soft(l * lim_g) * 8388000.0f);
+        lr[2 * i + 1] = (int32_t)(soft(r * lim_g) * 8388000.0f);
     }
 }
 
@@ -266,7 +285,7 @@ static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX",
                                                 "MACROS", "SCALE", "SCREEN", "MIDI", "CHANNELS", "USB AUDIO" };
 static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
 enum { K_NONE, K_PCT, K_ENGINE, K_GEN, K_LEN, K_RATE, K_PITCH, K_PAN, K_TONE, K_SEND, K_RT, K_CT, K_DT, K_PT, K_DTIME,
-       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE };
+       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE };
 typedef struct { const char *name; uint8_t kind, where; uint16_t off; } Knob;   /* where: 0 the groove, 1 the part, 2 the settings */
 #define GO(f) (uint16_t)__builtin_offsetof(Groove, f)
 #define PO(f) (uint16_t)__builtin_offsetof(PartP, f)
@@ -276,14 +295,15 @@ static const Knob PAGES[NPAGES][4] = {
     { { "ENGINE", K_ENGINE, 1, PO(engine) }, { "TONE", K_TONE, 1, PO(tone) }, { "WEIGHT", K_PCT, 1, PO(weight) }, { "ENTROPY", K_PCT, 1, PO(entropy) } },
     { { "TYPE", K_GEN, 1, PO(gen) }, { "LENGTH", K_LEN, 1, PO(len) }, { "DENSITY", K_PCT, 1, PO(density) }, { "RATE", K_RATE, 1, PO(rate) } },
     { { "LEVEL", K_PCT, 1, PO(level) }, { "DECAY", K_DECAY, 1, PO(decay) }, { "PITCH", K_PITCH, 1, PO(pitch) }, { "PAN", K_PAN, 1, PO(pan) } },
-    { { "ROOM", K_SEND, 1, PO(s_room) }, { "DELAY", K_SEND, 1, PO(s_delay) }, { "PAN", K_SEND, 1, PO(s_pan) }, { "DUCK", K_SEND, 1, PO(s_duck) } },
-    { { "ROOM", K_PCT, 0, GO(room) }, { "COMP", K_PCT, 0, GO(comp) }, { "DELAY", K_PCT, 0, GO(delay) }, { "PAN", K_PCT, 0, GO(pan) } },
-    { { "ROOM", K_RT, 0, GO(room_t) }, { "COMP", K_CT, 0, GO(comp_t) }, { "DELAY", K_DT, 0, GO(delay_t) }, { "PAN", K_PT, 0, GO(pan_t) } },
-    { { "TIME", K_DTIME, 0, GO(dtime) }, { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 } },
+    /* the three effects pages in the same order: REVERB, DELAY, PAN, COMP */
+    { { "REVERB", K_SEND, 1, PO(s_room) }, { "DELAY", K_SEND, 1, PO(s_delay) }, { "PAN", K_SEND, 1, PO(s_pan) }, { "COMP", K_SEND, 1, PO(s_comp) } },
+    { { "REVERB SIZE", K_PCT, 0, GO(room) }, { "DELAY TIME", K_DTIME, 0, GO(dtime) }, { "PAN AMOUNT", K_PCT, 0, GO(pan) }, { "COMP AMOUNT", K_PCT, 0, GO(comp) } },
+    { { "REVERB TYPE", K_RT, 0, GO(room_t) }, { "DELAY TYPE", K_DT, 0, GO(delay_t) }, { "PAN TYPE", K_PT, 0, GO(pan_t) }, { "COMP TYPE", K_CT, 0, GO(comp_t) } },
+    { { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "LINK", K_PCT, 0, GO(link) }, { "WARP", K_PCT, 0, GO(warp) }, { "FLOW", K_PCT, 0, GO(flow) }, { "CHAOS", K_PCT, 0, GO(chaos) } },
     { { "MOOD", K_PCT, 0, GO(mood) }, { "ACTIVITY", K_PCT, 0, GO(activity) }, { "EVOLVE", K_PCT, 0, GO(evolve) }, { "DRIFT", K_PCT, 0, GO(drift) } },
     { { "KEY", K_KEY, 0, GO(key) }, { "SCALE", K_SCALE, 0, GO(scale) }, { "SWING", K_PCT, 0, GO(swing) }, { "TEMPO", K_TEMPO, 0, GO(tempo) } },
-    { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "", K_NONE, 2, 0 } },
+    { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "STYLE", K_STYLE, 2, SO(style) } },
     { { "CLOCK", K_SYNC, 2, SO(sync) }, { "NOTES OUT", K_ONOFF, 2, SO(midi_on) }, { "LISTEN", K_ONOFF, 2, SO(listen) }, { "CC IN", K_ONOFF, 2, SO(cc_in) } },
     { { "LISTEN CH", K_LCH, 2, SO(listen_ch) }, { "OUT CH", K_CH, 2, SO(out_ch) }, { "FOLLOW", K_ONOFF, 0, GO(follow) }, { "", K_NONE, 2, 0 } },
     { { "OUTPUT", K_ROUTE, 2, SO(usb_full) }, { "", K_NONE, 2, 0 }, { "CONTROL", K_REC, 2, SO(usb_full) }, { "GAIN", K_ULVL, 2, SO(usb_lvl) } },
@@ -349,9 +369,10 @@ static void knob_text(int pg, int k, char *s)
     s[0] = 0;
     switch (kn->kind) {
     case K_NONE: break;
-    case K_SEND: if (ui.sel == P_KICK && kn->off != PO(s_duck)) text_cat(s, "DRY"); else if (ui.sel == P_KICK) text_cat(s, "-"); else int_text(v, s); break;
+    case K_SEND: if (!v) text_cat(s, "DRY"); else int_text(v, s); break;
     case K_REC: text_cat(s, v & 1 ? "FIXED" : "MASTER"); break;
     case K_ROUTE: text_cat(s, v >> 1 & 1 ? "CLEAN" : "MIX"); break;
+    case K_STYLE: text_cat(s, v ? "TONES" : "KNOCKOUT"); break;
     case K_ULVL: int_text(v, s); break;
     case K_TONE: if (v >= 48 && v <= 52) text_cat(s, "OPEN"); else { text_cat(s, v < 50 ? "LP " : "HP "); int_text(v < 50 ? (50 - v) * 2 : (v - 50) * 2, s + strlen_(s)); } break;
     case K_PEGN: int_text(PEG_NS[v % NPEG_NS], s); break;
@@ -384,6 +405,7 @@ static float knob_frac(int pg, int k)
     case K_NONE: return 0.0f;
     case K_REC: return (float)(v & 1);
     case K_ROUTE: return (float)(v >> 1 & 1);
+    case K_STYLE: return (float)v;
     case K_PEGN: return (float)v / (NPEG_NS - 1);
     case K_SYNC: return (float)v / (NSYNC - 1);
     case K_ENGINE: return (float)v / (NUM_ENGINES - 1);
@@ -564,9 +586,8 @@ static void knob_turn(int k, int d)
     const Knob *kn = knob_of(ui.page, k); uint8_t *p = knob_ptr(ui.page, k);
     int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : *p, lo = 0, hi = 100, step = 2, wrap = 0;
     if (kn->kind == K_NONE) return;
-    if (kn->kind == K_SEND && ui.sel == P_KICK) { pop("KICK", "ALWAYS DRY", PART_C[P_KICK]); return; }   /* (the kick: never into the room, the delay, the pan) */
     switch (kn->kind) {
-    case K_REC: case K_ROUTE: hi = 1; step = 1; break;
+    case K_REC: case K_ROUTE: case K_STYLE: hi = 1; step = 1; break;
     case K_ULVL: step = 5; break;
     case K_PEGN: hi = NPEG_NS - 1; step = 1; break;
     case K_SYNC: hi = NSYNC - 1; step = 1; break;
@@ -834,6 +855,18 @@ static int vg_cols(void) { return splash_grid ? 12 : PEG_NS[set.peg_n % NPEG_NS]
 static int vg_cell(void) { return 240 / vg_cols(); }
 static int vg_rows_all(void) { int r = 240 / vg_cell(); return r > VG_MAX ? VG_MAX : r; }
 
+static uint16_t grey(float v)
+{
+    v = clamp01(v);
+    uint32_t r = (uint32_t)(v * 31.0f + 0.5f), g = (uint32_t)(v * 63.0f + 0.5f);
+    return (uint16_t)(r << 11 | g << 5 | r);
+}
+static uint16_t mix_c(uint16_t a, uint16_t b, float t)   /* a to b, t 0..1 */
+{
+    float ra = (float)(a >> 11 & 31u), ga = (float)(a >> 5 & 63u), ba = (float)(a & 31u);
+    float rb = (float)(b >> 11 & 31u), gb = (float)(b >> 5 & 63u), bb = (float)(b & 31u);
+    return (uint16_t)((uint32_t)(ra + (rb - ra) * t + 0.5f) << 11 | (uint32_t)(ga + (gb - ga) * t + 0.5f) << 5 | (uint32_t)(ba + (bb - ba) * t + 0.5f));
+}
 static uint16_t dim(uint16_t c, float k)
 {
     if (k >= 1) return c;
@@ -893,6 +926,15 @@ static void draw_grid(void)
             VCell *c = &vg[y][x];
             float k = 1.0f;
             if (c->t) { float e = (float)(now - c->t) / (float)c->f; if (e < 1.0f) { k = e < 0 ? 0 : e; k = k * k * (3.0f - 2.0f * k); } else c->t = 0; }
+            if (set.style) {                     /* TONES: each square a grey (its part's colour's own lightness, times its
+                                                  * shade), a hit flooding it with the colour, fading back to its grey */
+                uint16_t pc = PART_C[c->part % NPARTS];
+                float lum = (0.30f * (float)(pc >> 11 & 31u) / 31.0f + 0.59f * (float)(pc >> 5 & 63u) / 63.0f + 0.11f * (float)(pc & 31u) / 31.0f);
+                float gv = (0.12f + 0.78f * lum) * (float)c->base / 255.0f * br;
+                uint16_t gc = grey(gv), hc = dim(pc, br);
+                cv_rect(x * cell, py, cell, cell, k >= 1.0f ? gc : mix_c(hc, gc, k));
+                continue;
+            }
             float lv = k * (float)c->base / 255.0f * br;
             if (lv < 0.03f) continue;
             /* a square knocked out grows back as it fades in; whole, it fills its cell: no line, it meets its neighbours */
@@ -1164,6 +1206,7 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "tempo")) *got = 40 + set.cur.tempo;
     else if (!strcmp(what, "mood")) *got = set.cur.mood;
     else if (!strcmp(what, "clean")) *got = eng.clean;
+    else if (!strcmp(what, "style")) *got = set.style;
     else if (!strcmp(what, "usb_full")) *got = set.usb_full;
     else if (!strcmp(what, "activity")) *got = set.cur.activity;
     else if (!strcmp(what, "evolve")) *got = set.cur.evolve;

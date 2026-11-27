@@ -106,3 +106,18 @@ expect clean 0
 expect usb_full 0
 tap HOME
 wait 200
+# SCREEN's STYLE: TONES (greys, a hit flooding its square with its colour, fading back)
+tap GLO
+tap GLO
+tap GLO
+wait 100
+expect page 11
+turn K4 1
+wait 1500
+expect style 1
+shot tones.png
+turn K4 -1
+wait 200
+expect style 0
+tap HOME
+wait 200

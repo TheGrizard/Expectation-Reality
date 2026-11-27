@@ -60,6 +60,7 @@ struct Engine {
     /* the bus */
     float sc;                            /* the kick's level: the sidechain */
     Reverb rv; float rv_in[2][BLKN], rv_out[2][BLKN];
+    int rv_fed, rv_quiet, dl_quiet; float rv_cost, cmp_gt;   /* (the reverb: fed this block; blocks it has been silent; its time) */
     int16_t room_buf[ROOM_BUF]; int room_w; float gate, gate_hold, gate_s[BLKN]; int rchunk; float room_dip, room_t_now;
     int16_t dl[2][DLY_BUF]; int dw; float dt_a, dt_b, dxf, dfb_now, dly_dip; int dly_t_now; uint32_t dl_step;
     float dg_ph, dg_rate, dg_rate_t; OnePole dlp[2];
@@ -67,12 +68,16 @@ struct Engine {
     float pan_ph, pan_spin, pan_now[NPARTS];
     float lev_room, lev_dly, lev_comp, lev_pan;   /* the bus amounts, glided */
     /* the punch-ins */
+    /* the balance (as After Images'): each part's level held to a pink-noise balance whatever MOOD (pg: their gains,
+     * glided), the mix's tone tilted slowly towards a steady top-to-bottom, a leveller over seconds */
+    float pg[NPARTS], tl_lo, tl_hi, tl_elo, tl_ehi, tl_db, tl_g, tl_s[2], lev_ss, lev_g;
     volatile int clean; float clean_g;      /* USB AUDIO's OUTPUT CLEAN: FX's effects (ROOM, DELAY, COMP, PAN, DUCK) out, glided */
     volatile int pu_want; volatile float pu_press;   /* the key held (PU_*), its pressure 0..1 (from the UI) */
     int pu, pu_rel; float pu_mix; int16_t pb[2][PUNCH_BUF]; int pw, ps0, pu_frozen;
     float rpos, rlen, rnext; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;
     int pu_cap, pu_fwd, rec_since;       /* capturing forward: how much so far; the memory's clean run since it last froze */
-    volatile int fill_want; uint32_t mfill_last;   /* the FILL key held (or held by OCT): a fill each beat; the last beat filled */
+    volatile int fill_want; uint32_t mfill_last;   /* the FILL key held (or held by OCT); the last beat it was looked at */
+    Pattern fpat[NPARTS]; uint32_t fill_from, fill_to, fill_n, afill_bar;   /* a fill: the groove's variation, and when it plays */
     float m_d, m_x, m_tgt, m_g, m_gt, m_wow, m_flt, m_lp[2]; int m_cnt;   /* TAPE MASH: the tape's delay, a catch, a dropout, wow, flutter */
     Shifter shf[2]; float crush_h, crush_v[2]; float kill_g; float frz; int swell_left, swell_len;
     /* MIDI out */
@@ -92,7 +97,7 @@ struct Engine {
     float lp_d, hp_d;                    /* their depth (kept while they fade out) */
     uint32_t kick_ticks[8]; int kick_n; /* the kick's last hits (LINK: the hats keep out of their way) */
     uint32_t kick_bar, kick_last; int kick_in_bar;   /* the kick held firm: its hits this bar, its last step */
-    uint32_t last_bar, fill_until; int nblk;
+    uint32_t last_bar; int nblk;
     uint8_t off_note[NPARTS]; int off_left[NPARTS];   /* MIDI out: each part's note, blocks until its note-off */
     float frz_feed, sw_dip, frz_k;   /* (frz_k: the kick into FREEZE's room, glided)*/
     /* the black keys: randomisers, a new value each hit (sample and hold): which of TONE, WEIGHT, ENTROPY (bits 0-2)
@@ -103,6 +108,7 @@ struct Engine {
 void engine_init(Engine *e, Groove *g);
 void engine_block_begin(Engine *e, int nsub);   /* the clock, the patterns, the hits (one core) */
 void engine_block_part(Engine *e, int part);    /* a part's voices (either core) */
+void engine_block_reverb(Engine *e);      /* the reverb on the last block's sends (the second core's, beside parts) */
 void engine_block_mix(Engine *e, float *outL, float *outR);   /* the bus and the punch-ins (one core, after both) */
 void engine_all_off(Engine *e);                 /* every voice faded out (a stop, a new groove) */
 void engine_overload(Engine *e);                /* from the audio interrupt: that block nearly overran */
