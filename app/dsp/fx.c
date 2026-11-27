@@ -28,19 +28,20 @@ void reverb_set(Reverb *rv, float rt60, float damp_hz)
 
 static inline int16_t to16(float x) { x *= 16384.0f; if (x > 32767.0f) x = 32767.0f; if (x < -32768.0f) x = -32768.0f; return (int16_t)x; }
 
-void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n)
+ER_RAM void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n)
 {
     for (int i = 0; i < n; i++) {
-        float in[2] = { inL[i], inR[i] };
+        /* the input: its middle smeared (one channel of all-passes, half the work of two); its sides' difference
+         * goes in as it is, the lines' own echoes spreading it */
+        float m = 0.5f * (inL[i] + inR[i]), sd = 0.5f * (inL[i] - inR[i]);
         for (int a = 0; a < 4; a++) {                    /* diffusion */
             int p = rv->appos[a];
-            for (int c = 0; c < 2; c++) {
-                float d = rv->ap[a][c][p], y = -0.6f * in[c] + d;
-                rv->ap[a][c][p] = in[c] + 0.6f * y;
-                in[c] = y;
-            }
+            float d = rv->ap[a][p], y = -0.6f * m + d;
+            rv->ap[a][p] = m + 0.6f * y;
+            m = y;
             rv->appos[a] = p + 1 >= rv->aplen[a] ? 0 : p + 1;
         }
+        float in[2] = { m + sd, m - sd };
         float o[RV_LINES], h[RV_LINES];
         for (int k = 0; k < RV_LINES; k++) { o[k] = op_lp(&rv->damp[k], (float)rv->buf[k][rv->pos[k]] * (1.0f / 16384.0f)) * rv->g[k]; h[k] = o[k]; }
         _Static_assert(RV_LINES == 8, "the Hadamard below is written out for eight lines");

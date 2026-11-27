@@ -62,7 +62,7 @@ void engine_init(Engine *e, Groove *g)
     e->cmp_g = 1.0f; e->kill_g = 1.0f; e->gov = 1.0f;
     e->ai_ground = e->ai_light = -1;
     e->midi_ch = 9;
-    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f * 2.0f);   /* (run at half the rate) */ op_set(&e->plp1[c], 18000.0f); op_set(&e->frz_hp[c], 200.0f); }
+    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f * (float)DL_DIV);   /* (run at DL_DIV's rate) */ op_set(&e->plp1[c], 18000.0f); op_set(&e->frz_hp[c], 200.0f); }
     e->lp_c = e->hp_c = 0;
     e->dg_rate = e->dg_rate_t = 1.0f;
     e->smash = g->comp_t == CT_SMASH ? 1.0f : 0.0f;
@@ -606,32 +606,51 @@ void engine_block_part(Engine *e, int p)
 /* ------------------------------------------------------------------ the reverb, beside the parts (the second core)
  * The last block's sends (a block late: 6 ms, part of the room's own pre-delay). Silent (nothing sent, its tail gone
  * below hearing) it rests: no work at all */
+#define RV_AA_K 0.45f                    /* (a one-pole at ~4.4 kHz: in, before the room's quarter rate; out, after it) */
+ER_RAM static void rv_core(Engine *e, int n);
+static void (*volatile rv_core_far)(Engine *, int) = rv_core;   /* (through a pointer: RAM code is out of a direct call's
+                                                  * reach from the flash) */
 void engine_block_reverb(Engine *e)
 {
     int n = e->nblk;
     uint32_t c0 = e->clock ? e->clock() : 0;
     if (!e->rv_fed && e->rv_quiet > 8) {
-        if (e->rv_quiet == 9) { memset(e->rv_out, 0, sizeof e->rv_out); e->rv_last[0] = e->rv_last[1] = 0; e->rv_quiet++; }
+        if (e->rv_quiet == 9) { memset(e->rv_out, 0, sizeof e->rv_out); e->rv_last[0] = e->rv_last[1] = e->rv_aa[0] = e->rv_aa[1] = e->rv_sm[0] = e->rv_sm[1] = 0; e->rv_quiet++; }
         e->rv_cost = 0;
         return;
     }
-    {   /* at half the rate: each pair of samples in averaged, each one out followed by the halfway point to the next
-         * (half a sample late, unheard in a room) */
-        int h = n >> 1;
-        for (int k = 0; k < h; k++) {
-            e->rv_h[0][k] = 0.5f * (e->rv_in[0][2 * k] + e->rv_in[0][2 * k + 1]);
-            e->rv_h[1][k] = 0.5f * (e->rv_in[1][2 * k] + e->rv_in[1][2 * k + 1]);
-        }
-        reverb_run(&e->rv, e->rv_h[0], e->rv_h[1], e->rv_h[2], e->rv_h[3], h);
-        for (int c = 0; c < 2; c++) {
-            float prev = e->rv_last[c]; const float *y = e->rv_h[2 + c]; float *o = e->rv_out[c];
-            for (int k = 0; k < h; k++) { o[2 * k] = 0.5f * (prev + y[k]); o[2 * k + 1] = y[k]; prev = y[k]; }
-            e->rv_last[c] = prev;
-        }
-    }
+    (*rv_core_far)(e, n);
     float mx = 0; for (int i = 0; i < n; i++) mx = fm_maxf(mx, fm_fabsf(e->rv_out[0][i]) + fm_fabsf(e->rv_out[1][i]));
     if (e->rv_fed || mx > 2e-5f) e->rv_quiet = 0; else if (e->rv_quiet < 9) e->rv_quiet++;
     if (e->clock) e->rv_cost = (float)(e->clock() - c0);
+}
+
+/* the room's work, from RAM on the FM-1 (fx.h ER_RAM): at half the rate, each pair of samples in averaged, each one out
+ * followed by the halfway point to the next (half a sample late, unheard in a room) */
+ER_RAM static void rv_core(Engine *e, int n)
+{
+    {
+        int h = n / RV_DIV;
+        for (int c = 0; c < 2; c++) {             /* in: dulled (so nothing above its top folds back down), each few averaged */
+            const float *x = e->rv_in[c]; float z = e->rv_aa[c];
+            for (int k = 0; k < h; k++) {
+                float acc = 0;
+                for (int j = 0; j < RV_DIV; j++) { z += RV_AA_K * (x[RV_DIV * k + j] - z); acc += z; }
+                e->rv_h[c][k] = acc * (1.0f / RV_DIV);
+            }
+            e->rv_aa[c] = fm_fabsf(z) < 1e-20f ? 0.0f : z;
+        }
+        reverb_run(&e->rv, e->rv_h[0], e->rv_h[1], e->rv_h[2], e->rv_h[3], h);
+        for (int c = 0; c < 2; c++) {             /* out: slid from each to the next, smoothed */
+            float prev = e->rv_last[c], z = e->rv_sm[c]; const float *y = e->rv_h[2 + c]; float *o = e->rv_out[c];
+            for (int k = 0; k < h; k++) {
+                float d = (y[k] - prev) * (1.0f / RV_DIV);
+                for (int j = 0; j < RV_DIV; j++) { prev += d; z += RV_AA_K * (prev - z); o[RV_DIV * k + j] = z; }
+                prev = y[k];
+            }
+            e->rv_last[c] = prev; e->rv_sm[c] = fm_fabsf(z) < 1e-20f ? 0.0f : z;
+        }
+    }
 }
 
 /* ------------------------------------------------------------------ a block: the bus */
@@ -642,9 +661,9 @@ static float dly_samples(const Engine *e, int idx)
     return s < 4.0f ? 4.0f : s;
 }
 
-static inline float dl_read(const int16_t *b, int w, float d)   /* (d in the sample rate's samples; the line at half) */
+static inline float dl_read(const int16_t *b, int w, float d)   /* (d in the sample rate's samples; the line at DL_DIV's) */
 {
-    float rp = (float)w - d * 0.5f; while (rp < 0) rp += (float)DLY_H;
+    float rp = (float)w - d * (1.0f / DL_DIV); while (rp < 0) rp += (float)DLY_H;
     int i0 = (int)rp; float fr = rp - (float)i0; if (i0 >= DLY_H) i0 -= DLY_H;
     int i1 = i0 + 1; if (i1 >= DLY_H) i1 = 0;
     return from16(b[i0]) + (from16(b[i1]) - from16(b[i0])) * fr;
@@ -892,7 +911,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->duck_s[i] = 1.0f - 0.4f * fm_minf(1.0f, e->sc * 1.1f);
         e->clean_g += ((float)e->clean - e->clean_g) * kb;   /* (DUCK out with them, glided) */
         float L = mL[i], R = mR[i], kx0 = kX0[i], kx1 = kX1[i];
-        float cl = any_c ? cLb[i] : 0.0f, cr = any_c ? cRb[i] : 0.0f, rl = any_r ? rLb[i] : 0.0f, rr = any_r ? rRb[i] : 0.0f, dsum = any_d ? dSb[i] : 0.0f;
+        float cl = any_c ? cLb[i] : 0.0f, cr = any_c ? cRb[i] : 0.0f, rl = any_r ? rLb[i] : 0.0f, rr = any_r ? rRb[i] : 0.0f;
         {   /* SWELL: the last moments backwards, swelling into the room, landing on the beat; the kit dipped under it */
             float dip_t = 0;
             if (e->pu == PU_SWELL && e->swell_left > 0) {
@@ -974,30 +993,37 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->gate_s[i] = e->gate;                  /* (each sample's: the room after it gated sample by sample, no step a block) */
         e->rv_in[0][i] = rl * feed * (rt == RT_FREEZE ? 0.35f : 1.0f); e->rv_in[1][i] = rr * feed * (rt == RT_FREEZE ? 0.35f : 1.0f);
         if (rl != 0.0f || rr != 0.0f) fed = 1;
-        if (!dl_rest) {   /* (the delay resting: nothing sent, its echoes died away) */
-            /* the delay: two taps crossfaded (a new time, GLITCH's jumps), ping-pong; GRANULAR: grains read from it, jittered,
-             * some an octave off, dirty in its loop */
-            uint32_t st16 = (e->tick + (uint32_t)((float)i * e->rate)) / 24u;
-            if (st16 != e->dl_step) {
+    }
+    /* the delay, in a loop of its own (a short one: lighter on the instruction cache than inside the mix's): two taps
+     * crossfaded (a new time, GLITCH's jumps), ping-pong; GRANULAR: grains read from it, jittered, some an octave off,
+     * dirty in its loop. Resting: nothing sent, its echoes died away */
+    if (!dl_rest) for (int i = 0; i < n; i++) {
+        {
+            float dsum = any_d ? dSb[i] : 0.0f;
+            if (g->glitch) {                      /* (GLITCH's step: worked out only when it can jump) */
+              uint32_t st16 = (e->tick + (uint32_t)((float)i * e->rate)) / 24u;
+              if (st16 != e->dl_step) {
                 e->dl_step = st16;
-                if (g->glitch && rng_f(&e->rng) * 100.0f < (float)g->glitch && e->dxf >= 1.0f) {
+                if (rng_f(&e->rng) * 100.0f < (float)g->glitch && e->dxf >= 1.0f) {
                     e->dt_a = e->dt_b; e->dt_b = rng_chance(&e->rng, 0.3f) ? want : dly_samples(e, 3 + rng_int(&e->rng, 5)); e->dxf = 0;
                 }
+              }
             }
             if (!g->glitch && fm_fabsf(want - e->dt_b) > 1.0f && e->dxf >= 1.0f) { e->dt_a = e->dt_b; e->dt_b = want; e->dxf = 0; }
             if (e->dxf < 1.0f) e->dxf = fm_minf(1.0f, e->dxf + 1.0f / (0.004f * SR));
+            /* at a quarter of the rate: in, dulled (nothing above its top folds back down) and each four averaged, the
+             * line read and written once in four; out, slid from each to the next and smoothed */
             float o[2];
-            if (!(i & 1)) { e->dl_hin = dsum; o[0] = e->dl_ho[0]; o[1] = e->dl_ho[1]; }   /* (at half the rate: each second
-                                                  * sample the pair in averaged, the line read and written; out, each
-                                                  * new sample and the halfway point to it) */
-            else {
-            float din = 0.5f * (e->dl_hin + dsum), h[2];
+            e->dl_aa += RV_AA_K * (dsum - e->dl_aa); e->dl_acc += e->dl_aa;
+            if (++e->dl_k >= DL_DIV) {
+            e->dl_k = 0;
+            float din = e->dl_acc * (1.0f / DL_DIV), h[2]; e->dl_acc = 0;
             if (e->dly_t_now == DT_GRAIN) {
                 float gl = clampf(e->dt_b * 0.5f, 600.0f, 4000.0f);   /* a grain: half the time, 14 to 90 ms */
-                e->dg_ph += 2.0f / gl;                /* (two samples a step) */
+                e->dg_ph += (float)DL_DIV / gl;       /* (DL_DIV samples a step) */
                 if (e->dg_ph >= 1.0f) { e->dg_ph -= 1.0f; e->dg_rate = grain_rate(e); }
                 float phb = e->dg_ph + 0.5f; if (phb >= 1.0f) phb -= 1.0f;
-                if (phb < 2.0f / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
+                if (phb < (float)DL_DIV / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
                 float wa = sine_c(e->dg_ph * 0.5f), wb = sine_c(phb * 0.5f); wa *= wa; wb *= wb;   /* (sin^2: the two sum to one) */
                 float da = clampf(e->dt_b + (1.0f - e->dg_rate) * e->dg_ph * gl, 8.0f, (float)(DLY_BUF - 16));
                 float db = clampf(e->dt_b + (1.0f - e->dg_rate_t) * phb * gl, 8.0f, (float)(DLY_BUF - 16));
@@ -1011,13 +1037,18 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (dirt > 0) { w0 = soft_clip(w0 * 2.2f) * 0.6f; w1 = soft_clip(w1 * 2.2f) * 0.6f; }
             e->dl[0][e->dw] = to16(soft_clip(w0)); e->dl[1][e->dw] = to16(soft_clip(w1));
             if (++e->dw >= DLY_H) e->dw = 0;
-            for (int c = 0; c < 2; c++) { o[c] = 0.5f * (e->dl_ho[c] + h[c]); e->dl_ho[c] = h[c]; }
+            for (int c = 0; c < 2; c++) { e->dl_oc[c] = e->dl_ho[c]; e->dl_od[c] = (h[c] - e->dl_ho[c]) * (1.0f / DL_DIV); e->dl_ho[c] = h[c]; }
             }
+            for (int c = 0; c < 2; c++) { e->dl_oc[c] += e->dl_od[c]; e->dl_sm[c] += RV_AA_K * (e->dl_oc[c] - e->dl_sm[c]); o[c] = e->dl_sm[c]; }
             e->lev_dly += (t_dly - e->lev_dly) * kb;
             float dg = e->lev_dly * e->dly_dip * 1.1f * e->duck_s[i];
             outL[i] += o[0] * dg; outR[i] += o[1] * dg;
         dl_mx = fm_maxf(dl_mx, fm_fabsf(o[0]) + fm_fabsf(o[1])); if (dsum != 0.0f) dl_in = 1;
         }
+    }
+    {   /* (the delay's smoothing far gone: zero, not crept on into the denormals) */
+        if (fm_fabsf(e->dl_aa) < 1e-20f) e->dl_aa = 0;
+        for (int c = 0; c < 2; c++) { if (fm_fabsf(e->dl_sm[c]) < 1e-20f) e->dl_sm[c] = 0; if (fm_fabsf(e->dl_oc[c]) < 1e-20f) e->dl_oc[c] = e->dl_od[c] = 0; }
     }
     e->rv_fed = fed;
     if (!dl_rest) { if (dl_in || dl_mx > 2e-5f) e->dl_quiet = 0; else if (e->dl_quiet < 9) e->dl_quiet++; }

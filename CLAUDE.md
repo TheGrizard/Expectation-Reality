@@ -103,7 +103,10 @@ Generative at its core, with macros across the main features, as After Images ha
   instructions against 255 M a second). v0.13 with FX SENDS DEALT and punch-ins: two cores ~66% (worst ~85%); one core
   can't carry it (even dry, over 100% at worst): the second core stood down (MISREAD on some units) means drops; v0.13 still dropped on two cores at ACTIVITY 100,
   EVOLVE 100 (worst blocks ~100%): v0.14 sets fm1.toml audio_ahead (a block rendered ahead, a lone late block rides
-  through; clock-following allows for the 5.8 ms); the reverb runs on the second core and rests when
+  through; clock-following allows for the 5.8 ms). The device's own readings: with sends DRY ~50% whatever is played; DEALT
+  far heavier than the model's instruction counts show (memory and the shared instruction cache, likely), so v0.14 also
+  runs the reverb and delay at a quarter of the rate (RV_DIV, DL_DIV), the reverb's smear on one channel and its work
+  from RAM (.c1_text, fx.h ER_RAM, reached through a pointer), the delay in a loop of its own; the reverb runs on the second core and rests when
   silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
 - SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
   colour, fading back to its grey).

@@ -10,18 +10,30 @@
 #define RV_LINES 8
 /* Expectation Reality's runs at half the sample rate (22.05 kHz: it's damped well below that's top, so it sounds the
  * same), its lines half as long: half the work, half the memory */
-#define RV_RATE (SR * 0.5f)
-#define RV_MAX 1600                      /* (its longest line 1559 at size 1: Expectation Reality never asks for more) */
+#ifndef RV_DIV
+#define RV_DIV 4                         /* (v0.14: a quarter of the rate, 11 kHz: the room damped below its top anyway; a
+                                          * quarter of the work and memory of the full rate's) */
+#endif
+#define RV_RATE (SR / (float)RV_DIV)
+#define RV_MAX (3200 / RV_DIV)           /* (its longest line 3119 at the full rate at size 1: never asked for more) */
 #define RV_AP 256
 typedef struct {
     int16_t buf[RV_LINES][RV_MAX]; int len[RV_LINES], pos[RV_LINES];
     float g[RV_LINES]; OnePole damp[RV_LINES];
-    float ap[4][2][RV_AP]; int aplen[4], appos[4];
+    float ap[4][RV_AP]; int aplen[4], appos[4];   /* (the input's smear: one channel, the sides' difference beside it) */
     float rt60, damp_hz;
 } Reverb;
 void reverb_init(Reverb *rv, float size);
 void reverb_set(Reverb *rv, float rt60, float damp_hz);   /* (cheap: no clearing) */
-void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n);   /* (n at RV_RATE) */
+/* ER_RAM: run from RAM on the FM-1 (fm1-base .c1_text: copied at boot), out of the way of the instruction cache the
+ * two cores share with the drums' code; reached from the flash only through a pointer (out of a direct call's reach).
+ * The desktop renderer, the simulator and the browser: ordinary code */
+#if defined(FM1B_BUILD) && !defined(PLAT_HOST)
+#define ER_RAM __attribute__((section(".c1_text"), noinline))
+#else
+#define ER_RAM
+#endif
+ER_RAM void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n);   /* (n at RV_RATE) */
 
 #define ECHO_MAX 32768                   /* 0.74 s */
 #define SMEAR_AP 4

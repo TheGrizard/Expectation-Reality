@@ -37,8 +37,9 @@ typedef struct {
 /* the room's memory: the gated room's pre-delay, the reversed room's two chunks */
 #define ROOM_BUF 8192
 #define DLY_BUF 16384                    /* the delay: each side's line (0.37 s), counted in the sample rate's samples */
-#define DLY_H (DLY_BUF / 2)              /* (kept at half the rate: its tone is dulled to 6.5 kHz anyway, so it sounds the
-                                          * same; half the work and half the memory) */
+#define DL_DIV 4                         /* (the delay at a quarter of the rate, 11 kHz (v0.14; half before): its echoes
+                                          * dulled below its top anyway; a quarter of the work and memory) */
+#define DLY_H (DLY_BUF / DL_DIV)
 #define PUNCH_BUF 16384                  /* the punch-ins' memory: the last 0.37 s, stereo (an eighth down to 82 BPM) */
 
 enum { PU_NONE, PU_LPF, PU_FILL, PU_REP8, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH, PU_REVERSE,
@@ -61,10 +62,10 @@ struct Engine {
     int ai_ground, ai_light; int ai_ground_new, ai_light_new; float ai_act; uint32_t ai_notes;
     /* the bus */
     float sc;                            /* the kick's level: the sidechain */
-    Reverb rv; float rv_in[2][BLKN], rv_out[2][BLKN], rv_h[4][BLKN / 2], rv_last[2];   /* (rv_h: its half-rate in and out) */
+    Reverb rv; float rv_in[2][BLKN], rv_out[2][BLKN], rv_h[4][BLKN / 2], rv_last[2], rv_aa[2], rv_sm[2];   /* (rv_h: its half-rate in and out) */
     int rv_fed, rv_quiet, dl_quiet; float rv_cost, cmp_gt;   /* (the reverb: fed this block; blocks it has been silent; its time) */
     int16_t room_buf[ROOM_BUF]; int room_w; float gate, gate_hold, gate_s[BLKN], duck_s[BLKN]; int rchunk; float room_dip, room_t_now;
-    int16_t dl[2][DLY_H]; int dw; float dl_hin, dl_ho[2]; float dt_a, dt_b, dxf, dfb_now, dly_dip; int dly_t_now; uint32_t dl_step;
+    int16_t dl[2][DLY_H]; int dw, dl_k; float dl_acc, dl_aa, dl_ho[2], dl_oc[2], dl_od[2], dl_sm[2]; float dt_a, dt_b, dxf, dfb_now, dly_dip; int dly_t_now; uint32_t dl_step;
     float dg_ph, dg_rate, dg_rate_t; OnePole dlp[2], plp1[2], frz_hp[2];
     float cmp_lvl, cmp_g, smash;         /* COMP: its level, its gain, CLEAN to TAPE SMASH (glided) */
     float pan_ph, pan_spin, pan_now[NPARTS];
