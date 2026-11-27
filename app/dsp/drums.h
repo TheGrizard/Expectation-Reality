@@ -92,7 +92,7 @@ typedef struct {
 typedef struct {
     uint8_t on, engine;
     uint32_t n;                          /* samples since the hit */
-    float vel, w, e, b;
+    float vel, w, e, b, vr;              /* (vr: the velocity it was played at) */
     float ph[6], df[6], a[6], ak[6];     /* oscillators: phase, phase step, level, decay a sample */
     float f, f0, fk;                     /* the pitch, gliding to f0 by fk a sample */
     float env, ek, nenv, nk;             /* main and noise envelopes */
@@ -111,7 +111,7 @@ typedef struct {
      * (how wide and long it spreads), stretched as the hit gets longer: a softened start, a click that leaves the body
      * ringing, a noise snap that leaves a rasp, a zap that keeps diving, a ring-modulated edge, a crushed stutter */
     struct { Svf f, f2; float click, nzv, nzk, zf, zf0, zf1, zk, za, zak, zph, rm, rmf, rmk, rph, rdf, cr, crf, crk, crr, cph, cv,
-             gph, gdf, gs, fol, tn, tz, tres, zt; uint16_t atk, len, zper, zcnt; uint8_t ring, tail; } fr;
+             gph, gdf, gs, fol, tn, tz, tres, zt, xg; uint16_t atk, len, zper, zcnt; uint8_t ring, tail; } fr;   /* (xg: the tail fading out) */
     union { float comb[160]; int16_t ks[KS_LEN]; } line;   /* (last: hit_start clears all before it; the engines fill it) */
 } Hit;
 

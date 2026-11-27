@@ -33,7 +33,11 @@ static const float WOOD_G = 13.0f, FOOT_G = 0.8f, DRAG_G = 4.0f;   /* FOLEY's fo
 static inline float nz(uint32_t *s) { uint32_t x = *s; x ^= x << 13; x ^= x >> 17; x ^= x << 5; *s = x; return (float)(int32_t)x * (1.0f / 2147483648.0f); }
 static inline float nu(uint32_t *s) { return nz(s) * 0.5f + 0.5f; }
 static inline float dk(float sec) { if (sec < 0.0005f) sec = 0.0005f; return fm_expf(-1.0f / (sec * SR)); }
-static inline void fade(float *x, float k) { *x *= k; if (fm_fabsf(*x) < 1e-6f) *x = 0; }
+static inline void fade(float *x, float k) { *x *= k; }   /* (a decay: snapped to zero once it's far gone at the end of each
+                                              * block, hit_render's last step, not checked every sample) */
+static inline void snap6(float *x) { if (fm_fabsf(*x) < 1e-6f) *x = 0; }
+static inline void fade_z(float *x, float k) { *x *= k; if (fm_fabsf(*x) < 1e-6f) *x = 0; }   /* (one whose zero stops
+                                              * something at once: the front's noise and zap) */
 static inline void glide(Hit *h) { float d = (h->f - h->f0) * h->fk; h->f = fm_fabsf(d) < 0.01f ? h->f0 : h->f0 + d; }
 static inline float semis(float s) { return fm_exp2f(s * (1.0f / 12.0f)); }
 static inline float bpn(Svf *f, float x) { float b; svf_run(f, x, 0, &b, 0); return b * f->k; }   /* a band-pass, unity at its peak */
@@ -95,6 +99,9 @@ static void front_start(Hit *h, const HitP *p, float E, float w, float b, int en
     h->fr.len = (uint16_t)fm_minf(fm_maxf(len * SR, (float)h->fr.atk) + 64.0f, 60000.0f);
 }
 
+#ifndef FR_TAIL_END
+#define FR_TAIL_END 0.005f                         /* (-46 dB below a full hit) */
+#endif
 static inline float front_run(Hit *h, float s)
 {
     if (h->fr.tn > 0 || h->fr.tz > 0) { float a = fm_fabsf(s); h->fr.fol += (a - h->fr.fol) * (a > h->fr.fol ? 0.02f : 0.0015f); }   /* (the
@@ -112,7 +119,7 @@ static inline float front_run(Hit *h, float s)
     }
     float x = 0, ex = 0;                                  /* the exciters, added */
     if (h->n == RAMP + 1) x += h->fr.click;
-    if (h->fr.nzv > 0) { x += nz(&h->ns) * h->fr.nzv; fade(&h->fr.nzv, h->fr.nzk); }
+    if (h->fr.nzv > 0) { x += nz(&h->ns) * h->fr.nzv; fade_z(&h->fr.nzv, h->fr.nzk); }
     if (h->fr.ring) ex = bpn(&h->fr.f, x + s * h->fr.tres);   /* (the click and snap ringing out in their band, the body with them) */
     if (h->fr.tn > 0) ex += bpn(&h->fr.f2, nz(&h->ns)) * h->fr.fol * h->fr.tn;
     if (h->fr.tz > 0 && --h->fr.zcnt == 0) {              /* the zap again, as loud as the body is now */
@@ -125,7 +132,7 @@ static inline float front_run(Hit *h, float s)
     if (h->fr.za > 0) {                                   /* the zap: a sine diving from high to low, fast */
         h->fr.zf = h->fr.zf0 + (h->fr.zf - h->fr.zf0) * h->fr.zk;
         h->fr.zph += h->fr.zf / SR; if (h->fr.zph >= 1.0f) h->fr.zph -= 1.0f;
-        ex += sine_c(h->fr.zph) * h->fr.za; if (h->fr.zt == 0) fade(&h->fr.za, h->fr.zak);
+        ex += sine_c(h->fr.zph) * h->fr.za; if (h->fr.zt == 0) fade_z(&h->fr.za, h->fr.zak);
     }
     return s + ex;
 }
@@ -140,7 +147,7 @@ void hit_start(Hit *h, const HitP *p)
     if (eng != D_FOLEY && eng != D_BENT && eng < D_PING) e *= 0.55f;   /* (the twenty newer: their bodies the whole range) */
     memset(h, 0, sizeof *h - sizeof h->line);    /* (the line: its engine fills it) */
     h->on = 1; h->engine = (uint8_t)eng; h->vel = clamp01(p->vel) * GAIN[eng] * (drums_level_raw ? 1.0f : level_corr(eng, w, ef)) * (p->shift < 0 ? fm_minf(semis(-p->shift * 0.3f), 3.0f) : 1.0f);   /* (WEIGHT and ENTROPY change the sound, not how loud) */
-    h->w = w; h->e = e; h->b = b;
+    h->w = w; h->e = e; h->b = b; h->vr = clamp01(p->vel);
     front_start(h, p, ef, w, b, eng); h->kill = 1.0f; h->env = 1.0f; h->ns = p->seed | 1u;
     float pit = semis(p->note - 60.0f), hz = clampf(mtof(p->note), 30.0f, 6000.0f);
     switch (eng) {
@@ -999,7 +1006,14 @@ int hit_render(Hit *h, float *out, int n)
             s = svf_hp(&h->f2, h->hv) * h->env * 0.6f; fade(&h->env, h->ek);
             break; }
         }
-        if (h->fr.tail || h->n < h->fr.len) s = front_run(h, s);
+        if (h->fr.tail || h->n < h->fr.len) {
+            float y = front_run(h, s);
+            if (h->fr.xg > 0) {                   /* (the tail let go, over 6 ms: the body goes on plain) */
+                y = s + (y - s) * h->fr.xg; h->fr.xg -= 1.0f / 256.0f;
+                if (h->fr.xg <= 0) { h->fr.xg = 0; h->fr.tail = 0; }
+            }
+            s = y;
+        }
         if (h->n < RAMP) { float t = (float)(h->n + 1) * (1.0f / RAMP); s *= t * t * (3.0f - 2.0f * t); }   /* (an S-curve: no corner where it ends) */
         if (h->killk > 0) { h->kill -= h->killk; if (h->kill <= 0) { h->on = 0; return 0; } s *= h->kill; }
         out[i] += s * h->vel;
@@ -1013,6 +1027,10 @@ int hit_render(Hit *h, float *out, int n)
         if (fm_fabsf(h->o1.z) < 1e-30f) h->o1.z = 0;
         if (fm_fabsf(h->o2.z) < 1e-30f) h->o2.z = 0;
         if (h->fr.fol < 1e-30f) h->fr.fol = 0;
+        /* the decays (fade) far gone: zero, so nothing creeps on into the denormals (in a block's 32 samples, nothing
+         * gets from 1e-6 anywhere near them) */
+        snap6(&h->env); snap6(&h->nenv); snap6(&h->idx); snap6(&h->bend); snap6(&h->hv); snap6(&h->fr.za); snap6(&h->fr.nzv);
+        for (int k = 0; k < 6; k++) snap6(&h->a[k]);
     }
     /* finished: everything in it has died away */
     float lvl = h->env + h->nenv;
@@ -1032,8 +1050,11 @@ int hit_render(Hit *h, float *out, int n)
     case D_BRUSH: case D_SHAKER: case D_AIR: lvl = h->env + ((float)h->n < h->hk + 100.0f ? 1.0f : 0.0f); break;
     default: break;
     }
+    lvl *= h->vr;                                 /* (how loud it is against a full hit: a ghost note's tail ends sooner) */
     if (lvl < LIVE) h->on = 0;
-    else if (lvl < 3e-4f && h->killk == 0) h->killk = 1.0f / (0.004f * SR);   /* (at -70 dB, below the mix: faded out
-                                                    * over 4 ms and done, rather than rendered on to silence) */
+    else if (lvl < 1e-3f && h->killk == 0) h->killk = 1.0f / (0.004f * SR);   /* (at -60 dB below a full hit, under the mix:
+                                                    * faded out over 4 ms and done, rather than rendered on to silence) */
+    if (h->fr.tail && h->fr.xg == 0 && h->n >= h->fr.len && lvl < FR_TAIL_END) h->fr.xg = 1.0f;   /* (the attack's character
+                                                    * through the hit let go once the hit is far down: the rest of it plain) */
     return h->on;
 }

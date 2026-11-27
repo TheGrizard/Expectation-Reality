@@ -820,40 +820,79 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     for (int p = 0; p < NPARTS; p++) if (sdly[p] > 0) dl_rest = 0;   /* (sent to: awake at once) */
     for (int p = 0; p < NPARTS; p++) if (scmp[p] > 0) comp_on = 1;
     if (!comp_on && e->lev_comp < 0.0005f && t_comp * (1.0f - e->clean_g) < 0.0005f) e->lev_comp = 0;
-    /* pass 1: the parts into the dry mix and the sends, the kick ducking the rest */
-    for (int i = 0; i < n; i++) {
-        float kL = e->P[P_KICK].bus[0][i] * e->kill_g, kR = e->P[P_KICK].bus[1][i] * e->kill_g;
+    /* pass 1: the parts into the dry mix and the sends, part by part (a part not sent somewhere: nothing done for it there) */
+    static float mL[BLKN], mR[BLKN], kX0[BLKN], kX1[BLKN], kLb[BLKN], kRb[BLKN], cLb[BLKN], cRb[BLKN], rLb[BLKN], rRb[BLKN], dSb[BLKN];
+    static float px0[BLKN], px1[BLKN], lpan[BLKN / 16 + 1], pph[BLKN / 16 + 1], pspin[BLKN / 16 + 1];
+    for (int i = 0; i < n; i++) {                 /* the kick, through KILL KICK */
+        kLb[i] = e->P[P_KICK].bus[0][i] * e->kill_g; kRb[i] = e->P[P_KICK].bus[1][i] * e->kill_g;
         e->kill_g += ((e->pu == PU_KILL && e->pu_mix > 0.5f ? 0.0f : 1.0f) - e->kill_g) * kk;
+        if (e->kill_g < 1e-5f) e->kill_g = 0;     /* (gone: snapped to nothing, not crept towards it: a value creeping
+                                                  * to zero turns denormal, and every sample multiplied by it crawls) */
+    }
+    float lev_pan0 = e->lev_pan;
+    {   /* PAN AMOUNT's glide, SWEEP's and SPIN's turning: where each stands every 16 samples */
+        float lp = e->lev_pan, ph = e->pan_ph, sp = e->pan_spin;
+        for (int i = 0; i < n; i++) {
+            lp += (t_pan - lp) * kb;
+            ph += bps / (8.0f * SR); if (ph >= 1.0f) ph -= 1.0f;          /* SWEEP: two bars across */
+            sp += bps * 2.0f / SR; if (sp >= 1.0f) sp -= 1.0f;            /* SPIN: an eighth round */
+            if ((i & 15) == 0) { lpan[i >> 4] = lp; pph[i >> 4] = ph; pspin[i >> 4] = sp; }
+        }
+        e->lev_pan = lp; e->pan_ph = ph; e->pan_spin = sp;
+    }
+    int any_c = 0, any_r = 0, any_d = 0;
+    for (int p = 0; p < NPARTS; p++) { any_c |= scmp[p] > 0; any_r |= sroom[p] > 0; any_d |= sdly[p] > 0; }
+    for (int i = 0; i < n; i++) mL[i] = mR[i] = 0;
+    if (any_c) for (int i = 0; i < n; i++) cLb[i] = cRb[i] = 0;
+    if (any_r) for (int i = 0; i < n; i++) rLb[i] = rRb[i] = 0;
+    if (any_d) for (int i = 0; i < n; i++) dSb[i] = 0;
+    for (int p = P_KICK; p < NPARTS; p++) {
+        const float *b0 = p == P_KICK ? kLb : e->P[p].bus[0], *b1 = p == P_KICK ? kRb : e->P[p].bus[1];
+        if (e->pg[p] <= 0) e->pg[p] = pgt[p];
+        float pg = e->pg[p], tg = pgt[p];
+        for (int i = 0; i < n; i++) { pg += (tg - pg) * kb; px0[i] = b0[i] * pg; px1[i] = b1[i] * pg; }   /* (its balance, glided) */
+        e->pg[p] = pg;
+        /* PAN: each part moved across the field (not sent, and settled: nothing to do). Worked out every 16 samples (its
+         * glide over those 16 at once), the gains then slid sample by sample to the new ones: no steps */
+        if ((span[p] > 0 && (t_pan > 0 || lev_pan0 > 0)) || e->pan_now[p] != 0 || e->pn_w[p] != 0 || e->pn_dw[p] != 0) {
+            for (int i = 0; i < n; i++) {
+                if ((i & 15) == 0) {
+                    float pm = 0, a = lpan[i >> 4] * span[p];
+                    if (a > 0 || e->pan_now[p] != 0) {
+                        if (g->pan_t == PT_SWEEP) pm = sine_c(pph[i >> 4] + (float)p * 0.31f) * 0.9f;
+                        else if (g->pan_t == PT_SPIN) pm = sine_c(pspin[i >> 4] + (float)p * 0.25f) * 0.9f;
+                        e->pan_now[p] += (pm * a - e->pan_now[p]) * 0.0315f;   /* (0.002 a sample, 16 of them) */
+                        if (a <= 0 && fm_fabsf(e->pan_now[p]) < 1e-4f) e->pan_now[p] = 0;
+                    }
+                    float w = fm_fabsf(e->pan_now[p]), c0 = 0, c1 = 0;
+                    if (w > 0.0005f) { float th = (0.5f + 0.5f * clampf(e->pan_now[p], -1.0f, 1.0f)) * 0.25f; c0 = w * sine_c(th + 0.25f) * 1.41f; c1 = w * sine_c(th) * 1.41f; }   /* (th in turns) */
+                    else w = 0;
+                    e->pn_dw[p] = (w - e->pn_w[p]) * (1.0f / 16.0f); e->pn_d0[p] = (c0 - e->pn_c0[p]) * (1.0f / 16.0f); e->pn_d1[p] = (c1 - e->pn_c1[p]) * (1.0f / 16.0f);
+                }
+                e->pn_w[p] += e->pn_dw[p]; e->pn_c0[p] += e->pn_d0[p]; e->pn_c1[p] += e->pn_d1[p];
+                if (e->pn_w[p] > 1e-6f) {
+                    float m = (px0[i] + px1[i]) * 0.5f, w = e->pn_w[p];
+                    px0[i] = px0[i] * (1.0f - w) + m * e->pn_c0[p]; px1[i] = px1[i] * (1.0f - w) + m * e->pn_c1[p];
+                } else if (e->pn_dw[p] <= 0) { e->pn_w[p] = e->pn_c0[p] = e->pn_c1[p] = e->pn_dw[p] = e->pn_d0[p] = e->pn_d1[p] = 0; }
+            }
+        }
+        for (int i = 0; i < n; i++) { mL[i] += px0[i]; mR[i] += px1[i]; }
+        if (p == P_KICK) for (int i = 0; i < n; i++) { kX0[i] = px0[i]; kX1[i] = px1[i]; }
+        if (scmp[p] > 0) { float a = scmp[p]; for (int i = 0; i < n; i++) { cLb[i] += px0[i] * a; cRb[i] += px1[i] * a; } }
+        if (sroom[p] > 0) { float a = sroom[p]; for (int i = 0; i < n; i++) { rLb[i] += px0[i] * a; rRb[i] += px1[i] * a; } }
+        if (sdly[p] > 0) { float a = sdly[p] * 0.5f; for (int i = 0; i < n; i++) dSb[i] += (px0[i] + px1[i]) * a; }
+    }
+    /* pass 2: the kick ducking the rest, the punch-ins, the effects */
+    for (int i = 0; i < n; i++) {
+        float kL = kLb[i], kR = kRb[i];
         float k = fm_fabsf(kL) + fm_fabsf(kR);
         e->sc += (k - e->sc) * (k > e->sc ? sc_att : sc_rel);
         /* the reverb's and delay's returns ducked lightly under the kick (at most ~4.5 dB, in at once, back over ~120 ms:
          * the tails breathe round it, never pump) */
         e->duck_s[i] = 1.0f - 0.4f * fm_minf(1.0f, e->sc * 1.1f);
-        e->lev_pan += (t_pan - e->lev_pan) * kb;
         e->clean_g += ((float)e->clean - e->clean_g) * kb;   /* (DUCK out with them, glided) */
-        e->pan_ph += bps / (8.0f * SR); if (e->pan_ph >= 1.0f) e->pan_ph -= 1.0f;     /* SWEEP: two bars across */
-        e->pan_spin += bps * 2.0f / SR; if (e->pan_spin >= 1.0f) e->pan_spin -= 1.0f;   /* SPIN: an eighth round */
-        float L = 0, R = 0, rl = 0, rr = 0, dsum = 0, kx0 = kL, kx1 = kR, cl = 0, cr = 0;
-        for (int p = P_KICK; p < NPARTS; p++) {
-            if (e->pg[p] <= 0) e->pg[p] = pgt[p];
-            e->pg[p] += (pgt[p] - e->pg[p]) * kb;
-            float x0 = (p == P_KICK ? kL : e->P[p].bus[0][i]) * e->pg[p], x1 = (p == P_KICK ? kR : e->P[p].bus[1][i]) * e->pg[p];
-            float pm = 0, a = e->lev_pan * span[p];   /* PAN: each part moved across the field (not sent: nothing to do) */
-            if (a > 0 || e->pan_now[p] != 0) {
-                if (g->pan_t == PT_SWEEP) pm = sine_c(e->pan_ph + (float)p * 0.31f) * 0.9f;
-                else if (g->pan_t == PT_SPIN) pm = sine_c(e->pan_spin + (float)p * 0.25f) * 0.9f;
-                e->pan_now[p] += (pm * a - e->pan_now[p]) * 0.002f;
-                if (a <= 0 && fm_fabsf(e->pan_now[p]) < 1e-4f) e->pan_now[p] = 0;
-            }
-            if (fm_fabsf(e->pan_now[p]) > 0.0005f) {
-                float m = (x0 + x1) * 0.5f, th = (0.5f + 0.5f * clampf(e->pan_now[p], -1.0f, 1.0f)) * 0.25f, w = fm_fabsf(e->pan_now[p]);   /* (th in turns) */
-                x0 = x0 * (1.0f - w) + m * w * sine_c(th + 0.25f) * 1.41f; x1 = x1 * (1.0f - w) + m * w * sine_c(th) * 1.41f;
-            }
-            L += x0; R += x1;
-            if (p == P_KICK) { kx0 = x0; kx1 = x1; }
-            cl += x0 * scmp[p]; cr += x1 * scmp[p];
-            rl += x0 * sroom[p]; rr += x1 * sroom[p]; dsum += (x0 + x1) * 0.5f * sdly[p];
-        }
+        float L = mL[i], R = mR[i], kx0 = kX0[i], kx1 = kX1[i];
+        float cl = any_c ? cLb[i] : 0.0f, cr = any_c ? cRb[i] : 0.0f, rl = any_r ? rLb[i] : 0.0f, rr = any_r ? rRb[i] : 0.0f, dsum = any_d ? dSb[i] : 0.0f;
         {   /* SWELL: the last moments backwards, swelling into the room, landing on the beat; the kit dipped under it */
             float dip_t = 0;
             if (e->pu == PU_SWELL && e->swell_left > 0) {

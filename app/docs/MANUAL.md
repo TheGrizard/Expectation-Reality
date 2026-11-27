@@ -485,7 +485,11 @@ a stereo audio input.
   leader, or set CLOCK to INT.
 - **The perc sounds out of key with After Images**: set the same KEY and SCALE (GLO four times), or turn FOLLOW on.
 - **It seems busy or tired, or crackles**: tap HOME at home: it shows the processor's load, any audio drops (each
-  drop is a crackle) and 2 CORES or 1 CORE. Drops climbing? Tell me what it shows, the groove and the settings.
+  drop is a crackle) and 2 CORES or 1 CORE. It needs both of the FM-1's cores: if the second one ever stumbles it is
+  stood down rather than let crash the FM-1, and stays off until you power off, so 1 CORE means drops on a busy groove.
+  Beside it, why: MISREAD (it read its memory wrong, a quirk some FM-1s have, more often under load), LATE (it fell
+  behind), FAULT, NO START or BARRED (stood down earlier, until power-off). Power off and on again for both cores.
+  Drops climbing? Tell me what it shows, the groove and the settings.
 - **At power-on**: it stays silent until it has read the volume knob, then fades in, so with the volume down nothing
   comes through.
 

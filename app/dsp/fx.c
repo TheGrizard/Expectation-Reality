@@ -43,9 +43,14 @@ void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, flo
         }
         float o[RV_LINES], h[RV_LINES];
         for (int k = 0; k < RV_LINES; k++) { o[k] = op_lp(&rv->damp[k], (float)rv->buf[k][rv->pos[k]] * (1.0f / 16384.0f)) * rv->g[k]; h[k] = o[k]; }
-        for (int len = 1; len < RV_LINES; len <<= 1)     /* Hadamard */
-            for (int j = 0; j < RV_LINES; j += len << 1)
-                for (int k = j; k < j + len; k++) { float a = h[k], b = h[k + len]; h[k] = a + b; h[k + len] = a - b; }
+        _Static_assert(RV_LINES == 8, "the Hadamard below is written out for eight lines");
+        /* Hadamard: the eight lines' sums and differences, in three stages (written out: the same sums, without a loop's
+         * work round each) */
+#define BF(x, y) { float a_ = h[x], b_ = h[y]; h[x] = a_ + b_; h[y] = a_ - b_; }
+        BF(0, 1) BF(2, 3) BF(4, 5) BF(6, 7)
+        BF(0, 2) BF(1, 3) BF(4, 6) BF(5, 7)
+        BF(0, 4) BF(1, 5) BF(2, 6) BF(3, 7)
+#undef BF
         for (int k = 0; k < RV_LINES; k++) {
             float x = h[k] * 0.35355339f + ((k & 1) ? in[1] : in[0]) * ((k & 2) ? -0.5f : 0.5f);
             rv->buf[k][rv->pos[k]] = to16(x);

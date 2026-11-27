@@ -12,6 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#if defined(__has_include) && __has_include(<valgrind/callgrind.h>)
+#include <valgrind/callgrind.h>   /* (CGBLOCK: a count after each stage of each block, under callgrind) */
+#else
+#define CALLGRIND_DUMP_STATS_AT(s) ((void)0)
+#endif
 #include <math.h>
 #include <xmmintrin.h>
 #include "../dsp/engine.h"
@@ -67,6 +72,15 @@ static void apply_env(Groove *g)
         int p = 0; for (char *t = strtok(buf, ","); t && p < NPARTS; t = strtok(NULL, ","), p++) { int e = engine_by_name(t); if (e >= 0) { g->p[p].engine = (uint8_t)e; groove_part_engine(g, p); } }
     }
     { extern int engine_balance_raw; if (getenv("BALRAW")) engine_balance_raw = atoi(getenv("BALRAW")); }
+    if (getenv("NOSEND")) {                     /* (NOSEND=rdpc: those sends off) */
+        const char *d = getenv("NOSEND");
+        for (int q = 0; q < NPARTS; q++) {
+            if (strchr(d, 'r')) g->p[q].s_room = 0;
+            if (strchr(d, 'd')) g->p[q].s_delay = 0;
+            if (strchr(d, 'p')) g->p[q].s_pan = 0;
+            if (strchr(d, 'c')) g->p[q].s_comp = 0;
+        }
+    }
     if (getenv("SEND")) {   /* (SEND=part,room,delay,pan: a part's sends, e.g. 0,40,30,50 the kick's) */
         int sp = 0, sr = 0, sd = 0, sn = 0;
         if (sscanf(getenv("SEND"), "%d,%d,%d,%d", &sp, &sr, &sd, &sn) == 4 && sp >= -1 && sp < NPARTS)   /* (-1: every part) */
@@ -226,10 +240,27 @@ static void run(const char *path, float secs, int punch)
         }
         while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
         if (getenv("CLEANAT")) eng.clean = (float)done / SR >= (float)atof(getenv("CLEANAT"));   /* (OUTPUT CLEAN from then on) */
+        struct timespec t0_, t1_, t2_; clock_gettime(CLOCK_MONOTONIC, &t0_);
+        static int cgb = -1; if (cgb < 0) cgb = getenv("CGBLOCK") != 0;   /* (CGBLOCK, under callgrind: a count after each stage of each block) */
+        if (cgb) { CALLGRIND_DUMP_STATS_AT("pre"); static FILE *pf; if (!pf) pf = fopen("/tmp/cgb_pu.txt", "w"); int nv[NPARTS] = { 0 }; for (int q = 0; q < NPARTS; q++) for (int v = 0; v < NV; v++) nv[q] += eng.P[q].v[v].on; fprintf(pf, "%d %d %d %d %d %d\n", eng.pu, eng.pu_mix > 0.01f, nv[0], nv[1], nv[2], nv[3]); }
         engine_block_begin(&eng, ENGINE_SUB);
         engine_block_reverb(&eng);
-        for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
+        if (cgb) CALLGRIND_DUMP_STATS_AT("rv");
+        for (int p = 0; p < NPARTS; p++) { engine_block_part(&eng, p); if (cgb) CALLGRIND_DUMP_STATS_AT("part"); }
+        clock_gettime(CLOCK_MONOTONIC, &t1_);
         engine_block_mix(&eng, L, R);
+        if (cgb) CALLGRIND_DUMP_STATS_AT("mix");
+        clock_gettime(CLOCK_MONOTONIC, &t2_);
+        if (getenv("PEAKS")) {   /* (PEAKS: the mix's time a block, by punch-in: on average and at worst) */
+            static double sum[NUM_PU + 1]; static long cnt[NUM_PU + 1], worst[NUM_PU + 1];
+            long mix = (t2_.tv_sec - t1_.tv_sec) * 1000000000L + (t2_.tv_nsec - t1_.tv_nsec), all = (t2_.tv_sec - t0_.tv_sec) * 1000000000L + (t2_.tv_nsec - t0_.tv_nsec);
+            (void)all;
+            int k_ = eng.pu % NUM_PU; sum[k_] += (double)mix; cnt[k_]++; if (mix > worst[k_]) worst[k_] = mix;
+            if (done + BLKN >= frames)
+                for (int q = 0; q < NUM_PU; q++) if (cnt[q]) fprintf(stderr, "    %-12s %6.1f us average, %7.1f us worst (%ld blocks)\n", q ? PU_NAME[q] : "(none)", sum[q] / (double)cnt[q] / 1000.0, (double)worst[q] / 1000.0, cnt[q]);
+            if (getenv("BLOCKTIMES")) { static FILE *bt; if (!bt) bt = fopen(getenv("BLOCKTIMES"), "w"); if (bt) fprintf(bt, "%ld %ld %d %.3f\n", all, mix, eng.pu, (double)eng.beat); }
+            if (getenv("PEAKLOG") && all > 120000) fprintf(stderr, "  slow block: %.0f us (mix %.0f) at block %ld, beat %.3f, tick %% bar %u\n", (double)all / 1000.0, (double)mix / 1000.0, done / BLKN, (double)eng.beat, (unsigned)(eng.tick % (TPB * 4)));
+        }
         if (getenv("PULOG")) {   /* (when each punch-in begins and ends, in beats) */
             static int was = 0; int now_pu = eng.pu && !eng.pu_rel ? eng.pu : 0;
             if (now_pu != was) { fprintf(stderr, "  beat %.3f: %s %s\n", (double)((float)eng.tick / (float)TPB), now_pu ? "on " : "off", PU_NAME[now_pu ? now_pu : was]); was = now_pu; }
@@ -380,7 +411,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "sweep") && argc > 3) { int e = engine_by_name(argv[2]); if (e < 0) return 2; sweep(e, argv[3]); return 0; }
     groove_default(&gr);
     if (!strcmp(argv[1], "punch") && argc > 3) {
-        gr.genre = (uint8_t)env_i("GENRE", gr.genre); groove_sends = env_i("SENDS", 0); groove_sends = env_i("SENDS", 0);
+        gr.genre = (uint8_t)env_i("GENRE", gr.genre); groove_sends = env_i("SENDS", 0);
         if (strcmp(argv[2], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[2], 0, 0), 1);
         apply_env(&gr); describe(&gr);
         run(argv[3], 76.0f * 60.0f / (float)(gr.tempo + 40), 1);
@@ -388,6 +419,7 @@ int main(int argc, char **argv)
     }
     if (argc < 4) return 2;
     gr.genre = (uint8_t)env_i("GENRE", gr.genre);
+    gr.genre = (uint8_t)env_i("GENRE", gr.genre); groove_sends = env_i("SENDS", 0);
     if (strcmp(argv[1], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[1], 0, 0), 1);
     apply_env(&gr);
     if (getenv("DUET")) duet_load();

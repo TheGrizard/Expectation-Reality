@@ -103,6 +103,7 @@ struct Engine {
     uint32_t last_bar; int nblk;
     uint8_t off_note[NPARTS]; int off_left[NPARTS];   /* MIDI out: each part's note, blocks until its note-off */
     float frz_feed, sw_dip, frz_prev; int frz_len, frz_left, sw_off, frz_live, frz_hit, pu_quiet, pu_tries;
+    float pn_w[NPARTS], pn_c0[NPARTS], pn_c1[NPARTS], pn_dw[NPARTS], pn_d0[NPARTS], pn_d1[NPARTS];   /* (PAN's gains, sliding) */
     float pk_run, frz_ref, frz_go; int fill_add;   /* (fill_add: this fill adds (1) or takes away (0)) */ uint32_t frz_bar;   /* (FREEZE held: caught anew each bar, the old wash let go meanwhile) */                                /* (the groove's recent loudest: what 'nothing in it' is measured against) */
     int ch_act, ch_pact, ch_s0, ch_ps0, ch_len, ch_plen, ch_xf; float ch_ph, ch_pph, ch_step;   /* (GLITCH, REVERSE: the
                                                   * live chopper, this step and the one it crossfades from) */ float frz_got, frz_lv;   /* (FREEZE's catch: the last half beat from the

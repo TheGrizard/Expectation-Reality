@@ -361,7 +361,7 @@ static struct {
     uint32_t btn, keys;
     int page, sel;
     int last_knob; uint32_t knob_at;
-    char pop_t[28], pop_s[28], pop_3[40]; uint16_t pop_c; uint32_t pop_until;
+    char pop_t[28], pop_s[28], pop_3[64]; uint16_t pop_c; uint32_t pop_until;
     uint32_t list_until;
     uint32_t rec_t; int rec_used, sel_used, home_used;
     uint32_t panel_until; int panel_kind;
@@ -626,9 +626,14 @@ static void info(void)
     int_text((int32_t)plat_cpu_pct(), n); text_cat(s, n); text_cat(s, "%");
     pop("EXPECTATION", s, store_ok ? C_TXT : C_RED);
     text_cat(ui.pop_3, two_cores && plat_cpu2_on() ? "2 CORES" : "1 CORE");
+    if (!(two_cores && plat_cpu2_on())) {        /* why the second core stopped (fm1-base: it gives up rather than restart) */
+        static const char *const WHY[6] = { "", " MISREAD", " LATE", " BARRED", " FAULT", " NO START" };
+        int w = plat_cpu2_gave_up(); if (w > 0 && w < 6) text_cat(ui.pop_3, WHY[w]);
+    }
     {   char m[12]; text_cat(ui.pop_3, "  "); int_text((int32_t)drops(), m); text_cat(ui.pop_3, m); text_cat(ui.pop_3, " DROPS"); }
     if (c2_late) { char m[12]; text_cat(ui.pop_3, "  "); int_text((int32_t)c2_late, m); text_cat(ui.pop_3, m); text_cat(ui.pop_3, " LATE"); }
-    text_cat(ui.pop_3, store_ok ? "  SAVING OK" : "  NO SAVING");
+    if (!store_ok || (two_cores && plat_cpu2_on())) text_cat(ui.pop_3, store_ok ? "  SAVING OK" : "  NO SAVING");   /* (on one core: room
+                                                  * for why) */
     ui.pop_until = plat_ms() + 3500u;
 }
 

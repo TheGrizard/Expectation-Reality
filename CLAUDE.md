@@ -98,7 +98,10 @@ Generative at its core, with macros across the main features, as After Images ha
   it hot: never nudge it up), a limiter at -1 dBFS last. The volume knob at full and USB GAIN at 100 are unity.
 - CPU: the device ran 94% with 1136 drops at v0.2; v0.7 (reverb and delay at half rate, idle filters and pans skipped)
   ran 52%, no drops, with every send and the delay's feedback up (some power-ons fell back to one core: 93%). Measure instruction counts (callgrind on the render tool: about
-  240 M a second matched 94%) before and after every DSP change; the reverb runs on the second core and rests when
+  240 M a second matched 94%) before and after every DSP change; per block, `CGBLOCK=1` under callgrind (a count after
+  each stage: the worst block on one core and on two). Calibrated on v0.7: device % ≈ 4 + 2.3 × the model's (one block's
+  instructions against 255 M a second). v0.13 with FX SENDS DEALT and punch-ins: two cores ~66% (worst ~85%); one core
+  can't carry it (even dry, over 100% at worst): the second core stood down (MISREAD on some units) means drops; the reverb runs on the second core and rests when
   silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
 - SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
   colour, fading back to its grey).
