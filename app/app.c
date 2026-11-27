@@ -145,6 +145,11 @@ static inline float soft(float x)              /* (a last safety, past the limit
     return x < 0 ? -y : y;
 }
 
+#if defined(FM1B_AUDIO_AHEAD) && FM1B_AUDIO_AHEAD
+#define AUDIO_AHEAD_BEATS(bpm) ((float)BLKN / SR * (bpm) / 60.0f)   /* (fm1.toml audio_ahead: a block, 5.8 ms, in beats) */
+#else
+#define AUDIO_AHEAD_BEATS(bpm) 0.0f
+#endif
 static void midi_send(uint32_t pkt) { plat_midi_send(pkt, TO_USB); }
 static void cc_set(uint8_t *v, uint32_t x) { *v = (uint8_t)(x * 100u / 127u); }
 
@@ -179,6 +184,8 @@ static void midi_in(void)
             }
             if (CLK_IN && set.playing && ++clk_n % 24u == 0) {   /* locked to the leader's beat and bar, not only its tempo */
                 float err = (float)(clk_n / 24u) - eng.beat;
+                err += AUDIO_AHEAD_BEATS(eng.bpm);   /* (our sound comes out a block later than it's made: made that
+                                                  * much ahead, so it lands on the leader's beat) */
                 err -= 4.0f * fm_floorf(err * 0.25f + 0.5f);
                 eng.beat_adj = err;
             }

@@ -241,6 +241,8 @@ static void run(const char *path, float secs, int punch)
         while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
         if (getenv("CLEANAT")) eng.clean = (float)done / SR >= (float)atof(getenv("CLEANAT"));   /* (OUTPUT CLEAN from then on) */
         struct timespec t0_, t1_, t2_; clock_gettime(CLOCK_MONOTONIC, &t0_);
+        if (getenv("RND")) { int rb = atoi(getenv("RND")); for (int q = 0; q < NPARTS; q++) { eng.rnd_bits[q] = (uint8_t)rb; eng.rnd_depth[q] = 1.0f; } }   /* (RND=7: every
+                                                  * black key held: TONE, WEIGHT and ENTROPY dealt anew each hit) */
         static int cgb = -1; if (cgb < 0) cgb = getenv("CGBLOCK") != 0;   /* (CGBLOCK, under callgrind: a count after each stage of each block) */
         if (cgb) { CALLGRIND_DUMP_STATS_AT("pre"); static FILE *pf; if (!pf) pf = fopen("/tmp/cgb_pu.txt", "w"); int nv[NPARTS] = { 0 }; for (int q = 0; q < NPARTS; q++) for (int v = 0; v < NV; v++) nv[q] += eng.P[q].v[v].on; fprintf(pf, "%d %d %d %d %d %d\n", eng.pu, eng.pu_mix > 0.01f, nv[0], nv[1], nv[2], nv[3]); }
         engine_block_begin(&eng, ENGINE_SUB);

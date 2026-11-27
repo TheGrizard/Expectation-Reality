@@ -101,7 +101,9 @@ Generative at its core, with macros across the main features, as After Images ha
   240 M a second matched 94%) before and after every DSP change; per block, `CGBLOCK=1` under callgrind (a count after
   each stage: the worst block on one core and on two). Calibrated on v0.7: device % ≈ 4 + 2.3 × the model's (one block's
   instructions against 255 M a second). v0.13 with FX SENDS DEALT and punch-ins: two cores ~66% (worst ~85%); one core
-  can't carry it (even dry, over 100% at worst): the second core stood down (MISREAD on some units) means drops; the reverb runs on the second core and rests when
+  can't carry it (even dry, over 100% at worst): the second core stood down (MISREAD on some units) means drops; v0.13 still dropped on two cores at ACTIVITY 100,
+  EVOLVE 100 (worst blocks ~100%): v0.14 sets fm1.toml audio_ahead (a block rendered ahead, a lone late block rides
+  through; clock-following allows for the 5.8 ms); the reverb runs on the second core and rests when
   silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
 - SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
   colour, fading back to its grey).

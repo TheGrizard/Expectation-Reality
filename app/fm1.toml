@@ -14,6 +14,8 @@ usb_audio_out = false          # the computer's audio never played through the F
 cpu2 = true                    # the second core renders some of the parts (app_render)
 cpu2_fallback = true           # if it fails, carry on with one core instead of restarting
 cpu2_stack = 8192
+audio_ahead = true             # a block rendered ahead: one busy moment (a run of hits starting at once) rides through
+                               # instead of dropping; two in a row still drop. 5.8 ms more latency (followed clocks allow for it)
 # the site and firmware.json
 tagline = "generative percussion: four parts, one button, endless grooves"
 licence = "MPL-2.0"
