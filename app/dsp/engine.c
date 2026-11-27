@@ -62,7 +62,7 @@ void engine_init(Engine *e, Groove *g)
     e->cmp_g = 1.0f; e->kill_g = 1.0f; e->gov = 1.0f;
     e->ai_ground = e->ai_light = -1;
     e->midi_ch = 9;
-    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f * 2.0f);   /* (run at half the rate) */ op_set(&e->plp1[c], 18000.0f); }
+    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f * 2.0f);   /* (run at half the rate) */ op_set(&e->plp1[c], 18000.0f); op_set(&e->frz_hp[c], 200.0f); }
     e->lp_c = e->hp_c = 0;
     e->dg_rate = e->dg_rate_t = 1.0f;
     e->smash = g->comp_t == CT_SMASH ? 1.0f : 0.0f;
@@ -885,6 +885,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         outL[i] = L; outR[i] = R;
         /* the room's input: through the gated room's pre-delay, held a moment at FREEZE (a punch-in) */
         float feed = 1.0f - fz * (1.0f - e->frz_feed);
+        float fcl = 0, fcr = 0;                   /* (what FREEZE catches, into the room below) */
         /* FREEZE's catch: the whole kit (the kick too), its last half beat played into the room from the memory, its
          * ends faded over 3 ms */
         if (e->frz_left > 0) {
@@ -893,7 +894,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 int ks = e->frz_len - e->frz_left, rd = e->ps0 - e->frz_len + ks; while (rd < 0) rd += PUNCH_BUF;
                 float w = fm_minf(1.0f, fm_minf((float)ks, (float)e->frz_left) / 132.0f) * 0.8f;
                 float ml = from16(e->pb[0][rd % PUNCH_BUF]) * w, mr = from16(e->pb[1][rd % PUNCH_BUF]) * w;
-                rl += ml; rr += mr; e->frz_got = fm_maxf(e->frz_got, fm_fabsf(ml) + fm_fabsf(mr));
+                fcl += ml; fcr += mr; e->frz_got = fm_maxf(e->frz_got, fm_fabsf(ml) + fm_fabsf(mr));
                 if (--e->frz_left == 0 && e->frz_got < fm_maxf(0.2f * e->pk_run, 0.01f)) e->frz_live = (int)(beat * 2.0f);   /* (nothing in it: pressed
                                                   * between the hits. It listens on, up to two beats, till it catches one) */
             }
@@ -902,11 +903,16 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         {   /* FREEZE listening on: the kit as it plays into the room, from the next hit to a quarter beat after it */
             float tgt = e->frz_live > 0 ? 1.0f : 0.0f;
             e->frz_lv += clampf(tgt - e->frz_lv, -1.0f / 132.0f, 1.0f / 132.0f);
-            if (e->frz_lv > 0) { rl += L * 0.8f * e->frz_lv; rr += R * 0.8f * e->frz_lv; }
+            if (e->frz_lv > 0) { fcl += L * 0.8f * e->frz_lv; fcr += R * 0.8f * e->frz_lv; }
             if (e->frz_live > 0) {
                 if (!e->frz_hit && fm_fabsf(L) + fm_fabsf(R) > 0.1f) { e->frz_hit = 1; e->frz_live = (int)(beat * 0.25f); }
                 e->frz_live--;
             }
+        }
+        if (fcl != 0 || fcr != 0 || e->frz_hp[0].z != 0) {   /* (its lows taken out below ~200 Hz, so the kick's click
+                                                  * goes in but not its boom) */
+            rl += fcl - op_lp(&e->frz_hp[0], fcl); rr += fcr - op_lp(&e->frz_hp[1], fcr);
+            if (fcl == 0 && fcr == 0 && fm_fabsf(e->frz_hp[0].z) + fm_fabsf(e->frz_hp[1].z) < 1e-6f) e->frz_hp[0].z = e->frz_hp[1].z = 0;
         }
         if (pre) {
             float m = (rl + rr) * 0.5f;

@@ -44,7 +44,7 @@ typedef struct {
 static settings_t set;
 static uint8_t save_over;
 static uint32_t xr_seen, xr_saves, save_end;
-#define NPAL 11
+#define NPAL 16
 #define NPEG_NS 6
 static const uint8_t PEG_NS[NPEG_NS] = { 8, 10, 12, 15, 20, 24 };   /* COUNT: squares across */
 static uint8_t set_dirty;
@@ -324,7 +324,7 @@ static int page_has_part(int pg) { return pg == PG_SOUND || pg == PG_SEQ || pg =
 #define C_WELL RGB(30, 30, 36)
 #define C_RED RGB(255, 90, 78)
 /* each part its colour, everywhere: the palettes REC deals, KICK SNARE PERC HATS, four clearly different hues each
- * (After Images' nine, and ACID and ULTRAVIOLET) */
+ * (After Images' nine, ACID and ULTRAVIOLET, and five more neon ones) */
 static const uint16_t LPAL[NPAL][NPARTS] = {
     { RGB(255, 72, 64), RGB(70, 140, 255), RGB(70, 230, 110), RGB(240, 240, 240) },    /* classic */
     { RGB(225, 45, 75), RGB(150, 85, 255), RGB(255, 150, 50), RGB(255, 235, 165) },    /* sunset */
@@ -337,6 +337,12 @@ static const uint16_t LPAL[NPAL][NPARTS] = {
     { RGB(215, 120, 20), RGB(100, 85, 230), RGB(205, 230, 60), RGB(255, 222, 205) },   /* amber */
     { RGB(215, 255, 0), RGB(255, 0, 168), RGB(0, 229, 255), RGB(255, 255, 255) },      /* acid */
     { RGB(138, 43, 255), RGB(255, 0, 247), RGB(0, 240, 255), RGB(244, 232, 255) },     /* ultraviolet */
+    /* the neon five: every colour at full saturation, as ACID and ULTRAVIOLET */
+    { RGB(255, 32, 64), RGB(0, 255, 159), RGB(61, 92, 255), RGB(255, 242, 0) },        /* laser */
+    { RGB(57, 255, 20), RGB(255, 0, 230), RGB(0, 200, 255), RGB(255, 230, 0) },        /* toxic */
+    { RGB(255, 46, 151), RGB(0, 245, 212), RGB(255, 159, 28), RGB(181, 255, 58) },     /* miami */
+    { RGB(255, 94, 0), RGB(0, 225, 255), RGB(200, 0, 255), RGB(228, 255, 26) },        /* plasma */
+    { RGB(255, 0, 85), RGB(0, 255, 102), RGB(123, 97, 255), RGB(255, 222, 0) },        /* candy */
 };
 static uint16_t PART_C[NPARTS] = { RGB(215, 255, 0), RGB(255, 0, 168), RGB(0, 229, 255), RGB(255, 255, 255) };
 static void palette_apply(void) { for (int p = 0; p < NPARTS; p++) PART_C[p] = LPAL[set.palette % NPAL][p]; }

@@ -93,7 +93,8 @@ the grid, somewhere at random, and it grows back in that part's colour, as fast 
 blinks, a tom leaves a hole that slowly fills. Whole squares fill their cells and meet their neighbours edge to edge,
 so the colours lie in solid fields. Loud kicks and snares knock out a block of four. So the hits slowly
 repaint the grid: a groove heavy with hats drifts towards their colour. Each REC lays the grid out afresh in a new
-palette.
+palette, dealt from a shuffled deck of sixteen (none twice until all have come): After Images' nine, ACID and
+ULTRAVIOLET, and five neon ones, LASER, TOXIC, MIAMI, PLASMA and CANDY.
 
 ![TONES](img/tones.png)
 

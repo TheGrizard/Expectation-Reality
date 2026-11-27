@@ -78,7 +78,7 @@ Generative at its core, with macros across the main features, as After Images ha
   Colours: four clearly contrasting hues a palette, one per part, as After Images' rule has it; REC deals one from a
   shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's
   favourites ACID (#d7ff00, #ff00a8, #00e5ff, #ffffff) and ULTRAVIOLET (#8a2bff, #ff00f7, #00f0ff, #f4e8ff), in the
-  order KICK, SNARE, PERC, HATS.
+  order KICK, SNARE, PERC, HATS; and, the owner asking for more neon, LASER, TOXIC, MIAMI, PLASMA and CANDY.
 - The balance, as After Images': each part held at its MOOD 50 loudness at every MOOD (a table measured in the
   simulator, BS.1770-weighted), the mix tilted slowly to a steady top-to-bottom, a leveller (BAL_RMS; the owner finds
   it hot: never nudge it up), a limiter at -1 dBFS last. The volume knob at full and USB GAIN at 100 are unity.
