@@ -256,7 +256,8 @@ replaces DUCK). Every part starts dry when REC deals a groove: the effects are y
 
 **FX again: EFFECTS**, the whole kit's: REVERB SIZE (how big the room is, how long it rings) · DELAY TIME (1/4 down
 to 1/128, where it turns into a pitched buzz) · PAN AMOUNT · COMP AMOUNT (how hard it works). How much of each part
-reaches the reverb and delay is set by its sends.
+reaches the reverb and delay is set by its sends. The reverb and the delay dip lightly under each kick (a few dB,
+back within an eighth of a second), FREEZE's wash too, so the kick always cuts through the tails.
 
 ![TYPES](img/types.png)
 

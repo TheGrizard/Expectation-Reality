@@ -747,6 +747,9 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->kill_g += ((e->pu == PU_KILL && e->pu_mix > 0.5f ? 0.0f : 1.0f) - e->kill_g) * kk;
         float k = fm_fabsf(kL) + fm_fabsf(kR);
         e->sc += (k - e->sc) * (k > e->sc ? sc_att : sc_rel);
+        /* the reverb's and delay's returns ducked lightly under the kick (at most ~4.5 dB, in at once, back over ~120 ms:
+         * the tails breathe round it, never pump) */
+        e->duck_s[i] = 1.0f - 0.4f * fm_minf(1.0f, e->sc * 1.1f);
         e->lev_pan += (t_pan - e->lev_pan) * kb;
         e->clean_g += ((float)e->clean - e->clean_g) * kb;   /* (DUCK out with them, glided) */
         e->pan_ph += bps / (8.0f * SR); if (e->pan_ph >= 1.0f) e->pan_ph -= 1.0f;     /* SWEEP: two bars across */
@@ -875,7 +878,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             for (int c = 0; c < 2; c++) { o[c] = 0.5f * (e->dl_ho[c] + h[c]); e->dl_ho[c] = h[c]; }
             }
             e->lev_dly += (t_dly - e->lev_dly) * kb;
-            float dg = e->lev_dly * e->dly_dip * 1.1f;
+            float dg = e->lev_dly * e->dly_dip * 1.1f * e->duck_s[i];
             outL[i] += o[0] * dg; outR[i] += o[1] * dg;
         dl_mx = fm_maxf(dl_mx, fm_fabsf(o[0]) + fm_fabsf(o[1])); if (dsum != 0.0f) dl_in = 1;
         }
@@ -897,7 +900,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         }
         e->lev_room += (t_room - e->lev_room) * kb;
         float fzi = e->frz_prev + (fz - e->frz_prev) * (float)(i + 1) / (float)n;   /* (FREEZE's level glided across the block) */
-        float rg = (e->lev_room * 0.9f + fzi * 0.5f) * e->room_dip;
+        float rg = (e->lev_room * 0.9f + fzi * 0.5f) * e->duck_s[i] * e->room_dip;   /* (FREEZE's held wash too: the kick
+                                                  * cuts through it) */
         outL[i] += wl * rg; outR[i] += wr * rg;
     }
     e->frz_prev = fz;
