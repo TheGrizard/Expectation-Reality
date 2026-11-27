@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <xmmintrin.h>
 #include "../dsp/engine.h"
 
@@ -124,6 +125,49 @@ static void duet_load(void)
     fprintf(stderr, "  duet: %d notes of After Images' at %d BPM\n", dn_n, bpm);
 }
 
+/* puscan SEED: each punch-in pressed at every sixteenth of a bar (a 32nd after it, as a loose press), held two beats:
+ * its level while it plays against the groove's own over the same stretch. Silent ones are what a press between the
+ * hits gives */
+static float block_rms(const float *L, const float *R, int n) { double s = 0; for (int i = 0; i < n; i++) s += (double)(L[i] * L[i] + R[i] * R[i]); return (float)(s / (2.0 * n)); }
+static void puscan(uint32_t seed)
+{
+    static const int PUS[] = { PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_REVERSE, PU_FREEZE, PU_SWELL, PU_MASH, PU_PDOWN };
+    static float L[BLKN], R[BLKN];
+    Groove base = gr;
+    if (seed) groove_roll(&base, seed, 1);
+    apply_env(&base);
+    for (unsigned u = 0; u < sizeof PUS / sizeof PUS[0]; u++) {
+        int pu = PUS[u], silent = 0; float worst = 0, sum = 0;
+        for (int k = 0; k < 16; k++) {
+            float at = 8.0f + (float)k * 0.25f + 0.125f;
+            static float keep[2][2048][BLKN];      /* (the groove alone, block by block: what FREEZE and SWELL add over
+                                                    * it is the difference) */
+            int over = pu == PU_FREEZE || pu == PU_SWELL;
+            for (int pass = 0; pass < 2; pass++) {   /* (0: the groove alone; 1: the punch-in) */
+                gr = base; engine_init(&eng, &gr); eng.playing = 1;
+                double e = 0; int nb = 0, bi = 0;
+                while (eng.beat < at + 2.0f && bi < 2048) {
+                    if (pass && eng.beat >= at) eng.pu_want = pu;
+                    engine_block_begin(&eng, ENGINE_SUB); engine_block_reverb(&eng);
+                    for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
+                    engine_block_mix(&eng, L, R);
+                    if (!pass) { memcpy(keep[0][bi], L, sizeof L); memcpy(keep[1][bi], R, sizeof R); }
+                    else if (over) for (int i = 0; i < BLKN; i++) { L[i] -= keep[0][bi][i]; R[i] -= keep[1][bi][i]; }
+                    if (pass && getenv("PUSCANV") && k == 0 && pu == PU_FREEZE && (bi % 40) == 0) fprintf(stderr, "      b %.2f diff %.6f rvout %.5f frz %.2f pu %d\n", (double)eng.beat, (double)block_rms(L, R, BLKN), (double)eng.rv_out[0][5], (double)eng.frz, eng.pu);
+                    if (pu == PU_SWELL ? eng.beat >= at : eng.beat >= floorf(at) + 1.1f) { e += (double)block_rms(L, R, BLKN); nb++; }   /* (from the beat
+                                                    * it starts on; SWELL, from the press to the beat it lands on) */
+                    bi++;
+                }
+                float db = 10.0f * log10f((float)(e / (nb ? nb : 1)) + 1e-12f);
+                if (pass && getenv("PUSCANV")) fprintf(stderr, "    %s at %.3f: %.1f dB\n", PU_NAME[pu], (double)at, (double)db);
+                static float dry; if (!pass) dry = db; else { float d = db - dry; sum += d; if (d < worst) worst = d; if (db < -50.0f || d < -18.0f) silent++; }
+                eng.pu_want = 0;
+            }
+        }
+        printf("  %-10s quiet presses %2d of 16   worst %6.1f dB   average %6.1f dB against the groove\n", PU_NAME[pu], silent, (double)worst, (double)(sum / 16.0f));
+    }
+}
+
 static void run(const char *path, float secs, int punch)
 {
     if (getenv("DUMP")) dump();
@@ -138,6 +182,12 @@ static void run(const char *path, float secs, int punch)
         { 24, PU_MASH }, { 27, 0 }, { 28.35f, PU_REVERSE }, { 30, 0 }, { 32.2f, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
         { 43.3f, PU_SWELL }, { 44.2f, 0 }, { 46, PU_CRUSH }, { 48, 0 }, { 50, PU_KILL }, { 52, 0 }, { 54.1f, PU_REP12 }, { 56, 0 },
         { 58, -1 }, { 61, -2 }, { 64, 0 }, { 64, 0 }, { 66.3f, -3 }, { 66.6f, -4 }, { 69.2f, -3 }, { 72.9f, -4 } };   /* (FILL: tapped once, then held three beats) */   /* (pressed off the beat: they keep to the grid) */
+    static const struct { float beat; int pu; } DEMO[] = {   /* (PUDEMO: each pressed off the hits, a 32nd past an off
+                                                              * sixteenth, held: REPEAT 1/16, GLITCH, REVERSE, FREEZE over
+                                                              * two bar lines, SWELL) */
+        { 8.875f, PU_REP16 }, { 11.0f, 0 }, { 16.875f, PU_GLITCH }, { 21.0f, 0 }, { 24.875f, PU_REVERSE }, { 29.0f, 0 },
+        { 32.875f, PU_FREEZE }, { 41.0f, 0 }, { 44.875f, PU_SWELL }, { 49.0f, 0 } };
+    int dnext = 0, pudemo = getenv("PUDEMO") != 0;
     int next = 0; float last_beat = -1;
     clock_t t0 = clock();
     for (long done = 0; done < frames; done += BLKN) {
@@ -163,6 +213,7 @@ static void run(const char *path, float secs, int punch)
             if ((int)b != (int)last_beat) { engine_hear(&eng, 0, 36 + ((int)b / 4 % 3) * 5, 90); for (int i = 0; i < 3; i++) engine_hear(&eng, 2, 72 + i * 3, 70); }
             last_beat = b;
         }
+        if (pudemo) while (dnext < (int)(sizeof DEMO / sizeof DEMO[0]) && eng.beat >= DEMO[dnext].beat) { eng.pu_want = DEMO[dnext].pu; dnext++; }
         if (punch) {
             while (next < (int)(sizeof PLAN / sizeof PLAN[0]) && eng.beat >= PLAN[next].beat) {
                 int pu = PLAN[next].pu;
@@ -322,6 +373,7 @@ int main(int argc, char **argv)
     if (argc < 2) { fprintf(stderr, "render SEED|default SECONDS OUT.wav | sweep ENGINE OUT.wav | punch SEED OUT.wav | calibrate | bench\n"); return 2; }
     if (!strcmp(argv[1], "calibrate")) { calibrate(); return 0; }
     if (!strcmp(argv[1], "bench")) { bench(); return 0; }
+    if (!strcmp(argv[1], "puscan") && argc > 2) { groove_default(&gr); puscan((uint32_t)strtoul(argv[2], 0, 0)); return 0; }
     if (!strcmp(argv[1], "levels")) { level_table(); return 0; }
     if (!strcmp(argv[1], "levelcheck")) { level_check(); return 0; }
     if (!strcmp(argv[1], "sweep") && argc > 3) { int e = engine_by_name(argv[2]); if (e < 0) return 2; sweep(e, argv[3]); return 0; }

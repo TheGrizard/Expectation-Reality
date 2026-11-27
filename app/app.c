@@ -976,7 +976,9 @@ static void draw_grid(void)
                                                   * shade), a hit flooding it with the colour, fading back to its grey */
                 uint16_t pc = PART_C[c->part % NPARTS];
                 float lum = (0.30f * (float)(pc >> 11 & 31u) / 31.0f + 0.59f * (float)(pc >> 5 & 63u) / 63.0f + 0.11f * (float)(pc & 31u) / 31.0f);
-                float gv = (0.12f + 0.78f * lum) * (float)c->base / 255.0f * br;
+                /* (dark grey to white, never near-black: each part's grey the shade closest to its colour's own
+                 * lightness, each square a little either side of it) */
+                float gv = clampf(0.25f + 0.75f * lum + ((float)c->base - 172.0f) * (0.25f / 166.0f), 0.25f, 1.0f) * br;
                 uint16_t gc = grey(gv), hc = dim(pc, br);
                 cv_rect(x * cell, py, cell, cell, k >= 1.0f ? gc : mix_c(hc, gc, k));
                 continue;

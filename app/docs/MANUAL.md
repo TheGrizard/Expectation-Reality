@@ -97,8 +97,8 @@ palette.
 
 ![TONES](img/tones.png)
 
-SCREEN's **STYLE** (GLO three times) has a second look, **TONES**: the squares in shades from near-black to near-white
-(each part's grey follows its colour's own lightness, each square its own shade), and a hit floods its square with the
+SCREEN's **STYLE** (GLO three times) has a second look, **TONES**: the squares in shades from dark grey to white
+(each part's grey the shade closest to its colour's own lightness, each square a little either side of it), and a hit floods its square with the
 part's colour, fading back to its grey. The palettes still change with each REC, so the colours come and go over the
 same tonal layout.
 
@@ -316,13 +316,13 @@ while it follows a clock.
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
 | 6 | REPEAT 1/32 |
-| 7 | GLITCH: a repeat that changes its length every pass |
+| 7 | GLITCH: everything as it plays, chopped: each sixteenth let through, repeated (a 16th, 32nd, 64th or triplet) or played backwards |
 | 8 | PITCH DOWN an octave |
 | 9 | PITCH UP an octave |
 | 10 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more |
-| 11 | REVERSE: the eighth before, backwards, in time |
-| 12 | FREEZE: the last half beat of the whole kit caught in the room and held as an endless wash, the groove going on over it |
-| 13 | SWELL: the latest strong hit played backwards, swelling into the next beat |
+| 11 | REVERSE: everything as it plays, backwards: each eighth (a sixteenth at slower tempos) played backwards as the next comes in |
+| 12 | FREEZE: a moment of the whole kit caught in the room and held as an endless wash, the groove going on over it; held, caught anew each bar |
+| 13 | SWELL: the latest strong hit played backwards, swelling into the next beat; held, into every beat |
 | 14 | CRUSH |
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz, a gentle slope; strike it harder for more |
@@ -332,17 +332,21 @@ out (only the bar's downbeat, if the fill reaches one), the perc and hats bring 
 sixteenths, never rolled or speeding up), the snare plays a slight variation of its own, then the groove comes back as
 it was. Each fill is a different variation.
 
-FREEZE and SWELL always have something to work with, whatever is sent to the reverb and wherever you press: FREEZE
-takes the whole kit's last half beat, kick included; SWELL finds the latest strong hit and plays it backwards, landing
-on the beat.
+None of them goes silent if you press between the hits. The repeats loop one piece of sound and hold it: if the slice
+you pressed on has no hit in it, they take the nearest one before it on the same grid that has, or listen on to the
+next slice with a hit (so they stay in time). GLITCH and REVERSE work like CRUSH: on everything as it plays, the beat
+going on through them, so MOOD and everything else still change what you hear. FREEZE catches the whole kit's last
+half beat, kick included, or, if that was between hits, listens on until it catches one; it holds through any REVERB
+TYPE, GATED included. SWELL finds the latest strong hit and plays it backwards, landing on the beat. Held (or held with
+OCT- or OCT+), FREEZE catches a new moment at each bar and SWELL swells into every beat.
 
 **On the beat.** While it plays, a punch-in waits for the next beat to start (pressed up to a sixteenth late, it starts
 at once) and ends on the sixteenth after you let go, so a loose press still lands in time. A quick tap let go before
 its beat still plays, a sixteenth's worth. SWELL keeps its own timing (it lands on the beat), the two filters work
 the instant you press, and stopped, everything is instant.
 
-The repeats, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
-line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
+The repeats are held to the grid: however late you press, the loop starts on a line of its own grid (an eighth, a
+sixteenth...) and repeats in time with the groove. GLITCH and REVERSE keep to the grid from the beat they start on.
 
 **Holds.** Hold **OCT-** as you press a key, or hold the key and tap OCT-, and it stays on to the end of the loop
 (the kick's pattern, at least a beat away); **OCT+** the same way and it stays on for good. Either order works, for

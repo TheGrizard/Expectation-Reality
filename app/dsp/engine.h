@@ -102,7 +102,10 @@ struct Engine {
     uint32_t kick_bar, kick_last; int kick_in_bar;   /* the kick held firm: its hits this bar, its last step */
     uint32_t last_bar; int nblk;
     uint8_t off_note[NPARTS]; int off_left[NPARTS];   /* MIDI out: each part's note, blocks until its note-off */
-    float frz_feed, sw_dip, frz_prev; int frz_len, frz_left, sw_off;   /* (FREEZE's catch: the last half beat from the
+    float frz_feed, sw_dip, frz_prev; int frz_len, frz_left, sw_off, frz_live, frz_hit, pu_quiet, pu_tries;
+    float pk_run, frz_ref; uint32_t frz_bar;   /* (FREEZE held: caught anew each bar, the old wash let go meanwhile) */                                /* (the groove's recent loudest: what 'nothing in it' is measured against) */
+    int ch_act, ch_pact, ch_s0, ch_ps0, ch_len, ch_plen, ch_xf; float ch_ph, ch_pph, ch_step;   /* (GLITCH, REVERSE: the
+                                                  * live chopper, this step and the one it crossfades from) */ float frz_got, frz_lv;   /* (FREEZE's catch: the last half beat from the
                                                   * memory; SWELL's: how far back its hit is) */
     /* the black keys: randomisers, a new value each hit (sample and hold): which of TONE, WEIGHT, ENTROPY (bits 0-2)
      * each part has held, and how far (0..1) */
