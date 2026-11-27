@@ -68,9 +68,10 @@ static void apply_env(Groove *g)
     { extern int engine_balance_raw; if (getenv("BALRAW")) engine_balance_raw = atoi(getenv("BALRAW")); }
     if (getenv("SEND")) {   /* (SEND=part,room,delay,pan: a part's sends, e.g. 0,40,30,50 the kick's) */
         int sp = 0, sr = 0, sd = 0, sn = 0;
-        if (sscanf(getenv("SEND"), "%d,%d,%d,%d", &sp, &sr, &sd, &sn) == 4 && sp >= 0 && sp < NPARTS) {
-            g->p[sp].s_room = (uint8_t)sr; g->p[sp].s_delay = (uint8_t)sd; g->p[sp].s_pan = (uint8_t)sn;
-        }
+        if (sscanf(getenv("SEND"), "%d,%d,%d,%d", &sp, &sr, &sd, &sn) == 4 && sp >= -1 && sp < NPARTS)   /* (-1: every part) */
+            for (int q = sp < 0 ? 0 : sp; q < (sp < 0 ? NPARTS : sp + 1); q++) {
+                g->p[q].s_room = (uint8_t)sr; g->p[q].s_delay = (uint8_t)sd; g->p[q].s_pan = (uint8_t)sn;
+            }
     }
     if (getenv("SOLO")) { int k = atoi(getenv("SOLO")); for (int p = 0; p < NPARTS; p++) if (p != k) g->p[p].level = 0; }   /* (one part alone) */
     if (getenv("DRY")) { const char *d = getenv("DRY"); if (strchr(d, 'r')) g->room = 0; if (strchr(d, 'd')) g->delay = 0; if (strchr(d, 'c')) g->comp = 0; if (strchr(d, 'p')) g->pan = 0; }   /* (r d c p: effects off) */

@@ -8,8 +8,11 @@
 #include "dsp.h"
 
 #define RV_LINES 8
-#define RV_MAX 3200                      /* (its longest line 3119 at size 1: Expectation Reality never asks for more) */
-#define RV_AP 512
+/* Expectation Reality's runs at half the sample rate (22.05 kHz: it's damped well below that's top, so it sounds the
+ * same), its lines half as long: half the work, half the memory */
+#define RV_RATE (SR * 0.5f)
+#define RV_MAX 1600                      /* (its longest line 1559 at size 1: Expectation Reality never asks for more) */
+#define RV_AP 256
 typedef struct {
     int16_t buf[RV_LINES][RV_MAX]; int len[RV_LINES], pos[RV_LINES];
     float g[RV_LINES]; OnePole damp[RV_LINES];
@@ -18,7 +21,7 @@ typedef struct {
 } Reverb;
 void reverb_init(Reverb *rv, float size);
 void reverb_set(Reverb *rv, float rt60, float damp_hz);   /* (cheap: no clearing) */
-void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n);
+void reverb_run(Reverb *rv, const float *inL, const float *inR, float *outL, float *outR, int n);   /* (n at RV_RATE) */
 
 #define ECHO_MAX 32768                   /* 0.74 s */
 #define SMEAR_AP 4

@@ -62,7 +62,7 @@ void engine_init(Engine *e, Groove *g)
     e->cmp_g = 1.0f; e->kill_g = 1.0f; e->gov = 1.0f;
     e->ai_ground = e->ai_light = -1;
     e->midi_ch = 9;
-    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f); op_set(&e->plp1[c], 18000.0f); }
+    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f * 2.0f);   /* (run at half the rate) */ op_set(&e->plp1[c], 18000.0f); }
     e->lp_c = e->hp_c = 0;
     e->dg_rate = e->dg_rate_t = 1.0f;
     e->smash = g->comp_t == CT_SMASH ? 1.0f : 0.0f;
@@ -599,11 +599,24 @@ void engine_block_reverb(Engine *e)
     int n = e->nblk;
     uint32_t c0 = e->clock ? e->clock() : 0;
     if (!e->rv_fed && e->rv_quiet > 8) {
-        if (e->rv_quiet == 9) { memset(e->rv_out, 0, sizeof e->rv_out); e->rv_quiet++; }
+        if (e->rv_quiet == 9) { memset(e->rv_out, 0, sizeof e->rv_out); e->rv_last[0] = e->rv_last[1] = 0; e->rv_quiet++; }
         e->rv_cost = 0;
         return;
     }
-    reverb_run(&e->rv, e->rv_in[0], e->rv_in[1], e->rv_out[0], e->rv_out[1], n);
+    {   /* at half the rate: each pair of samples in averaged, each one out followed by the halfway point to the next
+         * (half a sample late, unheard in a room) */
+        int h = n >> 1;
+        for (int k = 0; k < h; k++) {
+            e->rv_h[0][k] = 0.5f * (e->rv_in[0][2 * k] + e->rv_in[0][2 * k + 1]);
+            e->rv_h[1][k] = 0.5f * (e->rv_in[1][2 * k] + e->rv_in[1][2 * k + 1]);
+        }
+        reverb_run(&e->rv, e->rv_h[0], e->rv_h[1], e->rv_h[2], e->rv_h[3], h);
+        for (int c = 0; c < 2; c++) {
+            float prev = e->rv_last[c]; const float *y = e->rv_h[2 + c]; float *o = e->rv_out[c];
+            for (int k = 0; k < h; k++) { o[2 * k] = 0.5f * (prev + y[k]); o[2 * k + 1] = y[k]; prev = y[k]; }
+            e->rv_last[c] = prev;
+        }
+    }
     float mx = 0; for (int i = 0; i < n; i++) mx = fm_maxf(mx, fm_fabsf(e->rv_out[0][i]) + fm_fabsf(e->rv_out[1][i]));
     if (e->rv_fed || mx > 2e-5f) e->rv_quiet = 0; else if (e->rv_quiet < 9) e->rv_quiet++;
     if (e->clock) e->rv_cost = (float)(e->clock() - c0);
@@ -617,11 +630,11 @@ static float dly_samples(const Engine *e, int idx)
     return s < 4.0f ? 4.0f : s;
 }
 
-static inline float dl_read(const int16_t *b, int w, float d)
+static inline float dl_read(const int16_t *b, int w, float d)   /* (d in the sample rate's samples; the line at half) */
 {
-    float rp = (float)w - d; while (rp < 0) rp += (float)DLY_BUF;
-    int i0 = (int)rp; float fr = rp - (float)i0; if (i0 >= DLY_BUF) i0 -= DLY_BUF;
-    int i1 = i0 + 1; if (i1 >= DLY_BUF) i1 = 0;
+    float rp = (float)w - d * 0.5f; while (rp < 0) rp += (float)DLY_H;
+    int i0 = (int)rp; float fr = rp - (float)i0; if (i0 >= DLY_H) i0 -= DLY_H;
+    int i1 = i0 + 1; if (i1 >= DLY_H) i1 = 0;
     return from16(b[i0]) + (from16(b[i1]) - from16(b[i0])) * fr;
 }
 
@@ -743,11 +756,13 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (e->pg[p] <= 0) e->pg[p] = pgt[p];
             e->pg[p] += (pgt[p] - e->pg[p]) * kb;
             float x0 = (p == P_KICK ? kL : e->P[p].bus[0][i]) * e->pg[p], x1 = (p == P_KICK ? kR : e->P[p].bus[1][i]) * e->pg[p];
-            float pm = 0;                         /* PAN: each part moved across the field */
-            if (g->pan_t == PT_SWEEP) pm = sine_c(e->pan_ph + (float)p * 0.31f) * 0.9f;
-            else if (g->pan_t == PT_SPIN) pm = sine_c(e->pan_spin + (float)p * 0.25f) * 0.9f;
-            float a = e->lev_pan * span[p];
-            e->pan_now[p] += (pm * a - e->pan_now[p]) * 0.002f;
+            float pm = 0, a = e->lev_pan * span[p];   /* PAN: each part moved across the field (not sent: nothing to do) */
+            if (a > 0 || e->pan_now[p] != 0) {
+                if (g->pan_t == PT_SWEEP) pm = sine_c(e->pan_ph + (float)p * 0.31f) * 0.9f;
+                else if (g->pan_t == PT_SPIN) pm = sine_c(e->pan_spin + (float)p * 0.25f) * 0.9f;
+                e->pan_now[p] += (pm * a - e->pan_now[p]) * 0.002f;
+                if (a <= 0 && fm_fabsf(e->pan_now[p]) < 1e-4f) e->pan_now[p] = 0;
+            }
             if (fm_fabsf(e->pan_now[p]) > 0.0005f) {
                 float m = (x0 + x1) * 0.5f, th = (0.5f + 0.5f * clampf(e->pan_now[p], -1.0f, 1.0f)) * 0.25f, w = fm_fabsf(e->pan_now[p]);   /* (th in turns) */
                 x0 = x0 * (1.0f - w) + m * w * sine_c(th + 0.25f) * 1.41f; x1 = x1 * (1.0f - w) + m * w * sine_c(th) * 1.41f;
@@ -833,25 +848,32 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (!g->glitch && fm_fabsf(want - e->dt_b) > 1.0f && e->dxf >= 1.0f) { e->dt_a = e->dt_b; e->dt_b = want; e->dxf = 0; }
             if (e->dxf < 1.0f) e->dxf = fm_minf(1.0f, e->dxf + 1.0f / (0.004f * SR));
             float o[2];
+            if (!(i & 1)) { e->dl_hin = dsum; o[0] = e->dl_ho[0]; o[1] = e->dl_ho[1]; }   /* (at half the rate: each second
+                                                  * sample the pair in averaged, the line read and written; out, each
+                                                  * new sample and the halfway point to it) */
+            else {
+            float din = 0.5f * (e->dl_hin + dsum), h[2];
             if (e->dly_t_now == DT_GRAIN) {
                 float gl = clampf(e->dt_b * 0.5f, 600.0f, 4000.0f);   /* a grain: half the time, 14 to 90 ms */
-                e->dg_ph += 1.0f / gl;
+                e->dg_ph += 2.0f / gl;                /* (two samples a step) */
                 if (e->dg_ph >= 1.0f) { e->dg_ph -= 1.0f; e->dg_rate = grain_rate(e); }
                 float phb = e->dg_ph + 0.5f; if (phb >= 1.0f) phb -= 1.0f;
-                if (phb < 1.0f / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
+                if (phb < 2.0f / gl) e->dg_rate_t = grain_rate(e);   /* (the second head's new grain) */
                 float wa = sine_c(e->dg_ph * 0.5f), wb = sine_c(phb * 0.5f); wa *= wa; wb *= wb;   /* (sin^2: the two sum to one) */
                 float da = clampf(e->dt_b + (1.0f - e->dg_rate) * e->dg_ph * gl, 8.0f, (float)(DLY_BUF - 16));
                 float db = clampf(e->dt_b + (1.0f - e->dg_rate_t) * phb * gl, 8.0f, (float)(DLY_BUF - 16));
-                for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, da) * wa + dl_read(e->dl[c], e->dw, db) * wb;
+                for (int c = 0; c < 2; c++) h[c] = dl_read(e->dl[c], e->dw, da) * wa + dl_read(e->dl[c], e->dw, db) * wb;
             } else if (e->dxf >= 1.0f)
-                for (int c = 0; c < 2; c++) o[c] = dl_read(e->dl[c], e->dw, e->dt_b);
+                for (int c = 0; c < 2; c++) h[c] = dl_read(e->dl[c], e->dw, e->dt_b);
             else
-                for (int c = 0; c < 2; c++) { float a = dl_read(e->dl[c], e->dw, e->dt_a); o[c] = a + (dl_read(e->dl[c], e->dw, e->dt_b) - a) * e->dxf; }
+                for (int c = 0; c < 2; c++) { float a = dl_read(e->dl[c], e->dw, e->dt_a); h[c] = a + (dl_read(e->dl[c], e->dw, e->dt_b) - a) * e->dxf; }
             float dirt = e->dly_t_now == DT_GRAIN ? 1.0f : 0.0f;
-            float w0 = op_lp(&e->dlp[0], dsum + o[1] * dfb), w1 = op_lp(&e->dlp[1], o[0] * dfb);
+            float w0 = op_lp(&e->dlp[0], din + h[1] * dfb), w1 = op_lp(&e->dlp[1], h[0] * dfb);
             if (dirt > 0) { w0 = soft_clip(w0 * 2.2f) * 0.6f; w1 = soft_clip(w1 * 2.2f) * 0.6f; }
             e->dl[0][e->dw] = to16(soft_clip(w0)); e->dl[1][e->dw] = to16(soft_clip(w1));
-            if (++e->dw >= DLY_BUF) e->dw = 0;
+            if (++e->dw >= DLY_H) e->dw = 0;
+            for (int c = 0; c < 2; c++) { o[c] = 0.5f * (e->dl_ho[c] + h[c]); e->dl_ho[c] = h[c]; }
+            }
             e->lev_dly += (t_dly - e->lev_dly) * kb;
             float dg = e->lev_dly * e->dly_dip * 1.1f;
             outL[i] += o[0] * dg; outR[i] += o[1] * dg;
@@ -1037,17 +1059,25 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             e->hp_c += clampf((hpw > 0 ? 1.0f : 0.0f) - e->hp_c, -st, st);
             if (lpw > 0) e->lp_d += (clamp01(lpw - 1.0f) - e->lp_d) * 0.002f;
             if (hpw > 0) e->hp_d += (clamp01(hpw - 1.0f) - e->hp_d) * 0.002f;
-            if ((e->pf_cnt++ & 7) == 0) {
-                float fl = 1500.0f * fm_exp2f(-2.0f * e->lp_d), fh = 350.0f * fm_exp2f(2.0f * e->hp_d);
-                for (int c = 0; c < 2; c++) { svf_set_res(&e->plp[c], fl, 0.65f); op_set(&e->plp1[c], fl); svf_set_res(&e->php[c], fh, 0.9f); }
-            }
-            for (int c = 0; c < 2; c++) {         /* (in series: each filter run once a sample) */
-                float l = svf_lp(&e->plp[c], y[c]) * 0.7f + op_lp(&e->plp1[c], y[c]) * 0.3f;   /* (the low-pass's slope a gentle
-                                                  * one: about 9 dB an octave, no bump at its corner) */
-                y[c] += (l - y[c]) * e->lp_c;
-                float hh = svf_hp(&e->php[c], y[c]);
-                y[c] += (hh - y[c]) * e->hp_c;
-            }
+            int lon = e->lp_c > 0 || lpw > 0, hon = e->hp_c > 0 || hpw > 0;   /* (each runs only while its key is down or
+                                                  * fading: started from rest, faded in over 25 ms from nothing, it never
+                                                  * clicks) */
+            if (lon || hon) {
+                if ((e->pf_cnt++ & 7) == 0) {
+                    float fl = 1500.0f * fm_exp2f(-2.0f * e->lp_d), fh = 350.0f * fm_exp2f(2.0f * e->hp_d);
+                    for (int c = 0; c < 2; c++) { svf_set_res(&e->plp[c], fl, 0.65f); op_set(&e->plp1[c], fl); svf_set_res(&e->php[c], fh, 0.9f); }
+                }
+                for (int c = 0; c < 2; c++) {     /* (in series: each filter run once a sample) */
+                    if (lon) {
+                        float l = svf_lp(&e->plp[c], y[c]) * 0.7f + op_lp(&e->plp1[c], y[c]) * 0.3f;   /* (the low-pass's slope a
+                                                  * gentle one: about 9 dB an octave, no bump at its corner) */
+                        y[c] += (l - y[c]) * e->lp_c;
+                    }
+                    if (hon) { float hh = svf_hp(&e->php[c], y[c]); y[c] += (hh - y[c]) * e->hp_c; }
+                }
+            } else e->pf_cnt = 0;                 /* (from rest: its settings worked out at the first sample) */
+            if (!lon && e->plp[0].ic1 != 0) for (int c = 0; c < 2; c++) { e->plp[c].ic1 = e->plp[c].ic2 = 0; e->plp1[c].z = 0; }
+            if (!hon && e->php[0].ic1 != 0) for (int c = 0; c < 2; c++) e->php[c].ic1 = e->php[c].ic2 = 0;
         }
         if (!e->pu_frozen || e->pu_rel) { /* (the memory recording again once let go) */ }
         if (!e->pu_frozen) { e->pw = (e->pw + 1) % PUNCH_BUF; if (e->rec_since < PUNCH_BUF) e->rec_since++; }

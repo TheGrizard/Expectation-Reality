@@ -1132,7 +1132,16 @@ static void draw_panel_rows(int y0)
     for (int k = 0; k < 4; k++) {
         int cx = 60 * k + 30, y = y0 + 50, hot = focus && k == ui.last_knob;
         const char *nm = knob_of(pg, k)->name;
-        cv_text(cx - text_w(&FONT_XS, nm) / 2, y, &FONT_XS, nm, hot ? pc : C_SUB);
+        {   /* a name too wide for its column (REVERB SIZE...) on two lines, its first word above */
+            char w1[16]; int sp = -1;
+            for (int j = 0; nm[j] && j < 15; j++) if (nm[j] == ' ') { sp = j; break; }
+            if (sp > 0 && (text_w(&FONT_XS, nm) > 56 || pg == PG_FXBUS || pg == PG_TYPES)) {   /* (those two pages all alike) */
+                for (int j = 0; j < sp; j++) w1[j] = nm[j];
+                w1[sp] = 0;
+                cv_text(cx - text_w(&FONT_XS, w1) / 2, y - 10, &FONT_XS, w1, hot ? pc : C_SUB);
+                cv_text(cx - text_w(&FONT_XS, nm + sp + 1) / 2, y, &FONT_XS, nm + sp + 1, hot ? pc : C_SUB);
+            } else cv_text(cx - text_w(&FONT_XS, nm) / 2, y, &FONT_XS, nm, hot ? pc : C_SUB);
+        }
         char v[24]; knob_text(pg, k, v);
         int room = k < 3 && knob_of(pg, k + 1)->kind == K_NONE ? 112 : 56;
         const felucca_font_t *f = text_w(&FONT_M, v) <= room ? &FONT_M : text_w(&FONT_B, v) <= room + 2 ? &FONT_B : &FONT_XS;

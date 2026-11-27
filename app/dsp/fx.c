@@ -9,10 +9,10 @@ void reverb_init(Reverb *rv, float size)
     static const int apb[4] = { 142, 107, 379, 277 };
     memset(rv, 0, sizeof *rv);
     for (int i = 0; i < RV_LINES; i++) {
-        int n = (int)((float)base[i] * size); if (n >= RV_MAX) n = RV_MAX - 1; if (n < 64) n = 64;
+        int n = (int)((float)base[i] * size * (RV_RATE / SR)); if (n >= RV_MAX) n = RV_MAX - 1; if (n < 32) n = 32;
         rv->len[i] = n;
     }
-    for (int i = 0; i < 4; i++) { int n = (int)((float)apb[i] * size); if (n >= RV_AP) n = RV_AP - 1; rv->aplen[i] = n; }
+    for (int i = 0; i < 4; i++) { int n = (int)((float)apb[i] * size * (RV_RATE / SR)); if (n >= RV_AP) n = RV_AP - 1; rv->aplen[i] = n; }
     reverb_set(rv, 6.0f, 5000.0f);
 }
 
@@ -21,8 +21,8 @@ void reverb_set(Reverb *rv, float rt60, float damp_hz)
     if (fm_fabsf(rt60 - rv->rt60) < 0.05f && fm_fabsf(damp_hz - rv->damp_hz) < 20.0f) return;
     rv->rt60 = rt60; rv->damp_hz = damp_hz;
     for (int i = 0; i < RV_LINES; i++) {
-        rv->g[i] = fm_powf(10.0f, -3.0f * (float)rv->len[i] / (rt60 * SR));
-        op_set(&rv->damp[i], damp_hz);
+        rv->g[i] = fm_powf(10.0f, -3.0f * (float)rv->len[i] / (rt60 * RV_RATE));
+        op_set(&rv->damp[i], damp_hz * (SR / RV_RATE));   /* (op_set counts in SR's samples) */
     }
 }
 
