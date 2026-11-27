@@ -315,6 +315,11 @@ FILL plays alongside the punch-ins and filters. A fill is a simple change of the
 a slight variation of its own pattern (a snare hit moved next door, a couple of hats and perc shifted, the kick
 barely touched), then the groove comes back as it was. Each fill is a different variation.
 
+**On the beat.** While it plays, a punch-in waits for the next beat to start (pressed up to a sixteenth late, it starts
+at once) and ends on the sixteenth after you let go, so a loose press still lands in time. A quick tap let go before
+its beat still plays, a sixteenth's worth. SWELL keeps its own timing (it lands on the beat), the two filters work
+the instant you press, and stopped, everything is instant.
+
 The repeats, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
 line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
 

@@ -72,7 +72,8 @@ struct Engine {
      * glided), the mix's tone tilted slowly towards a steady top-to-bottom, a leveller over seconds */
     float pg[NPARTS], tl_lo, tl_hi, tl_elo, tl_ehi, tl_db, tl_g, tl_s[2], lev_ss, lev_g;
     volatile int clean; float clean_g;      /* USB AUDIO's OUTPUT CLEAN: FX's effects (ROOM, DELAY, COMP, PAN, DUCK) out, glided */
-    volatile int pu_want; volatile float pu_press;   /* the key held (PU_*), its pressure 0..1 (from the UI) */
+    volatile int pu_want; volatile float pu_press;
+    int pu_pend, pu_tap, pu_relq, pu_once; uint32_t pu_at, pu_rel_at;   /* quantised: the punch-in waiting for its beat, when; its end's sixteenth */   /* the key held (PU_*), its pressure 0..1 (from the UI) */
     int pu, pu_rel; float pu_mix; int16_t pb[2][PUNCH_BUF]; int pw, ps0, pu_frozen;
     float rpos, rlen, rnext; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;
     int pu_cap, pu_fwd, rec_since;       /* capturing forward: how much so far; the memory's clean run since it last froze */
@@ -99,7 +100,7 @@ struct Engine {
     uint32_t kick_bar, kick_last; int kick_in_bar;   /* the kick held firm: its hits this bar, its last step */
     uint32_t last_bar; int nblk;
     uint8_t off_note[NPARTS]; int off_left[NPARTS];   /* MIDI out: each part's note, blocks until its note-off */
-    float frz_feed, sw_dip, frz_k;   /* (frz_k: the kick into FREEZE's room, glided)*/
+    float frz_feed, sw_dip, frz_k, frz_prev;   /* (frz_k: the kick into FREEZE's room, glided)*/
     /* the black keys: randomisers, a new value each hit (sample and hold): which of TONE, WEIGHT, ENTROPY (bits 0-2)
      * each part has held, and how far (0..1) */
     volatile uint8_t rnd_bits[NPARTS]; volatile float rnd_depth[NPARTS];

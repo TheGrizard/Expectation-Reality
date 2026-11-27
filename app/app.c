@@ -87,7 +87,7 @@ static void settings_load(void)
     if (magic == SET_MAGIC && ver == SET_VER && n == (int)sizeof set) memcpy(&set, raw, sizeof set);
     else if (magic == SET_MAGIC && (ver == 1 || ver == 2) && n == SET_V2_SIZE) {   /* 1 (v0.1), 2 (v0.2): all but STYLE;
                                                   * in 1, MOOD ran the other way */
-        memset(&set, 0, sizeof set); memcpy(&set, raw, (size_t)SET_V2_SIZE); set.ver = SET_VER; set.style = 0;
+        memset(&set, 0, sizeof set); memcpy(&set, raw, (unsigned)SET_V2_SIZE); set.ver = SET_VER; set.style = 0;
         if (ver == 1) {
             if (set.cur.mood <= 100) set.cur.mood = (uint8_t)(100 - set.cur.mood);
             for (int i = 0; i < set.nsaved && i < NSAVED; i++) if (set.saved[i].mood <= 100) set.saved[i].mood = (uint8_t)(100 - set.saved[i].mood);

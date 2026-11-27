@@ -590,7 +590,7 @@ static float grain_rate(Engine *e)            /* a grain's speed: mostly as it w
     return x < 0.6f ? 1.0f : x < 0.75f ? 0.5f : x < 0.9f ? 2.0f : 1.03f;
 }
 
-static void punch_engage(Engine *e, int pu)
+static void punch_engage(Engine *e, int pu, int at)   /* (at: the sample of this block it starts on) */
 {
     e->pu = pu; e->rpos = 0; e->ps0 = e->pw; e->rnext = 0;
     float beat = 60.0f / e->bpm * SR, cap = (float)(PUNCH_BUF - 256);
@@ -615,7 +615,7 @@ static void punch_engage(Engine *e, int pu)
     float ph = 0;                                /* samples since the slice's grid line */
     if (slice && e->playing && e->rlen < cap) {
         uint32_t gt = (uint32_t)((float)TPB * 4.0f * div + 0.5f);   /* (its grid in ticks: 48 an eighth) */
-        float t = (float)(e->tick % gt) + e->frac - e->rate * (float)e->nblk;   /* (where this block began) */
+        float t = (float)(e->tick % gt) + e->frac - e->rate * (float)(e->nblk - at);   /* (where it starts) */
         while (t < 0) t += (float)gt;
         ph = t / e->rate;
         if (ph >= e->rlen - 64.0f) ph = 0;       /* (all but on the next line: start there) */
@@ -813,9 +813,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (++e->room_w >= chunk) { e->room_w = 0; e->rchunk++; }
         }
         e->lev_room += (t_room - e->lev_room) * kb;
-        float rg = (e->lev_room * 0.9f + fz * 0.5f) * e->room_dip;
+        float fzi = e->frz_prev + (fz - e->frz_prev) * (float)(i + 1) / (float)n;   /* (FREEZE's level glided across the block) */
+        float rg = (e->lev_room * 0.9f + fzi * 0.5f) * e->room_dip;
         outL[i] += wl * rg; outR[i] += wr * rg;
     }
+    e->frz_prev = fz;
     /* the balance, as After Images': the mix's lows (under 150 Hz) and highs (over 3 kHz) weighed over seconds, the mix
      * tilted round 800 Hz towards the grooves' usual top-to-bottom (up to 5 dB, slowly; held while stopped), then a
      * leveller: every groove, every MOOD, at about the same loudness (+-6 dB at most, over seconds, never pumping) */
@@ -856,11 +858,40 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->lev_g = lg1;
     }
     /* the punch-ins */
+    /* the punch-ins quantised (playing): one starts on the next beat (pressed up to a sixteenth late: at once), ends on
+     * the sixteenth after it's let go; a tap let go before its beat still plays, a sixteenth's worth. SWELL keeps its
+     * own timing (it lands on the beat); the filters their own, below. Stopped: at once */
     int want_pu = e->pu_want;
-    if (e->pu && (want_pu != e->pu) && !e->pu_rel && e->pu != PU_SWELL) e->pu_rel = 1;
-    if (!e->pu && want_pu && want_pu != PU_LPF && want_pu != PU_HPF) punch_engage(e, want_pu);   /* (the filters: their own, below) */
+    if (want_pu == PU_LPF || want_pu == PU_HPF) want_pu = 0;
+    if (want_pu != e->pu_once) e->pu_once = 0;              /* (SWELL: once a press) */
+    if (want_pu && want_pu == e->pu_once && !e->pu) want_pu = 0;
+    int qz = e->playing;
+    float a_ = e->rate * (float)n - e->frac;
+    uint32_t kq = a_ > 0 ? (uint32_t)a_ + 1u : 0u;
+    uint32_t bs = e->tick - kq; float bf = (float)kq - a_;   /* (where this block began: bs ticks and bf of one) */
+    if (want_pu && want_pu != e->pu && want_pu != e->pu_pend) {
+        uint32_t pos = bs % TPB;
+        e->pu_pend = want_pu; e->pu_tap = 0;
+        e->pu_at = !qz || want_pu == PU_SWELL || pos < 24u ? bs : bs - pos + TPB;
+    }
+    if (e->pu_pend && want_pu != e->pu_pend) e->pu_tap = 1;   /* (let go, or another, before it began) */
+    if (e->pu && want_pu == e->pu) e->pu_relq = 0;           /* (pressed again before it ended: on) */
+    else if (e->pu && !e->pu_rel && !e->pu_relq && e->pu != PU_SWELL) {
+        uint32_t up = bs + (bf > 0.001f ? 1u : 0u);       /* (let go on a sixteenth: ends there; after it: the next) */
+        e->pu_relq = 1; e->pu_rel_at = qz ? (up + 23u) / 24u * 24u : bs;
+    }
     float lpw = e->pu_lpw, hpw = e->pu_hpw;
     for (int i = 0; i < n; i++) {
+        if (e->pu_pend || e->pu_relq) {           /* (their moments, to the sample) */
+            float ti = bf + e->rate * (float)i;
+            if (e->pu_relq && !e->pu_rel && (float)(int32_t)(bs - e->pu_rel_at) + ti >= 0) { e->pu_rel = 1; e->pu_relq = 0; }
+            if (e->pu_pend && !e->pu && (float)(int32_t)(bs - e->pu_at) + ti >= 0) {
+                punch_engage(e, e->pu_pend, i);
+                if (e->pu_pend == PU_SWELL) e->pu_once = PU_SWELL;
+                if (e->pu_tap && e->pu != PU_SWELL) { e->pu_relq = 1; e->pu_rel_at = (qz ? e->pu_at : bs) + 24u; }
+                e->pu_pend = 0; e->pu_tap = 0;
+            }
+        }
         float y[2] = { outL[i], outR[i] };
         if (!e->pu_frozen) { e->pb[0][e->pw] = to16(y[0]); e->pb[1][e->pw] = to16(y[1]); }
         float pu_[2] = { 0, 0 }, pd_[2] = { 0, 0 };
@@ -872,12 +903,12 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         int pu = e->pu;
         float tgt = pu && !e->pu_rel ? 1.0f : 0.0f;
         { float st = 1.0f / (0.004f * SR); e->pu_mix += clampf(tgt - e->pu_mix, -st, st); }
-        if (pu && e->pu_rel && e->pu_mix < 0.0005f) { e->pu = pu = 0; e->pu_rel = 0; e->pu_frozen = 0; e->pu_mix = 0; e->frz = 0; }
+        if (pu && e->pu_rel && e->pu_mix < 0.0005f) { e->pu = pu = 0; e->pu_rel = 0; e->pu_frozen = 0; e->pu_mix = 0; }   /* (FREEZE's hold fades on, below) */
         if (pu == PU_FREEZE) {                    /* FREEZE: the room fed a moment, then held, the groove going on over it */
             e->frz_feed = e->rpos < beat * 0.125f ? 1.0f : 0.0f;
             e->frz += ((e->pu_rel ? 0.0f : 1.0f) - e->frz) * 0.0004f;
             e->rpos += 1.0f;
-        } else if (e->frz > 0) { e->frz += (0.0f - e->frz) * 0.0004f; if (e->frz < 0.001f) e->frz = 0; }
+        } else if (e->frz > 0) { e->frz += (0.0f - e->frz) * 0.0004f; if (e->frz < 1e-4f) e->frz = 0; }
         if (pu && pu != PU_FREEZE && pu != PU_KILL) {
             float fx[2] = { y[0], y[1] };
             if (pu == PU_PDOWN || pu == PU_PUP) { fx[0] = (pu == PU_PUP ? pu_[0] : pd_[0]) * 1.2f; fx[1] = (pu == PU_PUP ? pu_[1] : pd_[1]) * 1.2f; }

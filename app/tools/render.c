@@ -174,6 +174,10 @@ static void run(const char *path, float secs, int punch)
         engine_block_reverb(&eng);
         for (int p = 0; p < NPARTS; p++) engine_block_part(&eng, p);
         engine_block_mix(&eng, L, R);
+        if (getenv("PULOG")) {   /* (when each punch-in begins and ends, in beats) */
+            static int was = 0; int now_pu = eng.pu && !eng.pu_rel ? eng.pu : 0;
+            if (now_pu != was) { fprintf(stderr, "  beat %.3f: %s %s\n", (double)((float)eng.tick / (float)TPB), now_pu ? "on " : "off", PU_NAME[now_pu ? now_pu : was]); was = now_pu; }
+        }
         float dg = aiw ? 0.62f : 0.9f;
         for (int i = 0; i < BLKN && done + i < frames; i++) {
             float al = 0, ar = 0;
