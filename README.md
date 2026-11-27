@@ -3,7 +3,8 @@
 **Generative percussion for the M-VAVE FM-1, a partner to [After Images](https://github.com/TheGrizard/After-Images).**
 Press REC and it writes a groove: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length driving one
 of eighteen synthesised drum engines. **Expectation** is the groove it deals, a loop that plays the same every time.
-Turn up EVOLVE and it becomes **reality**: the groove's step components come in one by one, then it rewrites itself.
+Turn up EVOLVE and it becomes **reality**: to halfway the groove's step components come in one by one, weirder but still
+looping exactly; past halfway it flows freely and rewrites itself.
 
 Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), built on
 [fm1-base](https://github.com/charlesvestal/fm1-base). Works on both FM-1 flash chips.

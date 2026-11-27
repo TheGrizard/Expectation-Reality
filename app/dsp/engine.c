@@ -62,7 +62,7 @@ void engine_init(Engine *e, Groove *g)
     e->cmp_g = 1.0f; e->kill_g = 1.0f; e->gov = 1.0f;
     e->ai_ground = e->ai_light = -1;
     e->midi_ch = 9;
-    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f); }
+    for (int c = 0; c < 2; c++) { svf_set(&e->plp[c], 18000.0f, 0.7f); svf_set(&e->php[c], 20.0f, 0.7f); op_set(&e->dlp[c], 6500.0f); op_set(&e->plp1[c], 18000.0f); }
     e->lp_c = e->hp_c = 0;
     e->dg_rate = e->dg_rate_t = 1.0f;
     e->smash = g->comp_t == CT_SMASH ? 1.0f : 0.0f;
@@ -198,6 +198,25 @@ static void fill_start(Engine *e, uint32_t t0, uint32_t t1)
     e->fill_from = t0; e->fill_to = t1;
 }
 
+/* EVOLVE: 0 the loop exactly as dealt; up to 50 weirder and weirder, but every decision the same every time round
+ * (each part's variations a loop of four passes of its own pattern, the fills one of sixteen bars, dealt from the
+ * groove's seed), so it repeats exactly; past 50 free-flowing, a quarter of them left to chance just past it, gently,
+ * all of them at 100, the patterns rewriting themselves as it goes */
+/* the kick's and snare's EVOLVE: untouched from 0 to 25 and from 50 to 75; 25 to 50 their fixed variations coming in,
+ * 75 to 100 their free flow (the perc and hats evolving all the way) */
+static float evo_ks(float E) { return E < 0.25f ? 0.0f : E < 0.5f ? (E - 0.25f) * 2.0f : E < 0.75f ? 0.5f : 0.5f + (E - 0.75f) * 2.0f; }
+static float evo_free(float E) { return E > 0.505f ? 0.25f + 0.75f * clamp01((E - 0.5f) * 2.0f) : 0.0f; }
+static uint32_t mix32(uint32_t x) { x ^= x >> 16; x *= 0x7feb352du; x ^= x >> 15; x *= 0x846ca68bu; x ^= x >> 16; return x; }
+static uint32_t evo_key(int p, int ls, uint32_t cyc, uint32_t salt)
+{
+    return (uint32_t)p * 0x01000193u ^ (uint32_t)ls * 0x2545F491u ^ (cyc & 3u) * 0x85EBCA77u ^ salt * 0xC2B2AE3Du;
+}
+static int evo_chance(Engine *e, uint32_t key, float prob, float fr)
+{
+    if (fr > 0 && rng_f(&e->rng) < fr) return rng_f(&e->rng) < prob;
+    return (float)(mix32(key ^ e->g->seed * 0x9E3779B1u) >> 8) * (1.0f / 16777216.0f) < prob;
+}
+
 static void deal_step(Engine *e, int p, uint32_t s)
 {
     Part *P = &e->P[p]; Groove *g = e->g; Pattern *pt = &P->pat;
@@ -208,22 +227,31 @@ static void deal_step(Engine *e, int p, uint32_t s)
         float Ef = (float)g->evolve * 0.01f;
         if (bar != e->afill_bar) {
             e->afill_bar = bar;
-            if (g->evolve >= 30 && (bar % 8u == 7u || (Ef > 0.6f && bar % 4u == 3u)) && rng_chance(&e->rng, 0.3f + 0.5f * Ef)
+            if (g->evolve >= 30 && (bar % 8u == 7u || (Ef > 0.6f && bar % 4u == 3u))
+                && evo_chance(e, evo_key(15, (int)(bar & 15u), 0, 3), 0.3f + 0.5f * Ef, evo_free(Ef))
                 && !(e->fill_to > bar * BAR)) fill_start(e, bar * BAR + 3u * TPB, (bar + 1u) * BAR);
         }
         infill = t0 >= e->fill_from && t0 < e->fill_to;
         if (infill && e->fpat[p].len == len) pt = &e->fpat[p];
     }
-    float E = (float)g->evolve * 0.01f, A = (float)g->activity * 0.01f, L = (float)g->link * 0.01f, W = (float)g->warp * 0.01f, C = (float)g->chaos * 0.01f;
+    float E = (float)g->evolve * 0.01f; if (p <= P_SNARE) E = evo_ks(E);
+    float A = (float)g->activity * 0.01f, L = (float)g->link * 0.01f, W = (float)g->warp * 0.01f, C = (float)g->chaos * 0.01f;
     int fill = bar % 4u == 3u;
-    /* EVOLVE past 85: now and then a beat played from another beat of the pattern (reality) */
+    /* EVOLVE past 50: now and then a beat played from another beat of the pattern (reality), more as it rises */
     uint32_t spb = TPB / tps; if (!spb) spb = 1;
     if (t0 % TPB < tps) {
         int beat = (int)(t0 / TPB);
-        if (beat != P->remap_beat) { P->remap_beat = beat; P->remap = p != P_KICK && E > 0.85f && rng_chance(&e->rng, (E - 0.85f) * 3.3f) ? (int)spb * (1 + rng_int(&e->rng, 3)) : 0; }
+        if (beat != P->remap_beat) { P->remap_beat = beat; P->remap = p != P_KICK && E > 0.505f && rng_chance(&e->rng, (E - 0.5f) * 0.9f) ? (int)spb * (1 + rng_int(&e->rng, 3)) : 0; }
     }
     int ls = (int)((s + (uint32_t)P->remap) % (uint32_t)len);
     uint32_t cyc = s / (uint32_t)len;
+    float fr = evo_free(E);                       /* (EVOLVE past 50: how much is left to chance) */
+    {   /* EVOLVE: neighbouring sixteenths trading places now and then (a hit moved), more as it rises: from 10, a loop of
+         * four passes at 50, free past it. Never the kick's: it holds the groove */
+        float vp = p == P_KICK ? 0.0f : 0.3f * clamp01((E - 0.1f) / 0.4f) + 0.15f * clamp01((E - 0.5f) * 2.0f);
+        int ls2 = ls ^ 1;
+        if (vp > 0 && ls2 < len && evo_chance(e, evo_key(p, ls >> 1, cyc, 1), vp, fr)) ls = ls2;
+    }
     const Step *st = &pt->s[ls];
     /* ACTIVITY: at 0 stripped back (each part's very strongest hits: the kick's, the snare's backbeat, a perc or hat or
      * two), more coming in as it rises, to a full but never frantic groove at 100 (what 40 was in v0.2); After Images
@@ -254,12 +282,12 @@ static void deal_step(Engine *e, int p, uint32_t s)
     if (p == P_KICK && ls == 0 && E < 0.9f && st->lvl >= 250) plays = 1;   /* (the one: always, till EVOLVE is right up) */
     float vel = (float)st->vel / 127.0f, pitch = (float)st->pitch, off = 0;
     int alt = st->alt, ratch = 1;
-    int comp = st->ct && g->evolve >= st->cu ? st->ct : C_NONE;
+    int comp = st->ct && (int)(E * 100.0f + 0.5f) >= st->cu ? st->ct : C_NONE;
     if (p == P_KICK && (comp == C_NUDGE || comp == C_RATCHET || comp == C_PROB)) comp = C_NONE;   /* (the kick: the anchor. From EVOLVE
                                                     * only accents, ghosts and conditions: never pushed, rolled or dropped) */
     switch (comp) {
     case C_COND: { int ok = cond_ok(st->ca, cyc, fill); if (plays) plays = ok; else if (ok && st->lvl > 20) { plays = 1; vel = fm_maxf(vel * 0.8f, 0.35f); } break; }
-    case C_PROB: if (plays) plays = rng_f(&e->rng) * 100.0f < (float)st->ca; break;
+    case C_PROB: if (plays) plays = evo_chance(e, evo_key(p, ls, cyc, 4), (float)st->ca * 0.01f, fr); break;
     case C_GHOST: if (!plays) { plays = 1; vel = (float)st->ca / 127.0f; } break;
     case C_RATCHET: ratch = st->ca; break;
     case C_NUDGE: off += (float)((int)st->ca - 128); break;
@@ -339,9 +367,11 @@ static void bar_turned(Engine *e, uint32_t bar)
 {
     Groove *g = e->g;
     float E = (float)g->evolve * 0.01f, D = (float)g->drift * 0.01f;
-    /* EVOLVE past 70: the patterns rewrite themselves, a step at a time (SAVE keeps how far) */
-    if (E > 0.7f && rng_chance(&e->rng, (E - 0.7f) / 0.3f * 0.6f)) {   /* (at full: a rewrite most bars) */
-        int p = rng_chance(&e->rng, 0.3f) ? P_SNARE : P_PERC + rng_int(&e->rng, 2);   /* (never the kick: it holds the groove) */
+    /* EVOLVE past 50: the patterns rewrite themselves, a step at a time (SAVE keeps how far): free-flowing, never
+     * coming back; just past 50 one every eight bars or so, at full every bar */
+    if (E > 0.505f && rng_chance(&e->rng, 0.12f + 0.88f * clamp01((E - 0.5f) * 2.0f))) {
+        int p = rng_chance(&e->rng, 0.3f) && evo_ks(E) > 0.505f ? P_SNARE : P_PERC + rng_int(&e->rng, 2);   /* (never the kick: it holds
+                                                  * the groove; the snare only past 75) */
         PartP *q = &g->p[p];
         if (q->muts < 999u) { pattern_mutate(&e->P[p].pat, g, p, q->muts); q->muts++; e->P[p].sig = sig_of(g, p); e->mutated++; }
     }
@@ -998,8 +1028,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             }
             y[0] += (fx[0] - y[0]) * e->pu_mix; y[1] += (fx[1] - y[1]) * e->pu_mix;
         }
-        /* the filter keys: the bottom white key a high-pass from about 350 Hz, the top one a low-pass from about
-         * 1.5 kHz, further as they're pressed harder; each faded in and out over 25 ms, the filters always running
+        /* the filter keys: the bottom white key a high-pass from about 350 Hz, the top one a gently sloped low-pass from
+         * about 1.5 kHz, further as they're pressed harder; each faded in and out over 25 ms, the filters always running
          * (so nothing starts cold: no click) */
         {
             float st = 1.0f / (0.025f * SR);
@@ -1009,10 +1039,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (hpw > 0) e->hp_d += (clamp01(hpw - 1.0f) - e->hp_d) * 0.002f;
             if ((e->pf_cnt++ & 7) == 0) {
                 float fl = 1500.0f * fm_exp2f(-2.0f * e->lp_d), fh = 350.0f * fm_exp2f(2.0f * e->hp_d);
-                for (int c = 0; c < 2; c++) { svf_set_res(&e->plp[c], fl, 0.9f); svf_set_res(&e->php[c], fh, 0.9f); }
+                for (int c = 0; c < 2; c++) { svf_set_res(&e->plp[c], fl, 0.65f); op_set(&e->plp1[c], fl); svf_set_res(&e->php[c], fh, 0.9f); }
             }
             for (int c = 0; c < 2; c++) {         /* (in series: each filter run once a sample) */
-                float l = svf_lp(&e->plp[c], y[c]);
+                float l = svf_lp(&e->plp[c], y[c]) * 0.7f + op_lp(&e->plp1[c], y[c]) * 0.3f;   /* (the low-pass's slope a gentle
+                                                  * one: about 9 dB an octave, no bump at its corner) */
                 y[c] += (l - y[c]) * e->lp_c;
                 float hh = svf_hp(&e->php[c], y[c]);
                 y[c] += (hh - y[c]) * e->hp_c;

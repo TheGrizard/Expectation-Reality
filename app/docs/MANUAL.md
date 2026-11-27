@@ -5,7 +5,8 @@ press REC and it writes a groove, then you steer it. It plays on its own, and it
 [After Images](https://TheGrizard.github.io/After-Images/): it follows its tempo and listens to what it plays.
 
 The name is the idea. **Expectation** is the groove REC deals: a fixed loop that plays exactly the same every time.
-**Reality** is what happens when you turn EVOLVE up: the groove starts to bend, then to rewrite itself.
+**Reality** is what happens when you turn EVOLVE up: up to halfway the groove bends into weirder loops that still
+repeat; past it, it flows freely and rewrites itself.
 
 ## Contents
 
@@ -131,11 +132,19 @@ Hold **HOME** and turn K1 to K4 (they're also on GLO's first page):
 - **ACTIVITY**: how much of each pattern plays. At 0, stripped back: each part's core (about two kicks and two snares a
   bar, a perc and a couple of hats). Turned up, each part's next strongest hits come in, in order, to a full but never
   frantic groove at 100. The kick stays firm however high it goes (a few more hits a bar at most, never rolling).
-- **EVOLVE**: expectation to reality. At 0 the groove loops exactly. Turning up brings in each step's component
-  (see section 9) at its own point on the knob. Past about 70 the patterns start to rewrite themselves, a step at a
-  time, and SAVE keeps how far they've got. Near the top, now and then a beat is played from another part of the
-  pattern. The kick stays the anchor through all of it: EVOLVE gives it accents, ghosts and hits that come and go on
-  a cycle, but never pushes, rolls, drops or rewrites it.
+- **EVOLVE**: expectation to reality, in two halves.
+  - **0 to 50: weirder, but fixed.** At 0 the groove loops exactly as dealt. Turning up brings in each step's
+    component (see section 9) at its own point on the knob, and neighbouring sixteenths start trading places. Every
+    one of these choices is the same each time round (a cycle of four passes of each part's pattern), so however
+    weird it gets, it is still a loop that repeats exactly.
+  - **50 to 100: free-flowing.** Just past 50 it starts to wander, gently: some choices left to chance, a pattern
+    rewriting a step now and then, a beat now and then played from another part of the pattern. All of it grows to
+    100, where nothing repeats and the patterns rewrite themselves every bar. SAVE keeps how far the rewrites have got.
+  - **KICK and SNARE** keep their groove for longer: they ignore EVOLVE from 0 to 25 and again from 50 to 75, take
+    their fixed variations from 25 to 50 and their free flow from 75 to 100. PERC and HATS evolve all the way. The kick
+    stays the anchor throughout: EVOLVE gives it accents, ghosts and hits that come and go on a cycle, but never
+    pushes, rolls, drops, moves or rewrites it.
+  - For an exact loop, keep CHAOS (MOTION) at 0 too: its rolls and skips are random whatever EVOLVE says.
 - **DRIFT**: the mixer. At 0 everything plays as set. Turned up, parts fade out for a few bars and come back (never
   fewer than two playing).
 
@@ -222,7 +231,7 @@ and a velocity, and many carry one **component**, like an Elektron or OP-Z step:
 
 Each component has its own point on EVOLVE where it switches on: the steady ones (nudges, accents, conditions) early,
 chance late. So EVOLVE brings a groove's detail in gradually, and a groove at the same EVOLVE always plays the same
-components.
+components. Up to 50 even the chances (PROBABILITY) come out the same every time round; past 50 they're dice again.
 
 The velocities have a shape of their own, dealt by REC: the bar's weight (the one strongest, then three, then two and
 four, the offbeats softest; the kick leaning on it most), an accent every three, five or seven sixteenths drifting
@@ -315,7 +324,7 @@ while it follows a clock.
 | 13 | SWELL: the latest strong hit played backwards, swelling into the next beat |
 | 14 | CRUSH |
 | 15 | KILL KICK |
-| 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
+| 16 (top) | LOW-PASS, from about 1.5 kHz, a gentle slope; strike it harder for more |
 
 FILL plays alongside the punch-ins and filters. A fill is a simple change of the groove, not a roll: the kick steps
 out (only the bar's downbeat, if the fill reaches one), the perc and hats bring in more of their own patterns (on the

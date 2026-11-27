@@ -2,7 +2,8 @@
 
 **Generative percussion for the M-VAVE FM-1.** Press REC and it writes a groove: four parts (KICK, SNARE, PERC, HATS),
 each a pattern on its own length driving a synthesised drum engine. **Expectation** is the groove it deals, a loop
-that plays the same every time. Turn up EVOLVE and it turns into **reality**: the groove bends, then rewrites itself.
+that plays the same every time. Turn up EVOLVE and it turns into **reality**: to halfway the groove bends into weirder loops, past it it flows freely
+and rewrites itself.
 Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 
 ![Expectation Reality on the FM-1's screen: a grid of squares the drum hits knock out](img/screen.png)

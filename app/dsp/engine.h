@@ -63,7 +63,7 @@ struct Engine {
     int rv_fed, rv_quiet, dl_quiet; float rv_cost, cmp_gt;   /* (the reverb: fed this block; blocks it has been silent; its time) */
     int16_t room_buf[ROOM_BUF]; int room_w; float gate, gate_hold, gate_s[BLKN]; int rchunk; float room_dip, room_t_now;
     int16_t dl[2][DLY_BUF]; int dw; float dt_a, dt_b, dxf, dfb_now, dly_dip; int dly_t_now; uint32_t dl_step;
-    float dg_ph, dg_rate, dg_rate_t; OnePole dlp[2];
+    float dg_ph, dg_rate, dg_rate_t; OnePole dlp[2], plp1[2];
     float cmp_lvl, cmp_g, smash;         /* COMP: its level, its gain, CLEAN to TAPE SMASH (glided) */
     float pan_ph, pan_spin, pan_now[NPARTS];
     float lev_room, lev_dly, lev_comp, lev_pan;   /* the bus amounts, glided */
