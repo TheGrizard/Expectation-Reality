@@ -48,6 +48,7 @@ typedef struct {
     float vel;                           /* 0..1 */
     float weight, entropy, bright;       /* 0..1 each */
     float decay;                         /* the length, times (MIX's DECAY, a step's open hat) */
+    float shift;                         /* semitones it was moved to play on another part's lane (0 on its own) */
     float soft;                          /* MOOD's soft side: 0 a hard front, 1 a soft one (the attack eased, the exciter lower) */
     uint32_t seed;                       /* the hit's own (ENTROPY's randomness), and the groove's (METAL's ratios) */
     uint32_t gseed;

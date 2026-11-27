@@ -61,7 +61,7 @@ static void front_start(Hit *h, const HitP *p, float E, float w, float b, int en
     Rng r; rng_seed(&r, p->seed ^ 0x9E3779B9u);
     float dl = clampf(p->decay, 0.4f, 4.0f);              /* (a longer hit: its front stretched with it) */
     float spread = (0.6f + 1.3f * w) * fm_powf(dl, 0.7f); /* (WEIGHT: how long and wide the exciter) */
-    float fc = FRONT_HZ[ENGINE_PART[eng]] * (0.6f + 0.8f * b) * (1.25f - 0.45f * w) * (0.75f + 0.5f * rng_f(&r));
+    float fc = FRONT_HZ[ENGINE_PART[eng]] * semis(p->shift * 0.8f) * (0.6f + 0.8f * b) * (1.25f - 0.45f * w) * (0.75f + 0.5f * rng_f(&r));
     float soft = clamp01(p->soft), lv = 0.9f / GAIN[eng];   /* (the exciter as loud whatever the engine's own level) */
     float ak = eng == D_CLICK ? 0.15f : 1.0f;             /* (a click softened, not swallowed) */
     h->fr.atk = (uint16_t)(((E < 0.15f ? (1.0f - E / 0.15f) * (1.0f - E / 0.15f) : 0.0f) + soft * soft * 0.8f) * (0.002f + 0.005f * w) * ak * SR);
@@ -130,7 +130,7 @@ void hit_start(Hit *h, const HitP *p)
                                               * FOLEY's choice of sound and BENT's wiring, which are the body */
     if (eng != D_FOLEY && eng != D_BENT) e *= 0.55f;
     memset(h, 0, sizeof *h - sizeof h->line);    /* (the line: its engine fills it) */
-    h->on = 1; h->engine = (uint8_t)eng; h->vel = clamp01(p->vel) * GAIN[eng] * (drums_level_raw ? 1.0f : level_corr(eng, w, ef));   /* (WEIGHT and ENTROPY change the sound, not how loud) */
+    h->on = 1; h->engine = (uint8_t)eng; h->vel = clamp01(p->vel) * GAIN[eng] * (drums_level_raw ? 1.0f : level_corr(eng, w, ef)) * (p->shift < 0 ? fm_minf(semis(-p->shift * 0.3f), 3.0f) : 1.0f);   /* (WEIGHT and ENTROPY change the sound, not how loud) */
     h->w = w; h->e = e; h->b = b;
     front_start(h, p, ef, w, b, eng); h->kill = 1.0f; h->env = 1.0f; h->ns = p->seed | 1u;
     float pit = semis(p->note - 60.0f), hz = clampf(mtof(p->note), 30.0f, 6000.0f);
@@ -178,7 +178,7 @@ void hit_start(Hit *h, const HitP *p)
         h->clen = clampi((int)(SR / fc), 8, 159);
         h->fb = 0.15f + 0.82f * fm_powf(e, 1.2f);   /* the wires ringing into metal */
         memset(h->line.comb, 0, sizeof h->line.comb);
-        svf_set(&h->f1, 350.0f, 0.7f); op_set(&h->o1, 3000.0f + 6000.0f * b);
+        svf_set(&h->f1, clampf(350.0f * pit, 25.0f, 350.0f), 0.7f); op_set(&h->o1, clampf((3000.0f + 6000.0f * b) * pit, 300.0f, 9000.0f));
         break; }
     case D_GRAIN: {
         int n = 3 + (int)(5.0f * w + 2.0f * e); if (n > 10) n = 10;
@@ -189,12 +189,12 @@ void hit_start(Hit *h, const HitP *p)
             h->g_at[i] = (uint16_t)clampf(t, 0.0f, 60000.0f);
             h->g_len[i] = (uint16_t)((0.002f + 0.006f * w) * SR * (0.5f + rng_f(&r)));
             h->g_amp[i] = e < 0.5f ? fm_powf(0.82f, (float)i) : 0.3f + 0.7f * rng_f(&r);
-            h->g_fc[i] = (2500.0f + 4000.0f * b) * (1.0f + e * (rng_f(&r) * 1.6f - 0.6f));
+            h->g_fc[i] = clampf((2500.0f + 4000.0f * b) * (1.0f + e * (rng_f(&r) * 1.6f - 0.6f)) * pit, 120.0f, 15000.0f);
         }
         h->g_n = (uint8_t)n; h->g_cur = 255;
         h->df[0] = 190.0f * pit / SR; h->a[0] = 0.3f * w + 0.08f; h->ak[0] = dk(0.04f);
         h->nk = dk((0.008f + 0.032f * w) * d); h->env = 0; h->ek = 1.0f;
-        svf_set(&h->f2, 400.0f, 0.7f);
+        svf_set(&h->f2, clampf(400.0f * pit, 25.0f, 400.0f), 0.7f);
         break; }
     case D_CRACK: {
         static const float FR[3] = { 1700.0f, 2950.0f, 4800.0f };
@@ -233,14 +233,14 @@ void hit_start(Hit *h, const HitP *p)
         h->hk = e > 0.6f ? 1.0f - (e - 0.6f) * 2.0f : 1.0f; if (h->hk < 0.12f) h->hk = 0.12f;   /* (decimated past 0.6) */
         break; }
     case D_STRING: {
-        float f = hz; while (f < SR / (float)(KS_LEN - 4)) f *= 2.0f;
+        float f = hz, dull = 1.0f; while (f < SR / (float)(KS_LEN - 4)) { f *= 2.0f; if (p->shift < 0) dull *= 0.5f; }   /* (too low for its line: an octave up; on a lower part's lane made duller to sit low) */
         h->f = SR / f; h->ks_len = h->f / (1.0f + 0.12f * e);   /* slack: struck sharp, settling onto its note in ~6 ms */
         h->fk = 1.0f - dk(0.006f);
         float T = (0.035f + 0.18f * w) * d;
-        h->ks_damp = 0.25f + 0.7f * b;            /* the loop's low-pass: bright, or dull and woody */
+        h->ks_damp = (0.25f + 0.7f * b) * dull;   /* the loop's low-pass: bright, or dull and woody */
         h->fb = fm_expf(-1.0f / (T * f));         /* the loop's gain a pass */
         h->ks_apc = e * 0.6f;                     /* dispersion: the overtones stretched, metallic */
-        int len = (int)h->ks_len + 2; OnePole lp; lp.z = 0; op_set(&lp, 1500.0f + 9000.0f * b);
+        int len = (int)h->ks_len + 2; OnePole lp; lp.z = 0; op_set(&lp, (1500.0f + 9000.0f * b) * dull);
         float pick = 0.12f + 0.3f * rng_f(&r);     /* where it's struck */
         for (int i = 0; i < KS_LEN; i++) h->line.ks[i] = 0;
         for (int i = 0; i < len && i < KS_LEN; i++) h->line.ks[i] = to16(op_lp(&lp, nz(&h->ns)) * 0.9f);
@@ -257,13 +257,13 @@ void hit_start(Hit *h, const HitP *p)
             h->df[i] = base * lerpf(R808[i], own, e) / SR; h->ph[i] = rng_f(&r);
         }
         h->ek = dk((0.01f + 0.19f * fm_powf(w, 2.2f)) * d);
-        svf_set(&h->f1, 7000.0f + 4000.0f * b, 1.2f); svf_set(&h->f2, 5000.0f + 2500.0f * b, 0.7f);
+        svf_set(&h->f1, clampf((7000.0f + 4000.0f * b) * pit, 150.0f, 15000.0f), 1.2f); svf_set(&h->f2, clampf((5000.0f + 2500.0f * b) * pit, 30.0f, 12000.0f), 0.7f);
         break; }
     case D_DUST:
         h->hk = 0.02f + 0.25f * w;               /* grains a sample */
         h->ek = dk((0.015f + 0.07f * w) * d);
         h->nk = 1.0f / ((0.001f + 0.02f * e) * SR);   /* the smear: a shaker's soft front */
-        svf_set(&h->f1, 4000.0f + 5000.0f * b, 0.7f + 8.0f * e); svf_set(&h->f2, 2500.0f, 0.7f);
+        svf_set(&h->f1, clampf((4000.0f + 5000.0f * b) * pit, 120.0f, 15000.0f), 0.7f + 8.0f * e); svf_set(&h->f2, clampf(2500.0f * pit, 30.0f, 2500.0f), 0.7f);
         break;
     case D_808:
         h->f0 = (42.0f + 16.0f * b) * (1.15f - 0.3f * w) * pit;
@@ -287,17 +287,17 @@ void hit_start(Hit *h, const HitP *p)
         h->hk = t;                                /* (where the tail starts, in seconds) */
         h->nk = dk((0.035f + 0.12f * w) * d);
         svf_set(&h->f1, (900.0f + 700.0f * b) * pit, 1.6f + 1.5f * e);
-        svf_set(&h->f2, 2600.0f + 1800.0f * b, 1.2f);
-        svf_set(&h->f3, 350.0f, 0.7f);
+        svf_set(&h->f2, clampf((2600.0f + 1800.0f * b) * pit, 200.0f, 9000.0f), 1.2f);
+        svf_set(&h->f3, clampf(350.0f * pit, 25.0f, 350.0f), 0.7f);
         h->env = 0; h->ek = 1.0f;
         break; }
     case D_VOX: {
         static const float VF[5][3] = { { 730, 1090, 2440 }, { 530, 1840, 2480 }, { 270, 2290, 3010 }, { 570, 840, 2410 }, { 300, 870, 2240 } };   /* A E I O U */
         int v0 = rng_int(&r, 5), v1 = rng_int(&r, 5);
-        float up = 1.5f + 0.8f * b;                /* (the vowels moved up: a hat's register) */
+        float up = (1.5f + 0.8f * b) * fm_sqrtf(pit);   /* (the vowels moved up: a hat's register; down with it on a lower lane) */
         for (int k = 0; k < 3; k++) { h->a[k] = VF[v0][k] * up; h->ak[k] = VF[v1][k] * up; }   /* (from, to: ENTROPY slides it) */
         float jump = e * 7.0f * rng_bi(&r);        /* (each hit its own pitch) */
-        h->f0 = clampf(mtof(p->note + 12.0f + jump), 120.0f, 2500.0f);
+        h->f0 = clampf(mtof(p->note + 12.0f + jump), 35.0f, 2500.0f);
         h->df[0] = h->f0 / SR;
         h->hk = 0.25f + 0.5f * w;                  /* (how voiced: the buzz against the breath) */
         h->ek = dk((0.008f + 0.045f * w) * d);
@@ -308,7 +308,7 @@ void hit_start(Hit *h, const HitP *p)
     case D_CLICK: {
         float fc = (2000.0f + 6000.0f * b) * pit * (1.0f + e * 0.8f * rng_bi(&r));   /* (ENTROPY: its tone moving hit to hit) */
         svf_set(&h->f1, clampf(fc, 400.0f, 15000.0f), 0.8f + 14.0f * e * e);        /* (a dry tick, then a ping) */
-        svf_set(&h->f2, 1500.0f, 0.7f);
+        svf_set(&h->f2, clampf(1500.0f * pit, 25.0f, 1500.0f), 0.7f);
         int nc = 1 + (e > 0.6f ? 1 + rng_int(&r, 2) : 0);   /* (past 0.6: a burst of two or three) */
         for (int i = 0; i < nc; i++) { h->g_at[i] = (uint16_t)(RAMP + 2 + (i ? (0.001f + 0.005f * rng_f(&r)) * SR * (float)i : 0));   /* (after the opening ramp) */ h->g_amp[i] = i ? 0.4f + 0.5f * rng_f(&r) : 1.0f; }
         h->g_n = (uint8_t)nc;
@@ -380,11 +380,11 @@ void hit_start(Hit *h, const HitP *p)
         svf_set(&h->f2, 120.0f, 0.7f);
         break; }
     case D_DIGITAL:
-        h->hk = (3000.0f + 12000.0f * b) / SR;    /* the sample rate */
+        h->hk = clampf((3000.0f + 12000.0f * b) * pit, 150.0f, 20000.0f) / SR;    /* the sample rate (following the pitch) */
         h->fb = 8.0f - 6.0f * e;                  /* the bits */
         h->ek = dk((0.01f + 0.11f * w * w) * d);
         for (int i = 0; i < 6; i++) h->a[i] = nz(&h->ns);   /* a short loop that sings, past halfway */
-        svf_set(&h->f2, 3000.0f, 0.7f);
+        svf_set(&h->f2, clampf(3000.0f * pit, 30.0f, 3000.0f), 0.7f);
         break;
     }
 }

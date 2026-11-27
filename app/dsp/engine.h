@@ -39,7 +39,7 @@ typedef struct {
 #define DLY_BUF 16384                    /* the delay: each side's line (0.37 s) */
 #define PUNCH_BUF 16384                  /* the punch-ins' memory: the last 0.37 s, stereo (an eighth down to 82 BPM) */
 
-enum { PU_NONE, PU_LPF, PU_RATCHET, PU_REP8, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP, PU_REVERSE,
+enum { PU_NONE, PU_LPF, PU_RATCHET, PU_REP8, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH, PU_REVERSE,
        PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_REP12, PU_HPF, NUM_PU };
 extern const char *const PU_NAME[NUM_PU];
 
@@ -69,9 +69,10 @@ struct Engine {
     /* the punch-ins */
     volatile int pu_want; volatile float pu_press;   /* the key held (PU_*), its pressure 0..1 (from the UI) */
     int pu, pu_rel; float pu_mix; int16_t pb[2][PUNCH_BUF]; int pw, ps0, pu_frozen;
-    float rpos, rlen, rnext, rate_ts; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;
+    float rpos, rlen, rnext; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;
     int pu_cap, pu_fwd, rec_since;       /* capturing forward: how much so far; the memory's clean run since it last froze */
     int rat_left;                        /* RATCHET: passes left before it doubles its speed */
+    float m_d, m_x, m_tgt, m_g, m_gt, m_wow, m_flt, m_lp[2]; int m_cnt;   /* TAPE MASH: the tape's delay, a catch, a dropout, wow, flutter */
     Shifter shf[2]; float crush_h, crush_v[2]; float kill_g; float frz; int swell_left, swell_len;
     /* MIDI out */
     void (*midi)(uint32_t pkt);
@@ -89,6 +90,7 @@ struct Engine {
     volatile float pu_lpw, pu_hpw;       /* the filter keys: 0 let go, else held, 1 + how hard (0..1) */
     float lp_d, hp_d;                    /* their depth (kept while they fade out) */
     uint32_t kick_ticks[8]; int kick_n; /* the kick's last hits (LINK: the hats keep out of their way) */
+    uint32_t kick_bar, kick_last; int kick_in_bar;   /* the kick held firm: its hits this bar, its last step */
     uint32_t last_bar, fill_until; int nblk;
     uint8_t off_note[NPARTS]; int off_left[NPARTS];   /* MIDI out: each part's note, blocks until its note-off */
     float frz_feed, sw_dip;

@@ -5,7 +5,7 @@
 #include "engine.h"
 
 const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "RATCHET", "REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "GLITCH",
-    "PITCH DOWN", "PITCH UP", "TAPE STOP", "REVERSE", "FREEZE", "SWELL", "CRUSH", "KILL KICK", "REPEAT 1/12", "HIGH-PASS" };
+    "PITCH DOWN", "PITCH UP", "TAPE MASH", "REVERSE", "FREEZE", "SWELL", "CRUSH", "KILL KICK", "REPEAT 1/12", "HIGH-PASS" };
 
 /* the pool: the engine and the screen's canvas (29 KB) must fit the FM-1's 336 KB, with room for fm1-base's own */
 typedef char engine_fits_the_pool[sizeof(Engine) <= 285u * 1024u ? 1 : -1];
@@ -127,9 +127,10 @@ static float part_note(const Engine *e, int p, float pitch)
 static void make_hit(Engine *e, int p, float vel, float pitch, int alt, HitP *hp)
 {
     const Groove *g = e->g; const PartP *q = &g->p[p]; Part *P = &e->P[p];
-    /* MOOD: hard, staccato and bright at 0; soft, long, full and darker at 100. Between, a variety: each part dealt its
-     * own place (most spread at the middle, none at the ends), each hit a little either side */
-    float mood = (float)g->mood * 0.01f, spread = 1.0f - fm_fabsf(2.0f * mood - 1.0f);
+    /* MOOD: heavy, long, full, soft and darker at 0; bright, short, hard and staccato at 100. Between, a variety: each
+     * part dealt its own place (most spread at the middle, none at the ends), each hit a little either side. (c: 0 the
+     * short side, 1 the long) */
+    float mood = 1.0f - (float)g->mood * 0.01f, spread = 1.0f - fm_fabsf(2.0f * mood - 1.0f);
     uint32_t hsh = (g->seed ^ (uint32_t)q->salt * 2654435761u) * 2246822519u;
     float own = (float)(hsh >> 8) * (1.0f / 16777216.0f) - 0.5f;   /* (the part's place, -0.5..0.5: fixed for the groove) */
     float c = clamp01(mood + own * spread * 1.1f + rng_bi(&e->rng) * 0.08f * spread);
@@ -143,6 +144,17 @@ static void make_hit(Engine *e, int p, float vel, float pitch, int alt, HitP *hp
     hp->bright = clamp01(hp->bright + (hp->vel - 0.7f) * 0.25f);   /* (harder: brighter, and a little heavier) */
     hp->weight = clamp01(hp->weight + (hp->vel - 0.7f) * 0.12f);
     hp->note = part_note(e, p, pitch);
+    {   /* an engine on another part's lane plays in that part's register: a snare's or a hat's engine on the kick dropped to
+         * a kick's depth, a kick's on the hats lifted. CEN: where each part's engines sit, and each part's lane (MIDI);
+         * the perc's engines take their note as it is, the others theirs as an offset from 60 */
+        static const float CEN[NPARTS] = { 29.0f, 54.0f, 42.0f, 90.0f };
+        int home = engine_part(q->engine); hp->shift = 0;
+        if (home != p) {
+            float x = home == P_PERC ? CEN[p] - 60.0f : CEN[p] - CEN[home];
+            if (p == P_PERC) hp->note += 60.0f - CEN[P_PERC];     /* (the perc's tune kept, around the engine's own pitch) */
+            x = clampf(x, -36.0f, 36.0f); hp->note += x; hp->shift = x;
+        }
+    }
     if (alt) {
         if (p == P_HATS) { hp->decay *= 4.0f; hp->weight = clamp01(hp->weight + 0.1f); }   /* the open hat */
         else if (p == P_SNARE) { hp->decay *= 0.35f; hp->entropy = clamp01(hp->entropy + 0.2f); }
@@ -193,18 +205,23 @@ static void deal_step(Engine *e, int p, uint32_t s)
     uint32_t spb = TPB / tps; if (!spb) spb = 1;
     if (t0 % TPB < tps) {
         int beat = (int)(t0 / TPB);
-        if (beat != P->remap_beat) { P->remap_beat = beat; P->remap = E > 0.85f && rng_chance(&e->rng, (E - 0.85f) * 3.3f) ? (int)spb * (1 + rng_int(&e->rng, 3)) : 0; }
+        if (beat != P->remap_beat) { P->remap_beat = beat; P->remap = p != P_KICK && E > 0.85f && rng_chance(&e->rng, (E - 0.85f) * 3.3f) ? (int)spb * (1 + rng_int(&e->rng, 3)) : 0; }
     }
     int ls = (int)((s + (uint32_t)P->remap) % (uint32_t)len);
     uint32_t cyc = s / (uint32_t)len;
     const Step *st = &pt->s[ls];
-    float act = A * 0.9f + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.3f * clamp01((e->ai_act - 4.0f) / 16.0f);   /* After Images busier: busier */
-    float thr = 255.0f * (1.0f - clampf(act, 0.02f, 1.0f));
+    /* ACTIVITY: at 0 each part's core only (the strongest hits: the kick's, the snare's backbeat, a few perc and hats: a
+     * simple, sparse beat), more coming in as it rises (After Images busier: busier) */
+    float act = 0.235f + A * 0.55f + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.3f * clamp01((e->ai_act - 4.0f) / 16.0f);
+    float thr = 255.0f * (1.0f - clampf(act, 0.21f, 1.0f));
     int plays = st->lvl > 0 && (float)st->lvl >= thr;
+    if (!on16 && A < 0.35f && rng_f(&e->rng) > A / 0.35f) plays = 0;   /* (low ACTIVITY: the 32nds and off-grid steps thinned) */
     if (p == P_KICK && ls == 0 && E < 0.9f && st->lvl >= 250) plays = 1;   /* (the one: always, till EVOLVE is right up) */
     float vel = (float)st->vel / 127.0f, pitch = (float)st->pitch, off = 0;
     int alt = st->alt, ratch = 1;
     int comp = st->ct && g->evolve >= st->cu ? st->ct : C_NONE;
+    if (p == P_KICK && (comp == C_NUDGE || comp == C_RATCHET || comp == C_PROB)) comp = C_NONE;   /* (the kick: the anchor. From EVOLVE
+                                                    * only accents, ghosts and conditions: never pushed, rolled or dropped) */
     switch (comp) {
     case C_COND: { int ok = cond_ok(st->ca, cyc, fill); if (plays) plays = ok; else if (ok && st->lvl > 20) { plays = 1; vel = fm_maxf(vel * 0.8f, 0.35f); } break; }
     case C_PROB: if (plays) plays = rng_f(&e->rng) * 100.0f < (float)st->ca; break;
@@ -234,14 +251,14 @@ static void deal_step(Engine *e, int p, uint32_t s)
     }
     /* CHAOS: rolls, gaps and hits pushed off the grid, at random */
     if (plays && p != P_KICK && rng_chance(&e->rng, C * 0.25f)) ratch = ratch > 1 ? ratch : 2 + rng_int(&e->rng, 3);
-    if (plays && !(p == P_KICK && ls == 0) && rng_chance(&e->rng, C * 0.12f)) plays = 0;
+    if (plays && p != P_KICK && rng_chance(&e->rng, C * 0.12f)) plays = 0;   /* (the kick: none of it; it holds the groove) */
     if (plays && p != P_KICK && rng_chance(&e->rng, C * 0.2f)) off += rng_chance(&e->rng, 0.5f) ? 12.0f : -12.0f;
     /* SWING (the groove's): the off sixteenths late. WARP, the humaniser: every hit's timing loosened and its
      * velocity varied, a player's lean (the snare a touch late, the hats a touch early); the kick held tighter */
     float sw = (float)g->swing * 0.0018f;
     if (t0 % 48u == 24u) off += sw * 48.0f; else if (t0 % 24u == 12u) off += sw * 24.0f;
     float hum = (rng_bi(&e->rng) + rng_bi(&e->rng)) * 0.5f;      /* (two dice: near the beat more often than far) */
-    off += hum * W * (p == P_KICK ? 2.5f : 6.0f);
+    off += hum * W * (p == P_KICK ? 1.0f : 6.0f);
     if (p == P_SNARE) off += W * 2.5f;
     if (p == P_HATS) off -= W * 1.5f;
     vel *= 1.0f + rng_bi(&e->rng) * W * (p == P_KICK ? 0.15f : 0.35f);
@@ -264,7 +281,15 @@ static void deal_step(Engine *e, int p, uint32_t s)
     }
     if ((p == P_KICK || p == P_SNARE) && t0 < e->fill_until && t0 + TPB > e->fill_until && in16 > 12) plays = 0;
     if (!plays) return;
-    if (p == P_KICK) { e->kick_ticks[e->kick_n++ & 7] = t0; }
+    if (p == P_KICK) {
+        /* the kick held firm, whatever ACTIVITY, LINK or a ghost adds: a few more hits a bar as ACTIVITY rises (3 to 6
+         * in 16 sixteenths), and no two on neighbouring sixteenths unless the pattern wrote both strong */
+        if (bar != e->kick_bar) { e->kick_bar = bar; e->kick_in_bar = 0; }
+        int cap = 3 + (int)(A * 3.0f + 0.5f), strong = st->lvl >= 200;
+        if (!strong && (e->kick_in_bar >= cap || (e->kick_n && t0 - e->kick_last <= 24u && t0 != e->kick_last))) return;
+        e->kick_in_bar++; e->kick_last = t0;
+        e->kick_ticks[e->kick_n++ & 7] = t0;
+    }
     HitP hp; make_hit(e, p, vel, pitch, alt, &hp);
     float pan = hit_pan(e, p);
     if (ratch > 4) ratch = 4;
@@ -282,7 +307,7 @@ static void bar_turned(Engine *e, uint32_t bar)
     float E = (float)g->evolve * 0.01f, D = (float)g->drift * 0.01f;
     /* EVOLVE past 70: the patterns rewrite themselves, a step at a time (SAVE keeps how far) */
     if (E > 0.7f && rng_chance(&e->rng, (E - 0.7f) / 0.3f * 0.6f)) {   /* (at full: a rewrite most bars) */
-        int p = rng_chance(&e->rng, 0.3f) ? P_KICK + rng_int(&e->rng, 2) : P_PERC + rng_int(&e->rng, 2);
+        int p = rng_chance(&e->rng, 0.3f) ? P_SNARE : P_PERC + rng_int(&e->rng, 2);   /* (never the kick: it holds the groove) */
         PartP *q = &g->p[p];
         if (q->muts < 999u) { pattern_mutate(&e->P[p].pat, g, p, q->muts); q->muts++; e->P[p].sig = sig_of(g, p); e->mutated++; }
     }
@@ -509,7 +534,7 @@ static void punch_engage(Engine *e, int pu)
     float div = pu == PU_REP8 || pu == PU_RATCHET || pu == PU_REVERSE || pu == PU_GLITCH ? 0.125f : pu == PU_REP16 ? 0.0625f
               : pu == PU_REP32 ? 0.03125f : pu == PU_REP12 ? 1.0f / 12.0f : 0.25f;
     e->rlen = fm_minf(beat * div * 4.0f, cap);
-    if (pu == PU_STOP) e->rate_ts = 1.0f;
+    if (pu == PU_MASH) { e->m_d = 0.012f * SR + 64.0f; e->m_x = e->m_tgt = 0; e->m_g = e->m_gt = 1.0f; e->m_cnt = (int)(0.05f * SR); e->m_lp[0] = e->m_lp[1] = 0; }
     if (pu == PU_SWELL) {                        /* the next beat (or eighth) it lands on, within its memory */
         float to = ((float)TPB - (float)(e->tick % TPB) - e->frac) / e->rate;
         float half = (float)(PUNCH_BUF / 2 - 64);
@@ -731,12 +756,31 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             else if (pu == PU_CRUSH) {
                 e->crush_h += 6000.0f / SR; if (e->crush_h >= 1.0f) { e->crush_h -= 1.0f; e->crush_v[0] = (float)(int)(y[0] * 24.0f) / 24.0f; e->crush_v[1] = (float)(int)(y[1] * 24.0f) / 24.0f; }
                 fx[0] = e->crush_v[0]; fx[1] = e->crush_v[1];
-            } else if (pu == PU_STOP) {           /* the tape slowing to a stop over half a beat */
-                e->rate_ts += (0.0f - e->rate_ts) * (1.0f / (0.5f * beat)) * 2.0f;
-                e->rpos += 1.0f - e->rate_ts; if (e->rpos > (float)(PUNCH_BUF - 8)) e->rpos = (float)(PUNCH_BUF - 8);
-                float rp = (float)e->pw - e->rpos; while (rp < 0) rp += (float)PUNCH_BUF;
-                int i0 = (int)rp % PUNCH_BUF, i1 = (i0 + 1) % PUNCH_BUF; float fr = rp - fm_floorf(rp), gn = 0.15f + 0.85f * e->rate_ts;
-                for (int c = 0; c < 2; c++) fx[c] = (from16(e->pb[c][i0]) + (from16(e->pb[c][i1]) - from16(e->pb[c][i0])) * fr) * gn;
+            } else if (pu == PU_MASH) {           /* TAPE MASH: a chewed tape, held: the sound read back late off the memory,
+                                                   * the delay wobbling (wow, flutter) and now and then catching (a sag in
+                                                   * pitch), saturated, dulled, with dropouts; pressed harder, mashed more.
+                                                   * Every change glides: the read only ever slides, so it never clicks */
+                float dep = 0.55f + 0.45f * clamp01(e->pu_press);
+                if (--e->m_cnt <= 0) {
+                    e->m_cnt = (int)((0.06f + 0.3f * rng_f(&e->rng)) * SR);
+                    e->m_tgt = rng_chance(&e->rng, 0.4f) ? 0.4f + 0.6f * rng_f(&e->rng) : 0.0f;
+                    e->m_gt = rng_chance(&e->rng, 0.18f * dep) ? 0.12f : 1.0f;
+                }
+                e->m_wow += (0.6f + 0.5f * e->m_x) / SR; if (e->m_wow >= 1.0f) e->m_wow -= 1.0f;
+                e->m_flt += 11.0f / SR; if (e->m_flt >= 1.0f) e->m_flt -= 1.0f;
+                e->m_x += (e->m_tgt - e->m_x) * 0.0007f;
+                float want_d = (0.014f + dep * (0.006f * sine_c(e->m_wow) + 0.0009f * sine_c(e->m_flt) + 0.022f * e->m_x)) * SR + 64.0f;
+                e->m_d += (want_d - e->m_d) * 0.003f;
+                e->m_g += (e->m_gt - e->m_g) * 0.004f;
+                float rp = (float)e->pw - e->m_d; while (rp < 0) rp += (float)PUNCH_BUF;
+                int i0 = (int)rp % PUNCH_BUF, i1 = (i0 + 1) % PUNCH_BUF; float fr = rp - fm_floorf(rp);
+                float lk = 0.25f + 0.3f * (1.0f - dep);   /* (dull: ~2.5 to 5 kHz) */
+                for (int c = 0; c < 2; c++) {
+                    float v = from16(e->pb[c][i0]) + (from16(e->pb[c][i1]) - from16(e->pb[c][i0])) * fr;
+                    v = soft_clip(v * (1.6f + 1.6f * dep)) * 0.75f;
+                    e->m_lp[c] += (v - e->m_lp[c]) * lk;
+                    fx[c] = e->m_lp[c] * e->m_g;
+                }
             } else if (pu == PU_SWELL) {          /* (done above, before the room) */
                 fx[0] = y[0]; fx[1] = y[1];
             } else if (e->pu_fwd && e->pu_cap < (int)e->rlen) {   /* capturing: the first pass as it is (its last 1 ms faded
@@ -768,7 +812,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             }
             y[0] += (fx[0] - y[0]) * e->pu_mix; y[1] += (fx[1] - y[1]) * e->pu_mix;
         }
-        /* the filter keys: the bottom white key a high-pass from about 500 Hz, the top one a low-pass from about
+        /* the filter keys: the bottom white key a high-pass from about 350 Hz, the top one a low-pass from about
          * 1.5 kHz, further as they're pressed harder; each faded in and out over 25 ms, the filters always running
          * (so nothing starts cold: no click) */
         {
@@ -778,7 +822,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (lpw > 0) e->lp_d += (clamp01(lpw - 1.0f) - e->lp_d) * 0.002f;
             if (hpw > 0) e->hp_d += (clamp01(hpw - 1.0f) - e->hp_d) * 0.002f;
             if ((e->pf_cnt++ & 7) == 0) {
-                float fl = 1500.0f * fm_exp2f(-2.0f * e->lp_d), fh = 500.0f * fm_exp2f(2.0f * e->hp_d);
+                float fl = 1500.0f * fm_exp2f(-2.0f * e->lp_d), fh = 350.0f * fm_exp2f(2.0f * e->hp_d);
                 for (int c = 0; c < 2; c++) { svf_set_res(&e->plp[c], fl, 0.9f); svf_set_res(&e->php[c], fh, 0.9f); }
             }
             for (int c = 0; c < 2; c++) {         /* (in series: each filter run once a sample) */

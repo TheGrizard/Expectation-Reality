@@ -30,8 +30,8 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 - **Eighteen drum engines**: 808, MEMBRANE, BOX, FM KICK, CLAP, WIRES, GRAIN, CRACK, BENT (circuit-bent), MATERIAL,
   FM PERC, STRING, FOLEY (boxes, wood, footsteps, drags), METAL, DUST, DIGITAL, VOX, CLICK. WEIGHT sets a hit's
   fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
-  through the whole hit; MOOD plays the kit hard and staccato or soft and long.
-- **Punch-ins on the white keys** (high-pass, ratchet, repeats, glitch, pitch down and up, tape stop, reverse, freeze, swell,
+  through the whole hit; MOOD plays the kit heavy and long or bright and short.
+- **Punch-ins on the white keys** (high-pass, ratchet, repeats, glitch, pitch down and up, tape mash, reverse, freeze, swell,
   crush, kill kick, low-pass; the repeats held to the grid) and **randomisers on the black keys** (each part's colours thrown at every hit).
 - **The kit's bus.** Sends a part: ROOM, DELAY, PAN, DUCK. A tape compressor with the kick wired to its sidechain
   (CLEAN or TAPE SMASH); a room that is ROOM, GATED, REVERSE or FREEZE; a delay CLEAN or GRANULAR, with GLITCH.

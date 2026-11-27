@@ -13,7 +13,9 @@
  *   SELECT, SEL        the part the SOUND, GROOVE, MIX and SENDS pages show
  *   PRESET             the chosen part's engine;   ALGORITHM   your saved grooves
  *   REC                a new groove (held: in the same key and tempo); SEL held + REC: the chosen part anew
- *   SAVE               keep the groove; PLAY start / stop;  OCT- / OCT+  back and forward through the grooves REC replaced
+ *   SAVE               keep the groove; PLAY start / stop;  HOME held + OCT- / OCT+  back and forward through the grooves REC
+ *                      replaced; OCT- / OCT+ held as a key is pressed: the key held (to the loop's end, for good); OCT+ alone:
+ *                      every hold let go
  *   white keys         punch-ins: the bottom a high-pass, the top a low-pass, between them repeats, pitch, tape stop...
  *   black keys         randomisers: each part's colours thrown at every hit while held (the top one: every part's) */
 #include "fastmath.h"
@@ -23,7 +25,7 @@ static Engine eng PLAT_POOL;
 
 /* ------------------------------------------------------------------ settings */
 #define SET_MAGIC 0x45524731u            /* "ERG1" */
-#define SET_VER 1                        /* the settings' version: each update that adds to them moves this on, and
+#define SET_VER 2                        /* the settings' version (2: MOOD turned round): each update that adds to them moves this on, and
                                           * settings_load brings an older one's forward (nothing saved is ever lost) */
 #define NSAVED 16
 typedef struct {
@@ -79,6 +81,12 @@ static void settings_load(void)
     uint32_t magic = n >= 4 ? *(const uint32_t *)raw : 0;
     int ver = n >= 5 ? raw[4] : 0;
     if (magic == SET_MAGIC && ver == SET_VER && n == (int)sizeof set) memcpy(&set, raw, sizeof set);
+    else if (magic == SET_MAGIC && ver == 1 && n == (int)sizeof set) {   /* 1 (v0.1): the same, but MOOD ran the other way */
+        memcpy(&set, raw, sizeof set); set.ver = SET_VER;
+        if (set.cur.mood <= 100) set.cur.mood = (uint8_t)(100 - set.cur.mood);
+        for (int i = 0; i < set.nsaved && i < NSAVED; i++) if (set.saved[i].mood <= 100) set.saved[i].mood = (uint8_t)(100 - set.saved[i].mood);
+        if (settings_ok()) store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
+    }
     else n = -1;
     if (n < 0 || !settings_ok()) {
         settings_defaults();
@@ -316,7 +324,11 @@ static struct {
     float t;
     uint32_t uiq_tail;
     uint32_t splash_t0; int splash_on, touched;
-    uint8_t pu_order[16], pu_n;           /* the punch-in keys held, in the order pressed */
+    uint8_t pu_order[16], pu_n;           /* the punch-in keys playing (held or latched), in the order pressed */
+    /* the holds: OCT- held as a key is pressed latches it to the loop's end, OCT+ for good; pressed again, it's let go;
+     * OCT+ alone lets every hold go. w: the white keys, b: the black; until: the tick it ends (0 for good) */
+    uint16_t lat_w, lat_b; uint32_t lat_w_until[16], lat_b_until[11]; float lat_w_dep[16], lat_b_dep[11];
+    int oct_used[2];
     int pu_shown;
 } ui;
 
@@ -609,11 +621,11 @@ static void page_to(int pg)
 }
 
 /* ------------------------------------------------------------------ the keys: punch-ins and randomisers
- * White keys, low to high: HIGH-PASS, RATCHET, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE STOP,
+ * White keys, low to high: HIGH-PASS, RATCHET, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE MASH,
  * REVERSE, FREEZE, SWELL, CRUSH, KILL KICK, LOW-PASS. The latest held plays (the filters alongside, their own).
  * Black keys, in their groups: KICK's TONE, WEIGHT, ENTROPY; SNARE's WEIGHT, ENTROPY; PERC's TONE, WEIGHT, ENTROPY;
  * HATS' WEIGHT, ENTROPY; the top one every part's three. Held, each hit of the part takes new values. */
-static const uint8_t PU_KEY[16] = { PU_HPF, PU_RATCHET, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP,
+static const uint8_t PU_KEY[16] = { PU_HPF, PU_RATCHET, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH,
                                     PU_REVERSE, PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_LPF };
 static const struct { int8_t part; uint8_t bits; } RND_KEY[11] = {
     { P_KICK, 1 }, { P_KICK, 2 }, { P_KICK, 4 }, { P_SNARE, 2 }, { P_SNARE, 4 }, { P_PERC, 1 }, { P_PERC, 2 }, { P_PERC, 4 },
@@ -626,39 +638,98 @@ static float key_depth(uint32_t kk, int pressure_ok)
     return d;
 }
 
-static void keys_input(uint32_t keys)
+static uint32_t loop_end(void)          /* where the groove's loop ends next (the kick's pattern), at least a beat away */
+{
+    const Pattern *pt = &eng.P[P_KICK].pat;
+    uint32_t loop = (uint32_t)(pt->len ? pt->len : 16) * RATE_TICKS[pt->rate % NUM_RATES], t = eng.tick;
+    if (loop < (uint32_t)TPB) loop = TPB * 4u;
+    uint32_t end = (t / loop + 1u) * loop;
+    if (end - t < (uint32_t)TPB) end += loop;
+    return end ? end : 1u;
+}
+
+static void pu_drop(int i)               /* a white key no longer playing (let go and not held, or its hold ended) */
+{
+    int w = 0; for (int j = 0; j < ui.pu_n; j++) if (ui.pu_order[j] != i) ui.pu_order[w++] = ui.pu_order[j];
+    ui.pu_n = (uint8_t)w;
+}
+
+static void holds_clear(void)
+{
+    static const uint8_t WK[16] = PLAT_WHITE_KEYS;
+    for (int i = 0; i < 16; i++) if ((ui.lat_w >> i & 1u) && !(ui.keys >> WK[i] & 1u)) pu_drop(i);
+    ui.lat_w = 0; ui.lat_b = 0;
+}
+
+static void keys_input(uint32_t keys, uint32_t btn)
 {
     static const uint8_t WK[16] = PLAT_WHITE_KEYS, BK[11] = PLAT_BLACK_KEYS;
+    int hold = btn >> B_OCTUP & 1u ? 2 : btn >> B_OCTDN & 1u ? 1 : 0;   /* (OCT+: for good; OCT-: to the loop's end) */
+    uint32_t now_t = eng.tick;
+    /* the holds that have reached the loop's end */
+    for (int i = 0; i < 16; i++)
+        if ((ui.lat_w >> i & 1u) && ui.lat_w_until[i] && (int32_t)(now_t - ui.lat_w_until[i]) >= 0 && set.playing) {
+            ui.lat_w &= (uint16_t)~(1u << i); if (!(keys >> WK[i] & 1u)) pu_drop(i);
+        }
+    for (int j = 0; j < 11; j++)
+        if ((ui.lat_b >> j & 1u) && ui.lat_b_until[j] && (int32_t)(now_t - ui.lat_b_until[j]) >= 0 && set.playing) ui.lat_b &= (uint16_t)~(1u << j);
     for (int i = 0; i < 16; i++) {
         int kk = WK[i]; uint32_t b = 1u << kk;
         if (kk >= NKEYS) continue;
-        int pu = PU_KEY[i];
+        int pu = PU_KEY[i], filt = pu == PU_HPF || pu == PU_LPF;
         if ((keys & b) && !(ui.keys & b)) {      /* pressed */
-            if (pu != PU_HPF && pu != PU_LPF) { if (ui.pu_n < 16) ui.pu_order[ui.pu_n++] = (uint8_t)i; }
-            pop("PUNCH-IN", PU_NAME[pu], C_TXT);
+            if (hold) {                          /* a hold: one punch-in held at a time (they never play together: pitch up and
+                                                  * down would cancel, two loops fight), so it takes the place of the one
+                                                  * before; the two filters are held alongside it */
+                if (!filt) for (int k = 1; k < 15; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }
+                ui.lat_w |= (uint16_t)(1u << i); ui.lat_w_until[i] = hold == 2 ? 0 : loop_end();
+                ui.lat_w_dep[i] = key_depth(kk, i == 0); ui.oct_used[hold - 1] = 1;
+                pop(hold == 2 ? "HELD" : "HELD TO THE LOOP'S END", PU_NAME[pu], C_TXT);
+            } else if (ui.lat_w >> i & 1u) {     /* pressed again: its hold let go (it plays while pressed) */
+                ui.lat_w &= (uint16_t)~(1u << i);
+                pop("LET GO", PU_NAME[pu], C_TXT);
+            } else pop("PUNCH-IN", PU_NAME[pu], C_TXT);
+            if (!filt) { pu_drop(i); if (ui.pu_n < 16) ui.pu_order[ui.pu_n++] = (uint8_t)i; }
             ui.pop_until = plat_ms() + 700u;
         }
-        if (!(keys & b) && (ui.keys & b)) {      /* let go */
-            int w = 0; for (int j = 0; j < ui.pu_n; j++) if (ui.pu_order[j] != i) ui.pu_order[w++] = ui.pu_order[j];
-            ui.pu_n = (uint8_t)w;
-        }
+        if (!(keys & b) && (ui.keys & b) && !(ui.lat_w >> i & 1u)) pu_drop(i);   /* let go, not held */
     }
-    eng.pu_want = ui.pu_n ? PU_KEY[ui.pu_order[ui.pu_n - 1]] : 0;
-    eng.pu_hpw = keys >> WK[0] & 1u ? 1.0f + key_depth(WK[0], 1) : 0.0f;    /* (the bottom key: pressure) */
-    eng.pu_lpw = keys >> WK[15] & 1u ? 1.0f + key_depth(WK[15], 0) : 0.0f;  /* (the top: how hard it was struck) */
+    int top = ui.pu_n ? ui.pu_order[ui.pu_n - 1] : -1;
+    eng.pu_want = top >= 0 ? PU_KEY[top] : 0;
+    eng.pu_press = top < 0 ? 0.0f : keys >> WK[top] & 1u ? key_depth(WK[top], 1) : ui.lat_w_dep[top];   /* (how hard: TAPE MASH's depth) */
+    eng.pu_hpw = keys >> WK[0] & 1u ? 1.0f + key_depth(WK[0], 1) : ui.lat_w & 1u ? 1.0f + ui.lat_w_dep[0] : 0.0f;          /* (the bottom key: pressure) */
+    eng.pu_lpw = keys >> WK[15] & 1u ? 1.0f + key_depth(WK[15], 0) : ui.lat_w >> 15 & 1u ? 1.0f + ui.lat_w_dep[15] : 0.0f;   /* (the top: how hard it was struck) */
     uint8_t bits[NPARTS] = { 0, 0, 0, 0 }; float dep[NPARTS] = { 0, 0, 0, 0 };
     for (int j = 0; j < 11; j++) {
         int kk = BK[j];
-        if (kk >= NKEYS || !(keys >> kk & 1u)) continue;
-        float d = 0.4f + 0.6f * key_depth((uint32_t)kk, 1);
-        for (int p = 0; p < NPARTS; p++) if (RND_KEY[j].part < 0 || RND_KEY[j].part == p) { bits[p] |= RND_KEY[j].bits; if (d > dep[p]) dep[p] = d; }
-        if (!(ui.keys >> kk & 1u)) {
-            pop("RANDOM", RND_KEY[j].part < 0 ? "EVERY PART" : PART_NAME[RND_KEY[j].part], RND_KEY[j].part < 0 ? C_TXT : PART_C[RND_KEY[j].part]);
+        if (kk >= NKEYS) continue;
+        int held = keys >> kk & 1u, pressed = held && !(ui.keys >> kk & 1u);
+        if (pressed) {
+            const char *what = RND_KEY[j].part < 0 ? "EVERY PART" : PART_NAME[RND_KEY[j].part];
+            uint16_t c = RND_KEY[j].part < 0 ? C_TXT : PART_C[RND_KEY[j].part];
+            if (hold) {
+                ui.lat_b |= (uint16_t)(1u << j); ui.lat_b_until[j] = hold == 2 ? 0 : loop_end();
+                ui.lat_b_dep[j] = 0.4f + 0.6f * key_depth((uint32_t)kk, 1); ui.oct_used[hold - 1] = 1;
+                pop(hold == 2 ? "RANDOM, HELD" : "RANDOM, TO THE LOOP'S END", what, c);
+            } else if (ui.lat_b >> j & 1u) { ui.lat_b &= (uint16_t)~(1u << j); pop("RANDOM, LET GO", what, c); }
+            else pop("RANDOM", what, c);
             text_cat(ui.pop_3, RND_KEY[j].bits == 7 ? "TONE, WEIGHT, ENTROPY" : RND_KEY[j].bits == 1 ? "TONE" : RND_KEY[j].bits == 2 ? "WEIGHT" : "ENTROPY");
             ui.pop_until = plat_ms() + 900u;
         }
+        float d = held ? 0.4f + 0.6f * key_depth((uint32_t)kk, 1) : ui.lat_b >> j & 1u ? ui.lat_b_dep[j] : -1.0f;
+        if (d < 0) continue;
+        for (int p = 0; p < NPARTS; p++) if (RND_KEY[j].part < 0 || RND_KEY[j].part == p) { bits[p] |= RND_KEY[j].bits; if (d > dep[p]) dep[p] = d; }
     }
     for (int p = 0; p < NPARTS; p++) { eng.rnd_depth[p] = dep[p]; eng.rnd_bits[p] = bits[p]; }
+}
+
+static uint32_t holds_lit(void)          /* the held keys lit */
+{
+    static const uint8_t WK[16] = PLAT_WHITE_KEYS, BK[11] = PLAT_BLACK_KEYS;
+    uint32_t m = 0;
+    for (int i = 0; i < 16; i++) if ((ui.lat_w >> i & 1u) && WK[i] < NKEYS) m |= 1u << WK[i];
+    for (int j = 0; j < 11; j++) if ((ui.lat_b >> j & 1u) && BK[j] < NKEYS) m |= 1u << BK[j];
+    return m;
 }
 
 /* ------------------------------------------------------------------ input */
@@ -696,9 +767,17 @@ static void input(void)
     if (ui.rec_t && (up >> B_REC & 1u)) { if (!ui.rec_used) new_groove(0); ui.rec_t = 0; }
     if (down >> B_SAVE & 1u) save_groove();
     if (down >> B_PLAY & 1u) play_toggle();
-    if (down >> B_OCTDN & 1u) hist_step(-1);
-    if (down >> B_OCTUP & 1u) hist_step(1);
-    keys_input(keys);
+    /* OCT- and OCT+: the holds (held as a key is pressed; OCT+ alone lets them all go). With HOME held: back and forward
+     * through the grooves REC replaced */
+    for (int k = 0; k < 2; k++) {
+        int bt = k ? B_OCTUP : B_OCTDN;
+        if (down >> bt & 1u) {
+            ui.oct_used[k] = 0;
+            if (btn >> B_HOME & 1u) { hist_step(k ? 1 : -1); ui.oct_used[k] = 1; ui.home_used = 1; }
+        }
+        if ((up >> bt & 1u) && !ui.oct_used[k] && k == 1 && (ui.lat_w || ui.lat_b)) { holds_clear(); pop("HOLDS", "ALL LET GO", C_TXT); ui.pop_until = plat_ms() + 700u; }
+    }
+    keys_input(keys, btn & ~(btn >> B_HOME & 1u ? (1u << B_OCTDN | 1u << B_OCTUP) : 0u));
     for (int k = 0; k < 4; k++) {
         if ((d = enc(EN_K1 + k)) == 0) continue;
         if (ui.page != PG_HOME) knob_turn(k, (int)d);
@@ -718,7 +797,7 @@ static void input(void)
         uint32_t used = 1u << B_SEL | 1u << B_REC | 1u << B_SAVE | 1u << B_OCTDN | 1u << B_OCTUP | 1u << B_PLAY;
         for (int pg = 0; pg < NPAGES; pg++) used |= 1u << PAGE_BTN[pg];
         uint32_t lit = (btn & used) | 1u << PAGE_BTN[ui.page] | (set_dirty ? 1u << B_SAVE : 0u) | (set.playing ? LED_PLAY_GREEN : 0u);
-        plat_lights(lit, keys, used | LED_PLAY_GREEN, 0x7FFFFFFu, 1);
+        plat_lights(lit, keys | holds_lit(), used | LED_PLAY_GREEN, 0x7FFFFFFu, 1);
     }
 }
 

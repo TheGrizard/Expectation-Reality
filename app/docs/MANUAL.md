@@ -40,7 +40,9 @@ The name is the idea. **Expectation** is the groove REC deals: a fixed loop that
 | REC | a new groove (a new key and tempo too) |
 | REC held | a new groove in the same key and tempo |
 | SEL held + REC | the chosen part dealt afresh |
-| OCT- / OCT+ | back and forward through the grooves REC replaced |
+| OCT- / OCT+ held, as you press a key | hold that punch-in or randomiser: to the loop's end (OCT-) or for good (OCT+) |
+| OCT+ alone | let every hold go |
+| HOME held + OCT- / OCT+ | back and forward through the grooves REC replaced |
 | SAVE | keep the groove |
 | ALGORITHM knob | step through saved grooves |
 | PLAY | stop and start (from the top of the bar) |
@@ -111,14 +113,17 @@ and hats run on odd lengths (5, 7, 9, 11, 13 steps) so they drift against the ba
 
 Hold **HOME** and turn K1 to K4 (they're also on GLO's first page):
 
-- **MOOD**: how the hits are played. To the left, hard, staccato and bright; to the right, soft, long, full and
-  darker. In the middle a mix: each part is dealt its own place between the two (some tight, some ringing), and
+- **MOOD**: how the hits are played. To the left, heavy, long, full and soft, darker; to the right, bright, short,
+  hard and staccato. In the middle a mix: each part is dealt its own place between the two (some tight, some ringing), and
   every hit varies a little around it.
-- **ACTIVITY**: how much of each pattern plays. Low, only the strongest hits; high, everything.
+- **ACTIVITY**: how much of each pattern plays. At 0, each part's core: the kick's main hits, the snare's backbeat, a
+  few perc and hats, a simple sparse beat. Turned up, the rest comes in. The kick stays firm however high it goes (a few
+  more hits a bar at most, never rolling).
 - **EVOLVE**: expectation to reality. At 0 the groove loops exactly. Turning up brings in each step's component
   (see section 9) at its own point on the knob. Past about 70 the patterns start to rewrite themselves, a step at a
   time, and SAVE keeps how far they've got. Near the top, now and then a beat is played from another part of the
-  pattern.
+  pattern. The kick stays the anchor through all of it: EVOLVE gives it accents, ghosts and hits that come and go on
+  a cycle, but never pushes, rolls, drops or rewrites it.
 - **DRIFT**: the mixer. At 0 everything plays as set. Turned up, parts fade out for a few bars and come back (never
   fewer than two playing).
 
@@ -160,7 +165,8 @@ part in semitones.
 ## 8. The sounds
 
 Eighteen engines, four or five for each part, every one shaped by WEIGHT and ENTROPY (and made harder or softer,
-brighter or darker by MOOD). Any engine can be chosen for any part; REC deals from each part's own:
+brighter or darker by MOOD). Any engine can be chosen for any part, and plays in that part's register: a snare's or a hat's engine on the kick
+drops to a kick's depth (STRING only to about 86 Hz, made duller there). REC deals from each part's own:
 
 | Part | Engine | What it is | ENTROPY turns it |
 |---|---|---|---|
@@ -253,7 +259,7 @@ often the time jumps to another, every sixteenth: Autechre's stutter).
 - **WARP**: the humaniser: every hit's timing loosened and its velocity varied, with a player's lean (the snare a
   touch late, the hats a touch early).
 - **FLOW**: each part's sound slowly wandering.
-- **CHAOS**: rolls, skipped hits and hits pushed off the grid, at random.
+- **CHAOS**: rolls, skipped hits and hits pushed off the grid, at random (never the kick's).
 
 ## 12. Key, swing and tempo
 
@@ -270,7 +276,7 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 
 | Key | Punch-in |
 |---|---|
-| 1 (bottom) | HIGH-PASS, from about 500 Hz; press harder for more |
+| 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
 | 2 | RATCHET: a roll speeding up, eighths to sixteenths to 32nds to 64ths |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
@@ -279,7 +285,7 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | 7 | GLITCH: a repeat that changes its length every pass |
 | 8 | PITCH DOWN an octave |
 | 9 | PITCH UP an octave |
-| 10 | TAPE STOP |
+| 10 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more |
 | 11 | REVERSE: the eighth before, backwards, in time |
 | 12 | FREEZE: the room held as an endless wash, the groove going on over it |
 | 13 | SWELL: the last moments backwards, swelling into the next beat |
@@ -288,7 +294,13 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
 
 The repeats, RATCHET, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
-line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove. The latest key held plays; the two filters work alongside
+line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
+
+**Holds.** Hold **OCT-** as you press a key and it stays on to the end of the loop (the kick's pattern, at least a
+beat away); hold **OCT+** as you press it and it stays on for good. A held key stays lit. Press it again to let it go,
+or press OCT+ on its own to let every hold go. One punch-in plays at a time (pitch up and down would cancel, two loops
+would fight), so holding a new one lets go of the one held before; the two filters can be held alongside it, and any
+number of black keys. While a punch-in is held, pressing another plays that one for as long as you press it. The latest key held plays; the two filters work alongside
 the others. Everything fades in and out over a few milliseconds, so nothing clicks.
 
 **The black keys are randomisers.** While you hold one, every hit of its part takes a new random value of one of its

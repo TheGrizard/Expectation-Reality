@@ -77,3 +77,49 @@ key w4 up
 wait 500
 expect pu 0
 expect playing 1
+# the holds: OCT+ held as a key is pressed holds it for good; another held takes its place; pressed again, let go
+press OCT+
+key w7 down 100
+wait 100
+key w7 up
+release OCT+
+wait 400
+expect pu 7
+press OCT+
+key w8 down 100
+wait 100
+key w8 up
+release OCT+
+wait 400
+expect pu 8
+key w8 down 100
+wait 100
+key w8 up
+wait 400
+expect pu 0
+# a black key held too, the filters alongside; OCT+ alone lets every hold go
+press OCT+
+key b0 down 100
+key w0 down 100
+wait 100
+key b0 up
+key w0 up
+release OCT+
+wait 300
+expect rnd0 1
+press OCT+
+wait 50
+release OCT+
+wait 300
+expect rnd0 0
+# OCT- holds to the loop's end: still on a moment later, gone by the loop's end (two bars at most, at this tempo)
+press OCT-
+key w9 down 100
+wait 100
+key w9 up
+release OCT-
+wait 400
+expect pu 9
+wait 9000
+expect pu 0
+expect playing 1

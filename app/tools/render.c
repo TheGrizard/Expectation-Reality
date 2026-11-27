@@ -126,7 +126,7 @@ static void run(const char *path, float secs, int punch)
     int evosweep = env_i("EVOSWEEP", 0), actsweep = env_i("ACTSWEEP", 0), ai = env_i("AI", 0);
     static const struct { float beat; int pu; } PLAN[] = {
         { 8.3f, PU_REP8 }, { 10, 0 }, { 12.15f, PU_REP16 }, { 13.4f, PU_REP32 }, { 14, 0 }, { 16, PU_PDOWN }, { 18, 0 }, { 20, PU_PUP }, { 22, 0 },
-        { 24, PU_STOP }, { 26, 0 }, { 28.35f, PU_REVERSE }, { 30, 0 }, { 32.2f, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
+        { 24, PU_MASH }, { 27, 0 }, { 28.35f, PU_REVERSE }, { 30, 0 }, { 32.2f, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
         { 43.3f, PU_SWELL }, { 44.2f, 0 }, { 46, PU_CRUSH }, { 48, 0 }, { 50, PU_KILL }, { 52, 0 }, { 54.1f, PU_REP12 }, { 56, 0 },
         { 58, -1 }, { 61, -2 }, { 64, 0 }, { 68.4f, PU_RATCHET }, { 71.6f, 0 } };   /* (pressed off the beat: they keep to the grid) */
     int next = 0; float last_beat = -1;

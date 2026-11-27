@@ -22,10 +22,14 @@ Generative at its core, with macros across the main features, as After Images ha
   perc low (just above the kick); pitch falls fast, never slow sweeps. Engines include a soft 808, a synthesised clap,
   a circuit-bent BENT (wild, every WEIGHT/ENTROPY setting its own), FOLEY (box and wood bangs, footsteps, drags: low,
   never metallic), an almost-vocal hat and impulse-click hats. The owner may send reference samples to tune towards.
+- The kick is the anchor: ACTIVITY adds only a few kicks a bar (never neighbouring sixteenths unless written strong),
+  CHAOS never touches it, EVOLVE gives it only accents, ghosts and conditions (no nudges, rolls, drops, swapped beats
+  or rewrites), WARP loosens it least. ACTIVITY at 0 is a simple, sparse beat: each part's core hits.
+- Any engine can play on any part, in that part's register (a snare's or hat's engine on the kick dropped down).
 - REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
   like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on).
-- HOME held + K1-K4 (and GLO's MACROS page) keep After Images' names: MOOD (how the hits are played: hard, staccato
-  and bright at 0; soft, long, full and darker at 100; in the middle a variety, each part dealt its own place),
+- HOME held + K1-K4 (and GLO's MACROS page) keep After Images' names: MOOD (how the hits are played: heavy, long,
+  full and soft (darker) at 0; bright, short, hard and staccato at 100; in the middle a variety, each part dealt its own place),
   ACTIVITY (density), EVOLVE (from the fixed loop, expectation, towards variation and evolving, reality), DRIFT (the
   mixer: drum parts fading in and out over time; 0 keeps everything as set). Timing lives in MOTION's WARP.
 - The LFO page keeps After Images' MOTION settings by name (LINK, WARP, FLOW, CHAOS), read for drums: LINK the
@@ -38,10 +42,13 @@ Generative at its core, with macros across the main features, as After Images ha
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, bouncing-ball rolls, probability and ghost notes.
 - Effects, in three places:
-  - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (about 500 Hz, to be confirmed)
+  - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (from about 350 Hz)
     on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
-    pitch down (the owner especially likes these), a ratchet (eighths to 64ths), repeats, glitch, tape stop, reverse, a
+    pitch down (the owner especially likes these), a ratchet (eighths to 64ths), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
     room freeze, a reverse swell, crush, kill kick. Repeats, ratchet, glitch and reverse are held to the grid.
+    Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
+    is let go; OCT+ alone lets every hold go. One punch-in at a time (a new hold replaces the old), the filters and
+    black keys alongside. Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.
   - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
     first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
     every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
