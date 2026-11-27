@@ -14,7 +14,7 @@ extern const char *const PART_NAME[NPARTS];
 
 enum { G_MAP, G_EUCLID, G_TURING, G_BROKEN, NUM_GENS };   /* SEQ's TYPE */
 extern const char *const GEN_NAME[NUM_GENS];
-enum { GENRE_IDM, GENRE_TECHNO, NUM_GENRES };                 /* GLO's GENRE: what REC deals */
+enum { GENRE_IDM, GENRE_TECHNO, GENRE_AMBIENT, GENRE_LOFI, NUM_GENRES };   /* GLO's GENRE: what REC deals */
 extern const char *const GENRE_NAME[NUM_GENRES];
 enum { R_16, R_8, R_32, R_16T, R_8T, NUM_RATES };          /* SEQ's RATE */
 extern const char *const RATE_NAME[NUM_RATES];

@@ -297,7 +297,7 @@ at full, or USB AUDIO's GAIN at 100, is unity.
 
 ![GENRE](img/genre.png)
 
-**GLO twice: GENRE**: what REC deals. **IDM** is the groove as it has always been: broken, shuffled, machine-like.
+**GLO twice: GENRE**: what REC deals: IDM, TECHNO, AMBIENT or LOFI. **IDM** is the groove as it has always been: broken, shuffled, machine-like.
 **TECHNO** deals:
 
 - the kick four on the floor, every beat, always: ACTIVITY only adds a pounding extra on top (a pickup into the one, a
@@ -308,7 +308,17 @@ at full, or USB AUDIO's GAIN at 100, is unity.
   with a looping sixteenth machine round them, often on a length that isn't 16: polymeters, hypnotic;
 - the punchier kicks, the clap, the metallic and digital hats; and next to no swing.
 
-Choosing TECHNO sets the tempo to 135 BPM (IDM, 100); after that REC keeps your tempo, as always. A saved groove
+**AMBIENT** deals soft and sparse, out of micro-sounds: a soft, long kick about once a bar (sometimes off the one), the
+snare a rare texture of wires and grains rather than a backbeat, and the perc and hats tiny clicks, dust, grains and
+foley, often in 1/32s or triplets on odd loop lengths. Soft attacks, darker tones, gentler hits, a little swing.
+
+**LOFI** deals boom-bap: a written hip-hop kick (the one, then a second hit that moves from groove to groove, with
+extras that ACTIVITY brings in), a crack or rim on two and four with quiet ghosts, dusty hats (quarters at ACTIVITY
+0, eighths as it rises, sixteenth pickups near the top, an open hat into the bar now and then) and a sparse rim or
+shaker for the perc. The hats and snare filtered dark, the kick boomy, and a heavy, lazy swing.
+
+Choosing a genre sets its tempo: IDM 100, TECHNO 135, AMBIENT 80, LOFI 85 BPM; after that REC keeps your tempo, as
+always. A saved groove
 keeps its genre. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in both.
 
 ![SCALE](img/scale.png)

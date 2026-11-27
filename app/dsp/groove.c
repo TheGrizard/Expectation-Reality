@@ -4,7 +4,7 @@
 
 const char *const PART_NAME[NPARTS] = { "KICK", "SNARE", "PERC", "HATS" };
 const char *const GEN_NAME[NUM_GENS] = { "MAP", "EUCLID", "TURING", "BROKEN" };
-const char *const GENRE_NAME[NUM_GENRES] = { "IDM", "TECHNO" };
+const char *const GENRE_NAME[NUM_GENRES] = { "IDM", "TECHNO", "AMBIENT", "LOFI" };
 const char *const RATE_NAME[NUM_RATES] = { "1/16", "1/8", "1/32", "1/16T", "1/8T" };
 const uint8_t RATE_TICKS[NUM_RATES] = { 24, 48, 12, 16, 32 };
 const char *const RT_NAME[NUM_RT] = { "ROOM", "GATED", "REVERSE", "FREEZE" };
@@ -58,10 +58,16 @@ static void deal_part(Groove *g, int p, Rng *r, int keep_seq)
                                                { D_MATERIAL, D_FMPERC, D_STRING, D_FOLEY }, { D_METAL, D_DUST, D_DIGITAL, D_VOX } };
         static const uint8_t EL5[NPARTS] = { D_FMKICK, D_BENT, D_BENT, D_CLICK };   /* (a fifth choice: BENT, the hats' clicks) */
         static const uint8_t EW[NPARTS][5] = { { 4, 3, 2, 2, 0 }, { 4, 3, 2, 2, 2 }, { 3, 3, 2, 3, 2 }, { 2, 3, 2, 3, 3 } };
-        static const uint8_t TW[NPARTS][5] = { { 5, 1, 1, 5, 0 }, { 7, 2, 1, 1, 1 }, { 3, 3, 1, 1, 1 }, { 3, 1, 3, 0, 3 } };   /* (TECHNO: the
-                                                  * pounding kicks, the clap first, the perc's materials and FM, the
-                                                  * metallic, digital and clicking hats) */
-        int k = pick(r, g->genre == GENRE_TECHNO ? TW[p] : EW[p], 5);
+        static const uint8_t GW[NUM_GENRES - 1][NPARTS][5] = {
+            { { 5, 1, 1, 5, 0 }, { 7, 2, 1, 1, 1 }, { 3, 3, 1, 1, 1 }, { 3, 1, 3, 0, 3 } },   /* TECHNO: the pounding kicks, the
+                                                  * clap first, the perc's materials and FM, the metallic, digital and
+                                                  * clicking hats */
+            { { 6, 3, 1, 0, 0 }, { 0, 1, 4, 5, 2 }, { 2, 2, 3, 3, 1 }, { 0, 5, 1, 2, 5 } },   /* AMBIENT: a soft 808 or membrane,
+                                                  * wires and grains for a snare, strings and foley, dust and clicks */
+            { { 6, 1, 4, 0, 0 }, { 2, 5, 3, 1, 0 }, { 3, 1, 1, 4, 0 }, { 3, 5, 0, 1, 1 } },   /* LOFI: the 808 and the box, a
+                                                  * crack or rim, materials and foley, dusty hats */
+        };
+        int k = pick(r, g->genre && g->genre < NUM_GENRES ? GW[g->genre - 1][p] : EW[p], 5);
         q->engine = k < 4 ? EL[p][k] : EL5[p];
     }
     groove_part_engine(g, p);
@@ -85,6 +91,19 @@ static void deal_part(Groove *g, int p, Rng *r, int keep_seq)
             if (p <= P_SNARE) { q->gen = G_MAP; q->len = rng_chance(r, 0.35f) ? 32 : 16; q->rate = R_16; }
             else if (p == P_PERC) { q->gen = rng_chance(r, 0.8f) ? G_EUCLID : G_TURING; q->len = TPL[rng_int(r, 8)]; q->rate = rng_chance(r, 0.85f) ? R_16 : R_8; }
             else { q->gen = G_TURING; q->len = THL[rng_int(r, 8)]; q->rate = rng_chance(r, 0.88f) ? R_16 : R_16T; }
+        } else if (g->genre == GENRE_AMBIENT) {   /* AMBIENT: a kick once a bar or so (written), the snare a rare texture,
+                                                  * the perc and hats micro-sounds on odd lengths, often 1/32 or in
+                                                  * triplets, all sparse */
+            static const uint8_t AL[] = { 7, 9, 11, 13, 15, 19 }, SL[] = { 13, 16, 24, 32 };
+            static const uint8_t ARW[NUM_RATES] = { 5, 0, 3, 2, 0 };
+            if (p == P_KICK) { q->gen = G_MAP; q->len = 32; q->rate = R_16; }
+            else if (p == P_SNARE) { q->gen = rng_chance(r, 0.6f) ? G_EUCLID : G_TURING; q->len = SL[rng_int(r, 4)]; q->rate = R_16; }
+            else { q->gen = rng_chance(r, p == P_HATS ? 0.75f : 0.5f) ? G_TURING : G_EUCLID; q->len = AL[rng_int(r, 6)]; q->rate = (uint8_t)pick(r, ARW, NUM_RATES); }
+            q->density = (uint8_t)(16 + rng_int(r, 18));
+        } else if (g->genre == GENRE_LOFI) {      /* LOFI: the kick, snare and hats written (boom-bap), the perc a sparse
+                                                  * rim or shaker */
+            if (p != P_PERC) { q->gen = G_MAP; q->len = rng_chance(r, 0.5f) ? 32 : 16; q->rate = R_16; }
+            else { q->gen = rng_chance(r, 0.7f) ? G_EUCLID : G_TURING; q->len = rng_chance(r, 0.6f) ? 16 : 12; q->rate = R_16; q->density = (uint8_t)(20 + rng_int(r, 16)); }
         }
     }
     static const uint8_t LV[NPARTS] = { 85, 72, 62, 58 };
@@ -115,6 +134,18 @@ void groove_part_engine(Groove *g, int p)
     q->tone = 50;
     if (p == P_HATS && rng_chance(&r, 0.4f)) q->tone = (uint8_t)(54 + rng_int(&r, 10));   /* (a hat thinned a little) */
     if (p == P_PERC && rng_chance(&r, 0.3f)) q->tone = (uint8_t)(36 + rng_int(&r, 12));   /* (perc darkened) */
+    if (g->genre == GENRE_AMBIENT) {          /* AMBIENT: soft starts, darker, the perc and hats tiny (micro-sounds), the
+                                               * kick soft and long */
+        static const uint8_t WL[NPARTS][2] = { { 45, 26 }, { 20, 26 }, { 8, 23 }, { 8, 21 } }, TL[NPARTS][2] = { { 50, 1 }, { 34, 13 }, { 36, 13 }, { 38, 11 } };
+        q->entropy = (uint8_t)(4 + rng_int(&r, 25));
+        q->weight = (uint8_t)(WL[p][0] + rng_int(&r, WL[p][1]));
+        q->tone = (uint8_t)(TL[p][0] + rng_int(&r, TL[p][1]));
+    } else if (g->genre == GENRE_LOFI) {      /* LOFI: dusty and dark, the kick boomy, the hats and snare filtered */
+        static const uint8_t WL[NPARTS][2] = { { 40, 21 }, { 20, 21 }, { 15, 21 }, { 15, 21 } }, TL[NPARTS][2] = { { 46, 5 }, { 38, 10 }, { 40, 9 }, { 30, 13 } };
+        q->entropy = (uint8_t)(8 + rng_int(&r, 33));
+        q->weight = (uint8_t)(WL[p][0] + rng_int(&r, WL[p][1]));
+        q->tone = (uint8_t)(TL[p][0] + rng_int(&r, TL[p][1]));
+    }
 }
 
 static void deal_fx(Groove *g, Rng *r)
@@ -164,6 +195,8 @@ void groove_roll(Groove *g, uint32_t seed, int all)
     else { g->mapx = (uint8_t)rng_int(&r, 101); g->mapy = (uint8_t)rng_int(&r, 101); }
     g->swing = (uint8_t)(rng_chance(&r, 0.6f) ? 30 + rng_int(&r, 41) : rng_int(&r, 13));   /* SWING: a 2-step shuffle, or IDM's straight */
     if (g->genre == GENRE_TECHNO) g->swing = (uint8_t)(g->swing / 4);   /* (TECHNO: straight, a touch of swing at most) */
+    if (g->genre == GENRE_AMBIENT) g->swing = (uint8_t)(g->swing / 2);
+    if (g->genre == GENRE_LOFI) g->swing = (uint8_t)(48 + g->swing % 27);   /* (LOFI: a heavy, lazy swing, 48-74) */
     { static const uint8_t AC[6] = { 0, 3, 5, 7, 5, 3 }; g->accent = AC[rng_int(&r, 6)]; }   /* the accents' cycle (Autechre's drifting groups) */
     g->breathe = (uint8_t)(30 + rng_int(&r, 61));                                          /* the bar's weight and the slow wave (BoC's breathing) */
     if (all) {
@@ -258,7 +291,39 @@ void pattern_make(Pattern *pt, const Groove *g, int part)
     pt->len = (uint8_t)len; pt->rate = q->rate;
     float mx = (float)g->mapx * 0.01f, my = (float)g->mapy * 0.01f;
     int row = part == P_KICK ? 0 : part == P_SNARE ? 1 : 2;
-    if (g->genre == GENRE_TECHNO && part <= P_SNARE) {   /* TECHNO's kick and snare: written, straight */
+    if (g->genre == GENRE_LOFI && part != P_PERC) {   /* LOFI's kick, snare and hats: written, boom-bap */
+        static const uint8_t KS[5][2] = { { 0, 10 }, { 0, 8 }, { 0, 6 }, { 0, 9 }, { 0, 7 } }, KE[5][2] = { { 7, 14 }, { 3, 11 }, { 10, 13 }, { 2, 14 }, { 10, 15 } };
+        int t1 = rng_int(&r, 5), t2 = rng_chance(&r, 0.6f) ? rng_int(&r, 5) : t1;
+        for (int i = 0; i < len; i++) {
+            Step *s = &pt->s[i]; int b = i & 15, t = i < 16 ? t1 : t2;
+            s->lvl = (uint8_t)rng_int(&r, 30); s->vel = (uint8_t)(40 + rng_int(&r, 20));
+            if (part == P_KICK) {
+                if (b == KS[t][0] || b == KS[t][1]) { s->lvl = 255; s->vel = (uint8_t)(108 + rng_int(&r, 17)); }
+                else if (b == KE[t][0] || b == KE[t][1]) { s->lvl = (uint8_t)(120 + rng_int(&r, 50)); s->vel = (uint8_t)(80 + rng_int(&r, 21)); }
+            } else if (part == P_SNARE) {
+                if (b == 4 || b == 12) { s->lvl = 255; s->vel = (uint8_t)(104 + rng_int(&r, 17)); }
+            } else {                              /* the hats: quarters, then the eighths, then sixteenth pickups */
+                if (b % 4 == 0) { s->lvl = (uint8_t)(245 + rng_int(&r, 11)); s->vel = (uint8_t)(92 + rng_int(&r, 18)); }
+                else if (b % 2 == 0) { s->lvl = (uint8_t)(212 + rng_int(&r, 24)); s->vel = (uint8_t)(66 + rng_int(&r, 18)); }
+                else { s->lvl = (uint8_t)(60 + rng_int(&r, 90)); s->vel = (uint8_t)(38 + rng_int(&r, 22)); }
+                s->alt = b == 14 && rng_chance(&r, 0.25f);   /* (an open hat into the bar, now and then) */
+            }
+        }
+        if (part == P_SNARE) {                    /* (ghosts, quiet, in reserve for ACTIVITY) */
+            static const uint8_t GH[6] = { 7, 9, 15, 2, 6, 14 };
+            for (int bar = 0; bar < len; bar += 16) for (int k = 0; k < 2; k++) {
+                int i = bar + GH[rng_int(&r, 6)];
+                if (i < len && pt->s[i].lvl < 200) { pt->s[i].lvl = (uint8_t)(110 + rng_int(&r, 60)); pt->s[i].vel = (uint8_t)(28 + rng_int(&r, 24)); }
+            }
+        }
+    } else if (g->genre == GENRE_AMBIENT && part == P_KICK) {   /* AMBIENT's kick: soft, once a bar, sometimes off the one */
+        static const uint8_t K2[5] = { 16, 16, 22, 26, 20 };
+        int second = K2[rng_int(&r, 5)];
+        for (int i = 0; i < len; i++) { pt->s[i].lvl = (uint8_t)rng_int(&r, 25); pt->s[i].vel = (uint8_t)(50 + rng_int(&r, 20)); }
+        pt->s[0].lvl = 255; pt->s[0].vel = (uint8_t)(86 + rng_int(&r, 14));
+        if (second < len) { pt->s[second].lvl = 252; pt->s[second].vel = (uint8_t)(72 + rng_int(&r, 18)); }
+        for (int k = 0; k < 2; k++) { int i = 2 + rng_int(&r, len - 2); if (pt->s[i].lvl < 200) { pt->s[i].lvl = (uint8_t)(110 + rng_int(&r, 50)); pt->s[i].vel = (uint8_t)(55 + rng_int(&r, 20)); } }
+    } else if (g->genre == GENRE_TECHNO && part <= P_SNARE) {   /* TECHNO's kick and snare: written, straight */
         for (int i = 0; i < len; i++) {
             Step *s = &pt->s[i]; int b = i & 15;
             if (part == P_KICK) {                 /* four on the floor, always; in reserve for ACTIVITY, a pounding extra or
@@ -330,10 +395,14 @@ void pattern_make(Pattern *pt, const Groove *g, int part)
         if (part == P_KICK) pt->s[0].lvl = 255;
         break; }
     }
+    if (g->genre == GENRE_AMBIENT)                /* (AMBIENT: every hit gentler) */
+        for (int i = 0; i < len; i++) pt->s[i].vel = (uint8_t)clampi(pt->s[i].vel * 3 / 4, 1, 127);
     /* every pattern its core: at least so many strong steps (the strongest it has, raised), whatever wrote it */
     {
         int want = part == P_KICK ? (len + 7) / 8 : part == P_SNARE ? (len + 7) / 8 : part == P_PERC ? (len + 5) / 6 : (len + 2) / 3, have = 0;
         if (want < 2) want = 2;
+        if (g->genre == GENRE_AMBIENT)            /* (AMBIENT: sparser cores, the kick and snare about one a bar) */
+            want = part <= P_SNARE ? (len + 15) / 16 : part == P_PERC ? (len + 7) / 8 : (len + 5) / 6;
         for (int i = 0; i < len; i++) have += pt->s[i].lvl >= 170;
         for (int k = have; k < want; k++) {
             int best = -1;

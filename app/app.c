@@ -665,8 +665,10 @@ static void knob_turn(int k, int d)
     else if (kn->kind == K_RATE) *p = RATE_ORD[v];
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
-    if (kn->kind == K_GENRE && v != was) set.cur.tempo = (uint8_t)((v == GENRE_TECHNO ? 135 : 100) - 40);   /* (a genre's own
-                                                  * tempo when you choose it: TECHNO 135, IDM 100; REC keeps yours after) */
+    if (kn->kind == K_GENRE && v != was) {       /* (a genre's own tempo when you choose it; REC keeps yours after) */
+        static const uint8_t GT[NUM_GENRES] = { 100, 135, 80, 85 };   /* (IDM, TECHNO, AMBIENT, LOFI) */
+        set.cur.tempo = (uint8_t)(GT[v % NUM_GENRES] - 40);
+    }
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
     else changed();
     if (kn->kind == K_ONOFF && kn->off == SO(midi_on) && kn->where == 2 && !v) engine_all_off(&eng);

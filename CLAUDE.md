@@ -40,8 +40,11 @@ Generative at its core, with macros across the main features, as After Images ha
   strongest), a drifting accent cycle of 3, 5 or 7 sixteenths, a slow wave; harder hits brighter and heavier.
 - First iteration: IDM in feel and machine-like. GLO's GENRE (its own page, GLO twice; GLO is MACROS, GENRE,
   VISUALS, SCALE) chooses what REC deals: IDM, or TECHNO (four on the floor always, the snare or clap on two and
-  four, perc Euclid's on odd lengths and Turing hats round an off-beat: polymetric, hypnotic; next to no swing).
-  Choosing TECHNO sets 135 BPM (IDM 100); a groove keeps its genre.
+  four, perc Euclid's on odd lengths and Turing hats round an off-beat: polymetric, hypnotic; next to no swing),
+  AMBIENT (soft and sparse, micro-sounds: a soft kick about once a bar, the snare a rare texture, tiny clicks, dust and
+  grains in 1/32s and triplets on odd lengths) or LOFI (boom-bap: written kicks, a crack on two and four with ghosts,
+  dusty hats, dark tones, heavy swing). Choosing one sets its tempo (IDM 100, TECHNO 135, AMBIENT 80, LOFI 85); a
+  groove keeps its genre.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, fills as simple groove changes (no rolls, nothing accelerating), probability and ghost notes.
 - Effects, in three places:

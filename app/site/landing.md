@@ -16,8 +16,8 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 - **One button, a whole groove:** four sounds (one carried over, for a set that flows), four patterns, effects, a
   palette and a name; the tempo stays yours.
 - **Polymeters:** the kick and snare hold the bar while the perc and hats loop on odd lengths, drifting against it.
-- **Generators, not dice:** a groove map, Euclidean rhythms, Turing machines and broken IDM groupings; or TECHNO:
-  four on the floor under hypnotic polymetric perc and hats.
+- **Generators, not dice:** a groove map, Euclidean rhythms, Turing machines and broken IDM groupings; or other genres:
+  TECHNO's four on the floor, AMBIENT's soft micro-sounds, LOFI's dusty boom-bap.
 - **Step components:** ratchets, nudges, conditions, probabilities and ghosts, brought in by EVOLVE one at a time.
 - **Eighteen drum engines:** a soft 808, struck skins, resonant boxes, FM, claps, wires, grains, cracks, a circuit-bent
   toy, wood and glass, strings, foley (boxes, wood, footsteps, drags), metal clusters, crackle, digital noise, an
