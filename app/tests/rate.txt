@@ -1,0 +1,25 @@
+# SEQ's RATE on the knob: slow to fast (1/8, 1/8T, 1/16, 1/16T, 1/32), each kept by its own number
+wait 3000
+tap EDIT
+wait 200
+tap SEQ
+wait 200
+expect page 2
+turn K4 -10
+wait 100
+expect ratepos 0
+expect rate 1
+turn K4 1
+wait 100
+expect ratepos 1
+expect rate 4
+turn K4 1
+wait 100
+expect rate 0
+turn K4 1
+wait 100
+expect rate 3
+turn K4 10
+wait 100
+expect ratepos 4
+expect rate 2

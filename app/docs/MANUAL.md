@@ -178,7 +178,7 @@ Choose the part with **SEL** (or the SELECT knob), then:
   twos and threes).
 - **LENGTH**: its length in steps, 3 to 32.
 - **DENSITY**: this part busier or sparser than ACTIVITY has the rest.
-- **RATE**: its steps: 1/16, 1/8, 1/32 or triplets.
+- **RATE**: its steps, slow to fast: 1/8, 1/8T, 1/16, 1/16T, 1/32.
 
 **ENV: MIX**: LEVEL · DECAY · PITCH · PAN. DECAY makes every hit longer or shorter than it was dealt; PITCH tunes the
 part in semitones.

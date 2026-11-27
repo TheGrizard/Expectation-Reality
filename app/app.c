@@ -406,6 +406,11 @@ static void knob_text(int pg, int k, char *s)
     default: int_text(v, s); break;
     }
 }
+/* SEQ's RATE on the knob slow to fast (1/8, 1/8T, 1/16, 1/16T, 1/32); kept in a groove by its own number, as saved
+ * grooves have it */
+static const uint8_t RATE_ORD[NUM_RATES] = { R_8, R_8T, R_16, R_16T, R_32 };
+static int rate_pos(int r) { for (int i = 0; i < NUM_RATES; i++) if (RATE_ORD[i] == r) return i; return 0; }
+
 static float knob_frac(int pg, int k)
 {
     const Knob *kn = knob_of(pg, k); uint8_t v = *knob_ptr(pg, k);
@@ -419,7 +424,7 @@ static float knob_frac(int pg, int k)
     case K_ENGINE: return (float)v / (NUM_ENGINES - 1);
     case K_GEN: return (float)v / (NUM_GENS - 1);
     case K_LEN: return (float)(v - MINLEN) / (float)(MAXLEN - MINLEN);
-    case K_RATE: return (float)v / (NUM_RATES - 1);
+    case K_RATE: return (float)rate_pos((int)(v % NUM_RATES)) / (NUM_RATES - 1);
     case K_PITCH: return ((float)(int8_t)v + 24.0f) / 48.0f;
     case K_RT: return (float)v / (NUM_RT - 1);
     case K_CT: return (float)v;
@@ -608,7 +613,7 @@ static void select_part(int p)
 static void knob_turn(int k, int d)
 {
     const Knob *kn = knob_of(ui.page, k); uint8_t *p = knob_ptr(ui.page, k);
-    int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : *p, lo = 0, hi = 100, step = 2, wrap = 0;
+    int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : kn->kind == K_RATE ? rate_pos(*p % NUM_RATES) : *p, lo = 0, hi = 100, step = 2, wrap = 0;
     if (kn->kind == K_NONE) return;
     switch (kn->kind) {
     case K_REC: case K_ROUTE: case K_STYLE: hi = 1; step = 1; break;
@@ -640,6 +645,7 @@ static void knob_turn(int k, int d)
     if (kn->kind == K_PITCH) *(int8_t *)p = (int8_t)v;
     else if (kn->kind == K_REC) *p = (uint8_t)((*p & 2u) | (unsigned)v);          /* (CONTROL and OUTPUT share a byte) */
     else if (kn->kind == K_ROUTE) *p = (uint8_t)((*p & 1u) | (unsigned)v << 1);
+    else if (kn->kind == K_RATE) *p = RATE_ORD[v];
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
@@ -1324,6 +1330,8 @@ int app_expect(const char *what, int *got)
         *got = (int)(err * 100.0f + (err < 0 ? -0.5f : 0.5f));
     }
     else if (!strcmp(what, "engine")) *got = set.cur.p[ui.sel].engine;
+    else if (!strcmp(what, "rate")) *got = set.cur.p[ui.sel].rate;
+    else if (!strcmp(what, "ratepos")) *got = rate_pos(set.cur.p[ui.sel].rate % NUM_RATES);
     else if (!strcmp(what, "tone")) *got = set.cur.p[ui.sel].tone;
     else if (!strcmp(what, "weight")) *got = set.cur.p[ui.sel].weight;
     else if (!strcmp(what, "entropy")) *got = set.cur.p[ui.sel].entropy;
