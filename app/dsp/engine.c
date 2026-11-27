@@ -4,7 +4,7 @@
  * 4 ms, filters' settings move in small steps every few samples. */
 #include "engine.h"
 
-const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "RATCHET", "REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "GLITCH",
+const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "FILL", "REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "GLITCH",
     "PITCH DOWN", "PITCH UP", "TAPE MASH", "REVERSE", "FREEZE", "SWELL", "CRUSH", "KILL KICK", "REPEAT 1/12", "HIGH-PASS" };
 
 /* the pool: the engine and the screen's canvas (29 KB) must fit the FM-1's 336 KB, with room for fm1-base's own */
@@ -180,16 +180,34 @@ static float hit_pan(Engine *e, int p)
     return clamp01(pan);
 }
 
-/* a fill: a bouncing ball (the gaps shrinking) on the snare, or a run down the perc, or the hats rolling */
+/* a fill: one beat, machine-like and on the grid (never speeding up): a broken snare in 32nds, a run down the perc in
+ * 16ths, hats in 32nds accented in threes, the snare and perc trading 16ths, or snare triplets building. The kick
+ * keeps the groove under it */
 static void fill_roll(Engine *e, uint32_t t0)
 {
-    int kind = rng_int(&e->rng, 3);
-    float off = 0, gap = 20.0f, v = 0.75f;
-    for (int k = 0; k < 14 && off < (float)TPB; k++) {
-        int p = kind == 0 ? P_SNARE : kind == 1 ? P_PERC : P_HATS;
-        HitP hp; make_hit(e, p, v, kind == 1 ? (float)(6 - k) : 0.0f, kind == 0 && (k & 1), &hp);
-        push_ev(&e->P[p], t0, off, &hp, hit_pan(e, p), 0);
-        off += gap; gap *= 0.8f; v *= kind == 2 ? 1.03f : 0.93f;
+    int kind = rng_int(&e->rng, 5);
+    switch (kind) {
+    case 0: for (int k = 0; k < 8; k++) if (k == 0 || rng_chance(&e->rng, 0.6f)) {
+            HitP hp; make_hit(e, P_SNARE, k % 2 ? 0.45f + 0.2f * rng_f(&e->rng) : 0.8f, 0, k % 4 == 3, &hp);
+            push_ev(&e->P[P_SNARE], t0, (float)(k * 12), &hp, hit_pan(e, P_SNARE), 0);
+        } break;
+    case 1: for (int k = 0; k < 4; k++) {
+            HitP hp; make_hit(e, P_PERC, 0.85f - 0.1f * (float)k, (float)(4 - 2 * k), 0, &hp);
+            push_ev(&e->P[P_PERC], t0, (float)(k * 24), &hp, hit_pan(e, P_PERC), 0);
+        } break;
+    case 2: for (int k = 0; k < 8; k++) {
+            HitP hp; make_hit(e, P_HATS, k % 3 == 0 ? 0.9f : 0.5f, 0, 0, &hp);
+            push_ev(&e->P[P_HATS], t0, (float)(k * 12), &hp, hit_pan(e, P_HATS), 0);
+        } break;
+    case 3: for (int k = 0; k < 4; k++) {
+            int p = k % 2 ? P_PERC : P_SNARE;
+            HitP hp; make_hit(e, p, 0.8f, p == P_PERC ? (float)(2 - k) : 0.0f, 0, &hp);
+            push_ev(&e->P[p], t0, (float)(k * 24), &hp, hit_pan(e, p), 0);
+        } break;
+    default: for (int k = 0; k < 6; k++) {
+            HitP hp; make_hit(e, P_SNARE, 0.4f + 0.1f * (float)k, 0, 0, &hp);
+            push_ev(&e->P[P_SNARE], t0, (float)(k * 16), &hp, hit_pan(e, P_SNARE), 0);
+        } break;
     }
     e->fill_until = t0 + TPB;
 }
@@ -385,6 +403,10 @@ void engine_block_begin(Engine *e, int nsub)
     for (int p = 0; p < NPARTS; p++) if (e->off_left[p] && --e->off_left[p] == 0 && e->midi) e->midi(0x08u | (0x80u | e->midi_ch) << 8 | (uint32_t)e->off_note[p] << 16);
     float span = r * (float)n, endf = e->frac + span;
     uint32_t end = e->tick + (uint32_t)endf;      /* (the block's last tick, whole) */
+    if (e->playing && e->fill_want) {           /* the FILL key: a fill on each beat while it's held, from the next */
+        uint32_t nb = (e->tick / TPB + 1u) * TPB;
+        if (nb != e->mfill_last && nb <= end + (uint32_t)LOOK + 1u) { e->mfill_last = nb; fill_roll(e, nb); }
+    }
     if (e->playing) {
         /* the bars turning */
         while (e->last_bar * BAR + BAR <= end) { e->last_bar++; bar_turned(e, e->last_bar); }
@@ -528,10 +550,10 @@ static float grain_rate(Engine *e)            /* a grain's speed: mostly as it w
 
 static void punch_engage(Engine *e, int pu)
 {
-    e->pu = pu; e->rpos = 0; e->ps0 = e->pw; e->rnext = 0; e->rat_left = 2;
+    e->pu = pu; e->rpos = 0; e->ps0 = e->pw; e->rnext = 0;
     float beat = 60.0f / e->bpm * SR, cap = (float)(PUNCH_BUF - 256);
-    /* div: of a bar (1/8 an eighth). RATCHET starts on an eighth and doubles, REVERSE plays an eighth backwards */
-    float div = pu == PU_REP8 || pu == PU_RATCHET || pu == PU_REVERSE || pu == PU_GLITCH ? 0.125f : pu == PU_REP16 ? 0.0625f
+    /* div: of a bar (1/8 an eighth). REVERSE plays an eighth backwards */
+    float div = pu == PU_REP8 || pu == PU_REVERSE || pu == PU_GLITCH ? 0.125f : pu == PU_REP16 ? 0.0625f
               : pu == PU_REP32 ? 0.03125f : pu == PU_REP12 ? 1.0f / 12.0f : 0.25f;
     e->rlen = fm_minf(beat * div * 4.0f, cap);
     if (pu == PU_MASH) { e->m_d = 0.012f * SR + 64.0f; e->m_x = e->m_tgt = 0; e->m_g = e->m_gt = 1.0f; e->m_cnt = (int)(0.05f * SR); e->m_lp[0] = e->m_lp[1] = 0; }
@@ -543,11 +565,11 @@ static void punch_engage(Engine *e, int pu)
         if (to > half) to = half;
         e->swell_len = e->swell_left = (int)to;
     }
-    /* the repeats, RATCHET, GLITCH and REVERSE are held to the grid: the slice starts on the last line of its own grid
+    /* the repeats, GLITCH and REVERSE are held to the grid: the slice starts on the last line of its own grid
      * (an eighth, a sixteenth...) before the key, so it loops in time with the groove however late it was pressed. The
      * memory already holds the slice up to now: it plays on as it is (nothing jumps) to the slice's end, then loops (one
      * unbroken stretch: no seam, no click). REVERSE plays the eighth before that line backwards, in step with the grid */
-    int slice = pu == PU_RATCHET || pu == PU_REP8 || pu == PU_REP16 || pu == PU_REP32 || pu == PU_REP12 || pu == PU_GLITCH || pu == PU_REVERSE;
+    int slice = pu == PU_REP8 || pu == PU_REP16 || pu == PU_REP32 || pu == PU_REP12 || pu == PU_GLITCH || pu == PU_REVERSE;
     float ph = 0;                                /* samples since the slice's grid line */
     if (slice && e->playing && e->rlen < cap) {
         uint32_t gt = (uint32_t)((float)TPB * 4.0f * div + 0.5f);   /* (its grid in ticks: 48 an eighth) */
@@ -643,6 +665,10 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         outL[i] = L; outR[i] = R;
         /* the room's input: through the gated room's pre-delay, held a moment at FREEZE (a punch-in) */
         float feed = 1.0f - fz * (1.0f - e->frz_feed);
+        /* FREEZE takes the kick in too (the kick is never sent to the room otherwise): while it's catching its moment,
+         * faded in and out over ~7 ms */
+        e->frz_k += ((e->pu == PU_FREEZE && !e->pu_rel && e->frz_feed > 0 ? 1.0f : 0.0f) - e->frz_k) * 0.003f;
+        if (e->frz_k > 1e-5f) { rl += kL * 0.7f * e->frz_k; rr += kR * 0.7f * e->frz_k; } else e->frz_k = 0;
         if (pre) {
             float m = (rl + rr) * 0.5f;
             e->room_buf[e->room_w] = to16(m);
@@ -801,10 +827,6 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 e->rpos += 1.0f;
                 if (e->rpos >= len) {
                     e->rpos -= len;                /* (the fraction kept: hours of repeats stay on the grid) */
-                    if (pu == PU_RATCHET && --e->rat_left <= 0 && e->rlen > beat * 0.0625f * 1.5f) {
-                        e->rlen *= 0.5f; e->rat_left = 4;   /* RATCHET: eighths, sixteenths for a beat, 32nds for half, then 64ths */
-                        if (e->rpos >= e->rlen) e->rpos = 0;
-                    }
                     if (pu == PU_GLITCH) {        /* GLITCH: a new length each pass (within what it kept) */
                         static const float GL[5] = { 0.125f, 0.0625f, 0.03125f, 1.0f / 12.0f, 1.0f / 24.0f };
                         e->rpos = 0; e->rlen = fm_minf(beat * GL[rng_int(&e->rng, 5)] * 4.0f, (float)e->pu_cap);

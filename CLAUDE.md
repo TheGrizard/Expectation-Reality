@@ -40,12 +40,13 @@ Generative at its core, with macros across the main features, as After Images ha
   strongest), a drifting accent cycle of 3, 5 or 7 sixteenths, a slow wave; harder hits brighter and heavier.
 - First iteration: IDM in feel and machine-like.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
-  polymeters, bouncing-ball rolls, probability and ghost notes.
+  polymeters, on-grid fills (no accelerating bouncing-ball rolls), probability and ghost notes.
 - Effects, in three places:
   - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (from about 350 Hz)
     on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
-    pitch down (the owner especially likes these), a ratchet (eighths to 64ths), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
-    room freeze, a reverse swell, crush, kill kick. Repeats, ratchet, glitch and reverse are held to the grid.
+    pitch down (the owner especially likes these), FILL on the second white key (a machine-like, on-grid fill each
+    beat while held; never accelerating rolls, which the owner finds cheesy), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
+    room freeze, a reverse swell, crush, kill kick. Repeats, glitch and reverse are held to the grid. FREEZE takes the kick in too.
     Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
     is let go; OCT+ alone lets every hold go. One punch-in at a time (a new hold replaces the old), the filters and
     black keys alongside. Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.

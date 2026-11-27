@@ -627,11 +627,11 @@ static void page_to(int pg)
 }
 
 /* ------------------------------------------------------------------ the keys: punch-ins and randomisers
- * White keys, low to high: HIGH-PASS, RATCHET, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE MASH,
+ * White keys, low to high: HIGH-PASS, FILL, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE MASH,
  * REVERSE, FREEZE, SWELL, CRUSH, KILL KICK, LOW-PASS. The latest held plays (the filters alongside, their own).
  * Black keys, in their groups: KICK's TONE, WEIGHT, ENTROPY; SNARE's WEIGHT, ENTROPY; PERC's TONE, WEIGHT, ENTROPY;
  * HATS' WEIGHT, ENTROPY; the top one every part's three. Held, each hit of the part takes new values. */
-static const uint8_t PU_KEY[16] = { PU_HPF, PU_RATCHET, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH,
+static const uint8_t PU_KEY[16] = { PU_HPF, PU_FILL, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH,
                                     PU_REVERSE, PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_LPF };
 static const struct { int8_t part; uint8_t bits; } RND_KEY[11] = {
     { P_KICK, 1 }, { P_KICK, 2 }, { P_KICK, 4 }, { P_SNARE, 2 }, { P_SNARE, 4 }, { P_PERC, 1 }, { P_PERC, 2 }, { P_PERC, 4 },
@@ -682,12 +682,12 @@ static void keys_input(uint32_t keys, uint32_t btn)
     for (int i = 0; i < 16; i++) {
         int kk = WK[i]; uint32_t b = 1u << kk;
         if (kk >= NKEYS) continue;
-        int pu = PU_KEY[i], filt = pu == PU_HPF || pu == PU_LPF;
+        int pu = PU_KEY[i], filt = pu == PU_HPF || pu == PU_LPF || pu == PU_FILL;   /* (the filters and FILL: alongside the punch-in) */
         if ((keys & b) && !(ui.keys & b)) {      /* pressed */
             if (hold) {                          /* a hold: one punch-in held at a time (they never play together: pitch up and
                                                   * down would cancel, two loops fight), so it takes the place of the one
                                                   * before; the two filters are held alongside it */
-                if (!filt) for (int k = 1; k < 15; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }
+                if (!filt) for (int k = 2; k < 15; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }
                 ui.lat_w |= (uint16_t)(1u << i); ui.lat_w_until[i] = hold == 2 ? 0 : loop_end();
                 ui.lat_w_dep[i] = key_depth(kk, i == 0); ui.oct_used[hold - 1] = 1;
                 pop(hold == 2 ? "HELD" : "HELD TO THE LOOP'S END", PU_NAME[pu], C_TXT);
@@ -703,6 +703,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
     int top = ui.pu_n ? ui.pu_order[ui.pu_n - 1] : -1;
     eng.pu_want = top >= 0 ? PU_KEY[top] : 0;
     eng.pu_press = top < 0 ? 0.0f : keys >> WK[top] & 1u ? key_depth(WK[top], 1) : ui.lat_w_dep[top];   /* (how hard: TAPE MASH's depth) */
+    eng.fill_want = (keys >> WK[1] & 1u) || (ui.lat_w >> 1 & 1u);   /* FILL: a fill each beat while held */
     eng.pu_hpw = keys >> WK[0] & 1u ? 1.0f + key_depth(WK[0], 1) : ui.lat_w & 1u ? 1.0f + ui.lat_w_dep[0] : 0.0f;          /* (the bottom key: pressure) */
     eng.pu_lpw = keys >> WK[15] & 1u ? 1.0f + key_depth(WK[15], 0) : ui.lat_w >> 15 & 1u ? 1.0f + ui.lat_w_dep[15] : 0.0f;   /* (the top: how hard it was struck) */
     uint8_t bits[NPARTS] = { 0, 0, 0, 0 }; float dep[NPARTS] = { 0, 0, 0, 0 };
@@ -1176,6 +1177,7 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "hist")) *got = hist_n;
     else if (!strcmp(what, "pu")) *got = eng.pu;
     else if (!strcmp(what, "pu_want")) *got = eng.pu_want;
+    else if (!strcmp(what, "fill_want")) *got = eng.fill_want;
     else if (!strcmp(what, "hpf")) *got = eng.pu_hpw > 0;
     else if (!strcmp(what, "lpf")) *got = eng.pu_lpw > 0;
     else if (!strcmp(what, "heard")) *got = (int)eng.ai_notes;

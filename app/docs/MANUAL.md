@@ -216,8 +216,9 @@ The velocities have a shape of their own, dealt by REC: the bar's weight (the on
 four, the offbeats softest; the kick leaning on it most), an accent every three, five or seven sixteenths drifting
 across the bar, and a slow swell over a few bars.
 
-Every eight bars (every four, EVOLVE well up) a fill may come: a roll that speeds up like a bouncing ball, a run down
-the perc, or the hats rolling.
+Every eight bars (every four, EVOLVE well up) a fill may come on the last beat, machine-like and on the grid: a broken
+snare in 32nds, a run down the perc, hats in 32nds, the snare and perc trading 16ths, or snare triplets building. The
+FILL key (section 13) plays one whenever you like.
 
 ## 10. Effects
 
@@ -277,7 +278,7 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
-| 2 | RATCHET: a roll speeding up, eighths to sixteenths to 32nds to 64ths |
+| 2 | FILL: a fill on the next beat; held, a new one every beat (the kick keeps going under it) |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
@@ -287,13 +288,16 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | 9 | PITCH UP an octave |
 | 10 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more |
 | 11 | REVERSE: the eighth before, backwards, in time |
-| 12 | FREEZE: the room held as an endless wash, the groove going on over it |
+| 12 | FREEZE: the room held as an endless wash (the kick in it too), the groove going on over it |
 | 13 | SWELL: the last moments backwards, swelling into the next beat |
 | 14 | CRUSH |
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
 
-The repeats, RATCHET, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
+FILL plays alongside the punch-ins and filters. Its fills are machine-like and on the grid: a broken snare in
+32nds, a run down the perc, hats in 32nds, the snare and perc trading 16ths, or snare triplets building.
+
+The repeats, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
 line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove.
 
 **Holds.** Hold **OCT-** as you press a key and it stays on to the end of the loop (the kick's pattern, at least a

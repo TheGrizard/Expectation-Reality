@@ -2,15 +2,24 @@
 # the keys: the white ones punch-ins (the bottom a high-pass, the top a low-pass), the black ones randomisers
 wav keys.wav
 wait 3000
-key w1 down 100
+key w2 down 100
 wait 300
-expect pu_want 2
-expect pu 2
+expect pu_want 3
+expect pu 3
 shot punch.png
-key w1 up
+key w2 up
 wait 300
 expect pu_want 0
 expect pu 0
+# FILL (the second white key): fills while held, the punch-ins untouched
+key w1 down 100
+wait 200
+expect fill_want 1
+expect pu_want 0
+wait 1500
+key w1 up
+wait 200
+expect fill_want 0
 key w7 down 100
 wait 400
 expect pu 7

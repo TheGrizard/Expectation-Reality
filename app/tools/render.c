@@ -128,7 +128,7 @@ static void run(const char *path, float secs, int punch)
         { 8.3f, PU_REP8 }, { 10, 0 }, { 12.15f, PU_REP16 }, { 13.4f, PU_REP32 }, { 14, 0 }, { 16, PU_PDOWN }, { 18, 0 }, { 20, PU_PUP }, { 22, 0 },
         { 24, PU_MASH }, { 27, 0 }, { 28.35f, PU_REVERSE }, { 30, 0 }, { 32.2f, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
         { 43.3f, PU_SWELL }, { 44.2f, 0 }, { 46, PU_CRUSH }, { 48, 0 }, { 50, PU_KILL }, { 52, 0 }, { 54.1f, PU_REP12 }, { 56, 0 },
-        { 58, -1 }, { 61, -2 }, { 64, 0 }, { 68.4f, PU_RATCHET }, { 71.6f, 0 } };   /* (pressed off the beat: they keep to the grid) */
+        { 58, -1 }, { 61, -2 }, { 64, 0 }, { 64, 0 }, { 66.3f, -3 }, { 66.6f, -4 }, { 69.2f, -3 }, { 72.9f, -4 } };   /* (FILL: tapped once, then held three beats) */   /* (pressed off the beat: they keep to the grid) */
     int next = 0; float last_beat = -1;
     clock_t t0 = clock();
     for (long done = 0; done < frames; done += BLKN) {
@@ -156,6 +156,7 @@ static void run(const char *path, float secs, int punch)
             while (next < (int)(sizeof PLAN / sizeof PLAN[0]) && eng.beat >= PLAN[next].beat) {
                 int pu = PLAN[next].pu;
                 if (pu == -1) { eng.pu_want = 0; eng.pu_hpw = 1.4f; } else if (pu == -2) { eng.pu_hpw = 0; eng.pu_lpw = 1.5f; }
+                else if (pu == -3) eng.fill_want = 1; else if (pu == -4) eng.fill_want = 0;
                 else { eng.pu_want = pu; eng.pu_lpw = eng.pu_hpw = 0; }
                 next++;
             }
@@ -310,7 +311,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "punch") && argc > 3) {
         if (strcmp(argv[2], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[2], 0, 0), 1);
         apply_env(&gr); describe(&gr);
-        run(argv[3], 74.0f * 60.0f / (float)(gr.tempo + 40), 1);
+        run(argv[3], 76.0f * 60.0f / (float)(gr.tempo + 40), 1);
         return 0;
     }
     if (argc < 4) return 2;

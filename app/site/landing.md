@@ -20,7 +20,7 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
   toy, wood and glass, strings, foley (boxes, wood, footsteps, drags), metal clusters, crackle, digital noise, an
   almost-vocal hat and impulse clicks. WEIGHT sets the fullness, ENTROPY the attack, MOOD heavy and long to bright
   and short.
-- **Punch-ins on the keys:** filters, a ratchet and repeats held to the grid, glitch, pitch up and down, tape mash, reverse, freeze, swell, crush.
+- **Punch-ins on the keys:** filters, a fill key, repeats held to the grid, glitch, pitch up and down, tape mash, reverse, freeze, swell, crush.
 - **Randomisers on the black keys:** every hit of a part thrown somewhere new while you hold one.
 - **A kit bus:** a kick-sidechained tape compressor, a room that gates, reverses and freezes, a glitch delay, pans.
 - **A partner to After Images:** follows its clock to the beat and bar and listens to its notes.
