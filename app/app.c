@@ -37,7 +37,8 @@ typedef struct {
                                                   * CLEAN, the kit without FX's effects), and GAIN; SCREEN's BRIGHT */
     Groove cur;
     Groove saved[NSAVED];
-    uint8_t style, rsv[3];               /* SCREEN's STYLE: 0 KNOCKOUT (a hit knocks its square out), 1 TONES (the squares in
+    uint8_t style, sends, rsv[2];        /* sends: PERSONALITY's SENDS, 0 DRY, 1 DEALT (a spare byte, 0 in older settings: DRY).
+                                          * style: SCREEN's STYLE: 0 KNOCKOUT (a hit knocks its square out), 1 TONES (the squares in
                                           * greys, a hit flooding one with its colour, fading back to its grey) */
 } settings_t;
 #define SET_V2_SIZE ((int)__builtin_offsetof(settings_t, style))   /* (versions 1 and 2: all up to here) */
@@ -70,7 +71,7 @@ static int settings_ok(void)
 {
     if (set.magic != SET_MAGIC || set.ver < 1 || set.ver > SET_VER || set.nsaved > NSAVED || (set.slot != 255 && set.slot >= set.nsaved)) return 0;
     if (set.sync >= NSYNC || set.midi_on > 1 || set.listen > 1 || set.cc_in > 1 || set.listen_ch > 12 || set.out_ch > 15) return 0;
-    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100 || set.style > 1) return 0;
+    if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100 || set.style > 1 || set.sends > 1) return 0;
     if (!groove_ok(&set.cur)) return 0;
     for (int i = 0; i < set.nsaved; i++) if (!groove_ok(&set.saved[i])) return 0;
     return 1;
@@ -300,7 +301,7 @@ static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX",
                                                 "MACROS", "PERSONALITY", "VISUALS", "SCALE", "MIDI", "CHANNELS", "USB AUDIO" };
 static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
 enum { K_NONE, K_PCT, K_ENGINE, K_GEN, K_LEN, K_RATE, K_PITCH, K_PAN, K_TONE, K_SEND, K_RT, K_CT, K_DT, K_PT, K_DTIME,
-       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE, K_GENRE };
+       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE, K_GENRE, K_DEALT };
 typedef struct { const char *name; uint8_t kind, where; uint16_t off; } Knob;   /* where: 0 the groove, 1 the part, 2 the settings */
 #define GO(f) (uint16_t)__builtin_offsetof(Groove, f)
 #define PO(f) (uint16_t)__builtin_offsetof(PartP, f)
@@ -317,7 +318,7 @@ static const Knob PAGES[NPAGES][4] = {
     { { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "LINK", K_PCT, 0, GO(link) }, { "WARP", K_PCT, 0, GO(warp) }, { "FLOW", K_PCT, 0, GO(flow) }, { "CHAOS", K_PCT, 0, GO(chaos) } },
     { { "MOOD", K_PCT, 0, GO(mood) }, { "ACTIVITY", K_PCT, 0, GO(activity) }, { "EVOLVE", K_PCT, 0, GO(evolve) }, { "DRIFT", K_PCT, 0, GO(drift) } },
-    { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
+    { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "SENDS", K_DEALT, 2, SO(sends) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "STYLE", K_STYLE, 2, SO(style) } },
     { { "KEY", K_KEY, 0, GO(key) }, { "SCALE", K_SCALE, 0, GO(scale) }, { "SWING", K_PCT, 0, GO(swing) }, { "TEMPO", K_TEMPO, 0, GO(tempo) } },
     { { "CLOCK", K_SYNC, 2, SO(sync) }, { "NOTES OUT", K_ONOFF, 2, SO(midi_on) }, { "LISTEN", K_ONOFF, 2, SO(listen) }, { "CC IN", K_ONOFF, 2, SO(cc_in) } },
@@ -404,6 +405,7 @@ static void knob_text(int pg, int k, char *s)
     case K_LEN: int_text(v, s); break;
     case K_RATE: text_cat(s, RATE_NAME[v % NUM_RATES]); break;
     case K_GENRE: text_cat(s, GENRE_NAME[v % NUM_GENRES]); break;
+    case K_DEALT: text_cat(s, v ? "DEALT" : "DRY"); break;
     case K_PITCH: { int o = (int8_t)v; if (o > 0) text_cat(s, "+"); int_text(o, s + (o > 0)); break; }
     case K_PAN: if (v >= 49 && v <= 51) text_cat(s, "C"); else { text_cat(s, v < 50 ? "L" : "R"); int_text(v < 50 ? 50 - v : v - 50, s + 1); } break;
     case K_DECAY: { int d = (int)v - 50; if (!d) text_cat(s, "AS DEALT"); else { if (d > 0) text_cat(s, "+"); int_text(d, s + strlen_(s)); } break; }
@@ -441,6 +443,7 @@ static float knob_frac(int pg, int k)
     case K_LEN: return (float)(v - MINLEN) / (float)(MAXLEN - MINLEN);
     case K_RATE: return (float)rate_pos((int)(v % NUM_RATES)) / (NUM_RATES - 1);
     case K_GENRE: return (float)v / (NUM_GENRES - 1);
+    case K_DEALT: return (float)v;
     case K_PITCH: return ((float)(int8_t)v + 24.0f) / 48.0f;
     case K_RT: return (float)v / (NUM_RT - 1);
     case K_CT: return (float)v;
@@ -641,6 +644,7 @@ static void knob_turn(int k, int d)
     case K_LEN: lo = MINLEN; hi = MAXLEN; step = 1; break;
     case K_RATE: hi = NUM_RATES - 1; step = 1; break;
     case K_GENRE: hi = NUM_GENRES - 1; step = 1; break;
+    case K_DEALT: hi = 1; step = 1; break;
     case K_PITCH: lo = -24; hi = 24; step = 1; break;
     case K_PAN: case K_DECAY: step = 1; break;
     case K_RT: hi = NUM_RT - 1; step = 1; break;
@@ -680,6 +684,7 @@ static void settings_apply(void)
 {
     plat_usb_audio_full(set.usb_full & 1);
     eng.clean = set.usb_full >> 1 & 1;   /* OUTPUT CLEAN: the kit without FX's effects, to the computer and the speaker */
+    groove_sends = set.sends;            /* PERSONALITY's SENDS: REC deals the sends (DEALT), or every part dry (DRY) */
     palette_apply();
 }
 
@@ -1377,6 +1382,9 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "engine")) *got = set.cur.p[ui.sel].engine;
     else if (!strcmp(what, "rate")) *got = set.cur.p[ui.sel].rate;
     else if (!strcmp(what, "genre")) *got = set.cur.genre;
+    else if (!strcmp(what, "sends")) *got = set.sends;
+    else if (!strcmp(what, "sent")) { int n = 0; for (int p = 0; p < NPARTS; p++) n += set.cur.p[p].s_room + set.cur.p[p].s_delay + set.cur.p[p].s_pan; *got = n; }
+    else if (!strcmp(what, "kicksent")) *got = set.cur.p[P_KICK].s_room + set.cur.p[P_KICK].s_delay + set.cur.p[P_KICK].s_pan;
     else if (!strcmp(what, "ratepos")) *got = rate_pos(set.cur.p[ui.sel].rate % NUM_RATES);
     else if (!strcmp(what, "tone")) *got = set.cur.p[ui.sel].tone;
     else if (!strcmp(what, "weight")) *got = set.cur.p[ui.sel].weight;

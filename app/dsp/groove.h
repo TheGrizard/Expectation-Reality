@@ -68,6 +68,8 @@ void groove_default(Groove *g);
 int groove_ok(const Groove *g);
 /* REC: a new groove from a seed; the macros (HOME's and MOTION's) are kept, they're yours. all: the key and tempo too */
 void groove_roll(Groove *g, uint32_t seed, int all);
+extern int groove_sends;                          /* PERSONALITY's SENDS: 0 DRY (every part dealt dry), 1 DEALT (each
+                                                   * personality's own, the kick always dry) */
 void groove_roll_part(Groove *g, int part, uint32_t seed);   /* SEL held + REC: that part anew */
 void groove_part_engine(Groove *g, int part);                /* its engine changed: its colours dealt to suit */
 void groove_name(uint32_t seed, char *out);                  /* two words: STATIC LATTICE */

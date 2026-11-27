@@ -65,8 +65,10 @@ Generative at its core, with macros across the main features, as After Images ha
     first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
     every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
   - The three FX pages in one order, REVERB, DELAY, PAN, COMP. FX: SENDS for the chosen part (SEL): REVERB, DELAY,
-    PAN, COMP (how much goes through the compressor, which always hears the kick: it pumps; this replaced DUCK). REC
-    deals every part dry; the owner adds them. The kick can be sent too.
+    PAN, COMP (how much goes through the compressor, which always hears the kick: it pumps; this replaced DUCK).
+    PERSONALITY's SENDS: DRY (REC deals every part dry; the owner adds them; the kick can be sent too) or DEALT (each
+    personality's own sends for the snare, perc and hats, all under 50 for now; the kick never to the reverb, delay or
+    pan, only some COMP).
   - FX again: REVERB SIZE, DELAY TIME, PAN AMOUNT, COMP AMOUNT (CCs 24-27 in that order; the reverb's and delay's
     levels come from the sends). FX a fourth time: DELAY's FEEDBACK and GLITCH. FX a third time: each one's type,
     REVERB TYPE, DELAY TYPE, PAN TYPE, COMP TYPE (a knob each, its name on

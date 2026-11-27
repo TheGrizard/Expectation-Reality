@@ -49,3 +49,28 @@ tap REC
 wait 500
 expect genre 3
 expect tempo 85
+# PERSONALITY's SENDS: DRY, every part dry; DEALT, REC deals the sends (the kick never to the reverb, delay or pan)
+expect sends 0
+expect sent 0
+tap GLO
+tap GLO
+wait 100
+turn K2 1
+wait 300
+expect sends 1
+tap HOME
+wait 100
+tap REC
+wait 500
+expect sent >0
+expect kicksent 0
+tap GLO
+tap GLO
+wait 100
+turn K2 -1
+wait 300
+tap HOME
+wait 100
+tap REC
+wait 500
+expect sent 0

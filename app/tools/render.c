@@ -134,7 +134,7 @@ static void puscan(uint32_t seed)
     static const int PUS[] = { PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_REVERSE, PU_FREEZE, PU_SWELL, PU_MASH, PU_PDOWN };
     static float L[BLKN], R[BLKN];
     Groove base = gr;
-    base.genre = (uint8_t)env_i("GENRE", base.genre);   /* (0 IDM, 1 TECHNO: what's dealt) */
+    base.genre = (uint8_t)env_i("GENRE", base.genre);   /* (0 IDM, 1 TECHNO: what's dealt) */ groove_sends = env_i("SENDS", 0);
     if (seed) groove_roll(&base, seed, 1);
     apply_env(&base);
     for (unsigned u = 0; u < sizeof PUS / sizeof PUS[0]; u++) {
@@ -380,7 +380,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "sweep") && argc > 3) { int e = engine_by_name(argv[2]); if (e < 0) return 2; sweep(e, argv[3]); return 0; }
     groove_default(&gr);
     if (!strcmp(argv[1], "punch") && argc > 3) {
-        gr.genre = (uint8_t)env_i("GENRE", gr.genre);
+        gr.genre = (uint8_t)env_i("GENRE", gr.genre); groove_sends = env_i("SENDS", 0); groove_sends = env_i("SENDS", 0);
         if (strcmp(argv[2], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[2], 0, 0), 1);
         apply_env(&gr); describe(&gr);
         run(argv[3], 76.0f * 60.0f / (float)(gr.tempo + 40), 1);

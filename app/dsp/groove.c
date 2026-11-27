@@ -4,6 +4,7 @@
 
 const char *const PART_NAME[NPARTS] = { "KICK", "SNARE", "PERC", "HATS" };
 const char *const GEN_NAME[NUM_GENS] = { "MAP", "EUCLID", "TURING", "BROKEN" };
+int groove_sends;
 const char *const GENRE_NAME[NUM_GENRES] = { "BRAINDANCE", "FLOORS", "CLOUDS", "IMPLODE" };   /* (IDM, techno, ambient, lofi hip hop) */
 const char *const RATE_NAME[NUM_RATES] = { "1/16", "1/8", "1/32", "1/16T", "1/8T" };
 const uint8_t RATE_TICKS[NUM_RATES] = { 24, 48, 12, 16, 32 };
@@ -110,17 +111,31 @@ static void deal_part(Groove *g, int p, Rng *r, int keep_seq)
     q->level = LV[p]; q->decay = 50; q->pitch = 0;
     static const uint8_t PAN[NPARTS] = { 50, 52, 38, 64 };
     q->pan = (uint8_t)clampi(PAN[p] + (p >= P_PERC ? rng_int(r, 17) - 8 : 0), 0, 100);
-    /* the sends: every part dealt dry (REVERB, DELAY, PAN and COMP are yours to add, the kick's too).
-     * (the old amounts still drawn and dropped, so the rest of the groove deals as it did) */
-    if (p == P_KICK) { q->s_room = q->s_delay = q->s_pan = q->s_comp = 0; }
+    /* the sends. DRY (PERSONALITY's SENDS): every part dealt dry, REVERB, DELAY, PAN and COMP yours to add. DEALT: each
+     * personality's own amounts for the snare, perc and hats (the kick always dry, yours to send). Four draws a part
+     * either way, so the rest of the groove deals the same */
+    if (p == P_KICK) {                            /* (the kick never to the reverb, delay or pan; DEALT, some COMP: glue, a
+                                                  * pump, dirt. From its own salt, no draw, so the rest deals the same) */
+        static const uint8_t KC[NUM_GENRES][2] = { { 0, 20 }, { 20, 45 }, { 0, 10 }, { 20, 45 } };
+        int gn = g->genre < NUM_GENRES ? g->genre : 0;
+        q->s_room = q->s_delay = q->s_pan = 0;
+        q->s_comp = groove_sends ? (uint8_t)(KC[gn][0] + ((uint32_t)q->salt * 2654435761u >> 16) % (uint32_t)(KC[gn][1] - KC[gn][0] + 1)) : 0;
+    }
     else {
-        static const uint8_t RM[NPARTS][2] = { { 0, 0 }, { 35, 62 }, { 10, 35 }, { 5, 20 } }, DL[NPARTS][2] = { { 0, 0 }, { 0, 12 }, { 20, 60 }, { 10, 30 } };
-        static const uint8_t PN[NPARTS][2] = { { 0, 0 }, { 0, 30 }, { 30, 70 }, { 20, 60 } }, DU[NPARTS][2] = { { 0, 0 }, { 20, 50 }, { 20, 60 }, { 40, 80 } };
-        q->s_room = (uint8_t)(RM[p][0] + rng_int(r, RM[p][1] - RM[p][0] + 1));
-        q->s_delay = (uint8_t)(DL[p][0] + rng_int(r, DL[p][1] - DL[p][0] + 1));
-        q->s_pan = (uint8_t)(PN[p][0] + rng_int(r, PN[p][1] - PN[p][0] + 1));
-        (void)rng_int(r, DU[p][1] - DU[p][0] + 1);
-        q->s_room = q->s_delay = q->s_pan = q->s_comp = 0;
+        uint32_t u[4]; for (int k = 0; k < 4; k++) u[k] = rng_u32(r);
+        /* [personality][REVERB, DELAY, PAN, COMP][snare, perc, hats]: low, high (all under 50, for now) */
+        static const uint8_t SND[NUM_GENRES][4][3][2] = {
+            { { { 25, 45 }, { 8, 28 }, { 4, 16 } }, { { 0, 10 }, { 15, 40 }, { 8, 24 } }, { { 0, 24 }, { 20, 45 }, { 15, 40 } }, { { 0, 18 }, { 0, 20 }, { 0, 24 } } },   /* BRAINDANCE */
+            { { { 12, 28 }, { 4, 16 }, { 0, 8 } }, { { 0, 8 }, { 15, 36 }, { 12, 28 } }, { { 0, 12 }, { 20, 45 }, { 15, 40 } }, { { 24, 45 }, { 16, 40 }, { 30, 48 } } },  /* FLOORS: dub delay, pumping */
+            { { { 35, 48 }, { 28, 46 }, { 20, 40 } }, { { 8, 24 }, { 20, 42 }, { 16, 38 } }, { { 8, 24 }, { 28, 48 }, { 28, 48 } }, { { 0, 8 }, { 0, 8 }, { 0, 8 } } },     /* CLOUDS: rooms and trails */
+            { { { 16, 32 }, { 8, 24 }, { 0, 12 } }, { { 0, 12 }, { 8, 24 }, { 0, 12 } }, { { 0, 12 }, { 15, 32 }, { 8, 24 } }, { { 24, 45 }, { 24, 45 }, { 24, 45 } } },  /* IMPLODE: a small room, tape glue */
+        };
+        uint8_t *dst[4] = { &q->s_room, &q->s_delay, &q->s_pan, &q->s_comp };
+        int gn = g->genre < NUM_GENRES ? g->genre : 0;
+        for (int k = 0; k < 4; k++) {
+            const uint8_t *lh = SND[gn][k][p - 1];
+            *dst[k] = groove_sends ? (uint8_t)(lh[0] + u[k] % (uint32_t)(lh[1] - lh[0] + 1)) : 0;
+        }
     }
 }
 

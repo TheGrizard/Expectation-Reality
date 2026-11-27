@@ -320,6 +320,12 @@ extras that ACTIVITY brings in), a crack or rim on two and four with quiet ghost
 0, eighths as it rises, sixteenth pickups near the top, an open hat into the bar now and then) and a sparse rim or
 shaker for the perc. The hats and snare filtered dark, the kick boomy, and a heavy, lazy swing.
 
+**SENDS** (the second knob): **DRY**, every part dealt dry, the reverb, delay, pan and compressor yours to add (and
+the analogue out as clean as the kit); or **DEALT**, REC deals each personality's own sends for the snare, perc and
+hats (BRAINDANCE varied, FLOORS dub delay and a pumping compressor, CLOUDS rooms and trails, IMPLODE a small room and
+tape glue), all under 50. The kick is never sent to the reverb, delay or pan; DEALT gives it some compressor (most in
+FLOORS and IMPLODE). Starts on DRY.
+
 Choosing a personality sets its tempo: BRAINDANCE 140, FLOORS 130, CLOUDS 65, IMPLODE 85 BPM; after that REC keeps
 your tempo, as always. A saved groove keeps its personality. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in each.
 
