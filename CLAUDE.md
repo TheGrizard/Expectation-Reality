@@ -48,7 +48,9 @@ Generative at its core, with macros across the main features, as After Images ha
     part a slight variation of its pattern, for a bar or while held; never rolls or frenetic runs, never accelerating), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
     room freeze, a reverse swell, crush, kill kick. Repeats, glitch and reverse are held to the grid. FREEZE takes the kick in too.
     Quantised (the owner's timing is loose): a punch-in starts on the next beat (up to a sixteenth late: at once), ends
-    on the sixteenth after it's let go; SWELL its own timing, the filters instant.
+    the moment it's let go (FREEZE's wash gone within a quarter second); SWELL its own timing, the filters instant.
+    FILL is a contrast: ACTIVITY low it adds (perc and hats busier), high it takes away (their core hits), in between
+    either at random.
     Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
     is let go; OCT+ alone lets every hold go. One punch-in at a time (a new hold replaces the old), the filters and
     black keys alongside. Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.

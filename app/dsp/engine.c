@@ -191,6 +191,9 @@ static void fill_start(Engine *e, uint32_t t0, uint32_t t1)
 {
     static const int MUT[NPARTS] = { 1, 3, 2, 2 };
     e->fill_n++;
+    /* a fill is a contrast: ACTIVITY low, it adds (the perc and hats busier); high, it takes away (back to their core
+     * hits, a breakdown); in between, either, at random */
+    e->fill_add = rng_chance(&e->rng, clamp01(0.5f + (0.5f - (float)e->g->activity * 0.01f) * 1.6f));
     for (int p = 0; p < NPARTS; p++) {
         e->fpat[p] = e->P[p].pat;
         for (int k = 0; k < MUT[p]; k++) pattern_mutate(&e->fpat[p], e->g, p, 262144u + e->fill_n * 8u + (uint32_t)k);
@@ -272,9 +275,11 @@ static void deal_step(Engine *e, int p, uint32_t s)
         float frac = clampf(A * FRAC[p] + ((float)g->p[p].density - 50.0f) * 0.006f + L * 0.2f * clamp01((e->ai_act - 4.0f) / 16.0f), 0.0f, 1.0f);
         int allowed = core_n + (int)((float)(hits > core_n ? hits - core_n : 0) * frac + 0.5f);
         if (infill && (p == P_PERC || p == P_HATS)) {   /* (a fill: the perc and hats busier, more of their own pattern's
-                                                         * steps, on the sixteenths, never rolled) */
+                                                         * steps, on the sixteenths, never rolled; or, ACTIVITY up, back
+                                                         * to their core hits) */
             static const float MORE[NPARTS] = { 0, 0, 4.0f, 5.0f };   /* (a bar's worth more) */
-            allowed += (int)((float)len * MORE[p] / spb16 + 0.5f) + (hits > allowed ? (hits - allowed) / 2 : 0);
+            if (e->fill_add) allowed += (int)((float)len * MORE[p] / spb16 + 0.5f) + (hits > allowed ? (hits - allowed) / 2 : 0);
+            else allowed = core_n < allowed ? core_n : allowed;
         }
         plays = above < allowed;
     }
@@ -789,7 +794,11 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         e->frz_live = (int)(120.0f / e->bpm * SR); e->frz_hit = 0; e->frz_ref = 1.0f;   /* (two beats at most) */
     }
     if (e->frz_ref > 0 && e->frz_live == 0 && e->frz_lv <= 0) e->frz_ref = fm_maxf(0.0f, e->frz_ref - (float)n / (0.15f * SR));
-    reverb_set(&e->rv, lerpf(rt60, lerpf(40.0f, 0.6f, e->frz_ref), fz), lerpf(rt == RT_FREEZE ? 9000.0f : 6500.0f, 12000.0f, fz));
+    if (e->frz_go > 0 && e->pu == PU_FREEZE && !e->pu_rel && !e->pu_relq) e->frz_go = 0;   /* (pressed again) */
+    reverb_set(&e->rv, lerpf(lerpf(rt60, lerpf(40.0f, 0.6f, e->frz_ref), fz), 0.25f, e->frz_go),
+               lerpf(rt == RT_FREEZE ? 9000.0f : 6500.0f, 12000.0f, fz));
+    if (e->frz_go > 0) e->frz_go = fm_maxf(0.0f, e->frz_go - (float)n / (0.4f * SR));   /* (the room's own tail back over
+                                                  * 0.4 s, by when the wash has gone) */
     float beat = 60.0f / e->bpm * SR;
     int pre = rt == RT_GATED ? clampi((int)(beat / 8.0f), 1, ROOM_BUF - 1) : 0;   /* (a 1/32's pre-delay) */
     float hold = beat * 0.25f;                    /* (the gate: open a sixteenth past the last hit... ) */
@@ -1046,8 +1055,9 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     if (e->pu_pend && want_pu != e->pu_pend) e->pu_tap = 1;   /* (let go, or another, before it began) */
     if (e->pu && want_pu == e->pu) e->pu_relq = 0;           /* (pressed again before it ended: on) */
     else if (e->pu && !e->pu_rel && !e->pu_relq && e->pu != PU_SWELL) {
-        uint32_t up = bs + (bf > 0.001f ? 1u : 0u);       /* (let go on a sixteenth: ends there; after it: the next) */
-        e->pu_relq = 1; e->pu_rel_at = qz ? (up + 23u) / 24u * 24u : bs;
+        e->pu_relq = 1; e->pu_rel_at = bs;       /* (let go: ends at once, faded over 4 ms. Only its start waits for the
+                                                  * beat) */
+        if (e->pu == PU_FREEZE) e->frz_go = 1.0f;   /* (FREEZE's wash let go within a quarter of a second) */
     }
     float lpw = e->pu_lpw, hpw = e->pu_hpw;
     for (int i = 0; i < n; i++) {
@@ -1075,9 +1085,9 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         if (pu && e->pu_rel && e->pu_mix < 0.0005f) { e->pu = pu = 0; e->pu_rel = 0; e->pu_frozen = 0; e->pu_mix = 0; }   /* (FREEZE's hold fades on, below) */
         if (pu == PU_FREEZE) {                    /* FREEZE: the room fed a moment, then held, the groove going on over it */
             e->frz_feed = e->rpos < (float)e->frz_len || e->frz_live > 0 || e->frz_lv > 0 ? 1.0f : 0.0f;
-            e->frz += ((e->pu_rel ? 0.0f : 1.0f) - e->frz) * 0.0004f;
+            e->frz += ((e->pu_rel ? 0.0f : 1.0f) - e->frz) * (e->pu_rel ? 0.0012f : 0.0004f);
             e->rpos += 1.0f;
-        } else if (e->frz > 0) { e->frz += (0.0f - e->frz) * 0.0004f; if (e->frz < 1e-4f) e->frz = 0; }
+        } else if (e->frz > 0) { e->frz += (0.0f - e->frz) * 0.0012f; if (e->frz < 1e-4f) e->frz = 0; }
         if (pu && pu != PU_FREEZE && pu != PU_KILL) {
             float fx[2] = { y[0], y[1] };
             if (pu == PU_PDOWN || pu == PU_PUP) { fx[0] = (pu == PU_PUP ? pu_[0] : pd_[0]) * 1.2f; fx[1] = (pu == PU_PUP ? pu_[1] : pd_[1]) * 1.2f; }

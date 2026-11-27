@@ -185,8 +185,8 @@ static void run(const char *path, float secs, int punch)
     static const struct { float beat; int pu; } DEMO[] = {   /* (PUDEMO: each pressed off the hits, a 32nd past an off
                                                               * sixteenth, held: REPEAT 1/16, GLITCH, REVERSE, FREEZE over
                                                               * two bar lines, SWELL) */
-        { 8.875f, PU_REP16 }, { 11.0f, 0 }, { 16.875f, PU_GLITCH }, { 21.0f, 0 }, { 24.875f, PU_REVERSE }, { 29.0f, 0 },
-        { 32.875f, PU_FREEZE }, { 41.0f, 0 }, { 44.875f, PU_SWELL }, { 49.0f, 0 } };
+        { 8.875f, PU_REP16 }, { 11.1f, 0 }, { 16.875f, PU_GLITCH }, { 21.1f, 0 }, { 24.875f, PU_REVERSE }, { 29.1f, 0 },
+        { 32.875f, PU_FREEZE }, { 41.1f, 0 }, { 44.875f, PU_SWELL }, { 49.1f, 0 } };
     int dnext = 0, pudemo = getenv("PUDEMO") != 0;
     int next = 0; float last_beat = -1;
     clock_t t0 = clock();

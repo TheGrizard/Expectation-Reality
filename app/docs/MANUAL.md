@@ -311,7 +311,7 @@ while it follows a clock.
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
-| 2 | FILL: from the next beat, for a bar (held, for as long as you hold it): the kick on the downbeat alone, the perc and hats busier |
+| 2 | FILL: from the next beat, for a bar (held, for as long as you hold it): a contrast, the kick on the downbeat alone, the perc and hats busier (ACTIVITY low) or back to their core hits (ACTIVITY high) |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
@@ -327,10 +327,11 @@ while it follows a clock.
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz, a gentle slope; strike it harder for more |
 
-FILL plays alongside the punch-ins and filters. A fill is a simple change of the groove, not a roll: the kick steps
-out (only the bar's downbeat, if the fill reaches one), the perc and hats bring in more of their own patterns (on the
-sixteenths, never rolled or speeding up), the snare plays a slight variation of its own, then the groove comes back as
-it was. Each fill is a different variation.
+FILL plays alongside the punch-ins and filters. A fill is a contrast, a simple change of the groove, not a roll: the
+kick steps out (only the bar's downbeat, if the fill reaches one) and the snare plays a slight variation of its own.
+With ACTIVITY low, the perc and hats bring in more of their own patterns (on the sixteenths, never rolled or speeding
+up); with ACTIVITY high, they drop back to their core hits, a breakdown; in between, each fill goes one way or the
+other at random. Then the groove comes back as it was. Each fill is a different variation.
 
 None of them goes silent if you press between the hits. The repeats loop one piece of sound and hold it: if the slice
 you pressed on has no hit in it, they take the nearest one before it on the same grid that has, or listen on to the
@@ -341,7 +342,8 @@ TYPE, GATED included. SWELL finds the latest strong hit and plays it backwards, 
 OCT- or OCT+), FREEZE catches a new moment at each bar and SWELL swells into every beat.
 
 **On the beat.** While it plays, a punch-in waits for the next beat to start (pressed up to a sixteenth late, it starts
-at once) and ends on the sixteenth after you let go, so a loose press still lands in time. A quick tap let go before
+at once), so a loose press still lands in time, and ends the moment you let go (FREEZE's wash gone within about a
+quarter of a second). A quick tap let go before
 its beat still plays, a sixteenth's worth. SWELL keeps its own timing (it lands on the beat), the two filters work
 the instant you press, and stopped, everything is instant.
 
