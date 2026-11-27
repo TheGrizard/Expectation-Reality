@@ -44,7 +44,7 @@ Generative at its core, with macros across the main features, as After Images ha
   Turing hats round an off-beat: polymetric, hypnotic; next to no swing), CLOUDS (ambient: soft and sparse,
   micro-sounds: a soft kick about once a bar, the snare a rare texture, tiny clicks, dust and grains in 1/32s and
   triplets on odd lengths) or IMPLODE (lo-fi hip hop: boom-bap, written kicks, a crack on two and four with ghosts,
-  dusty hats, dark tones, heavy swing). Choosing one sets its tempo (BRAINDANCE 100, FLOORS 135, CLOUDS 65, IMPLODE
+  dusty hats, dark tones, heavy swing). Choosing one sets its tempo (BRAINDANCE 100, FLOORS 130, CLOUDS 65, IMPLODE
   85); a groove keeps its personality.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, fills as simple groove changes (no rolls, nothing accelerating), probability and ghost notes.
