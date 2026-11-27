@@ -17,6 +17,24 @@ if ! make -s -C app/tools WERROR=-Werror > "$out/dsp.log" 2>&1; then cat "$out/d
 if grep -nE "\bsize_t\b|\bmemmove *\(|\b(printf|fprintf|sprintf|snprintf) *\(|#include <(stdio|stdlib)\.h>" app/app.c app/dsp/*.c app/dsp/*.h; then
     echo "FAIL: the app uses something the FM-1's compiler doesn't have"; fail=1
 fi
+# the device build's own source check (fm1-base tools/build.py mmio_check): no number that looks like a hardware
+# register's address in the app's code (v0.4's build failed on a seed written 0x40000)
+python3 - <<'PY' || fail=1
+import re, sys, pathlib
+sys.path.insert(0, "base/tools")
+src = pathlib.Path("base/tools/build.py").read_text()
+lit = re.search(r'MMIO_LIT = (re\.compile\(.*?\))\n', src, re.S).group(1)
+MMIO_LIT = eval(lit)
+bad = 0
+for f in sorted(pathlib.Path("app").rglob("*.[ch]")):
+    if "build" in f.parts: continue
+    s = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"), f.read_text(), flags=re.S)
+    s = re.sub(r"//[^\n]*", "", s)
+    for no, ln in enumerate(s.splitlines(), 1):
+        m = MMIO_LIT.search(ln)
+        if m: print(f"FAIL: {f}:{no}: {m.group(0)} looks like a hardware address to the FM-1's build"); bad = 1
+sys.exit(bad)
+PY
 for f in app/dsp/drums.c app/dsp/groove.c app/dsp/engine.c app/dsp/fx.c; do
     clang -ffreestanding -nostdlibinc -fsyntax-only -Wno-everything -Ibase/include -Iapp/dsp -Iapp "$f" 2>"$out/free.log" || { cat "$out/free.log"; echo "FAIL: $f won't build freestanding"; fail=1; }
 done

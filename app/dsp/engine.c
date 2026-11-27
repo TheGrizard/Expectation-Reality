@@ -193,7 +193,7 @@ static void fill_start(Engine *e, uint32_t t0, uint32_t t1)
     e->fill_n++;
     for (int p = 0; p < NPARTS; p++) {
         e->fpat[p] = e->P[p].pat;
-        for (int k = 0; k < MUT[p]; k++) pattern_mutate(&e->fpat[p], e->g, p, 0x40000u + e->fill_n * 8u + (uint32_t)k);
+        for (int k = 0; k < MUT[p]; k++) pattern_mutate(&e->fpat[p], e->g, p, 262144u + e->fill_n * 8u + (uint32_t)k);
     }
     e->fill_from = t0; e->fill_to = t1;
 }
