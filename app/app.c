@@ -519,7 +519,7 @@ static void new_part(void)
 
 static void hist_step(int d)
 {
-    char nm[32]; uint8_t tempo = set.cur.tempo;   /* (the tempo yours: kept) */
+    char nm[32];                                  /* (a groove recalled: at the tempo it had) */
     if (d < 0) {
         if (hist_at == 0) { pop("HISTORY", "THE FIRST", C_SUB); return; }
         if (hist_at == hist_n) { hist_push(); hist_at = hist_n - 1; }
@@ -528,7 +528,6 @@ static void hist_step(int d)
         if (hist_at + 1 >= hist_n) { pop("HISTORY", "THE LATEST", C_SUB); return; }
         set.cur = hist[++hist_at];
     }
-    set.cur.tempo = tempo;
     set.slot = 255;
     changed();
     groove_name(set.cur.seed, nm);
@@ -562,8 +561,7 @@ static void load_step(int d)
     if (!set.nsaved) { pop("NO GROOVES", "SAVE ONE FIRST", C_SUB); return; }
     int at = set.slot == 255 ? (d > 0 ? 0 : set.nsaved - 1) : (set.slot + d % set.nsaved + set.nsaved) % set.nsaved;
     if (set.slot == 255) hist_push();
-    { uint8_t tempo = set.cur.tempo; set.slot = (uint8_t)at; set.cur = set.saved[at]; set.cur.tempo = tempo; }   /* (the
-                                                  * tempo yours: a saved groove plays at the one you're at) */
+    set.slot = (uint8_t)at; set.cur = set.saved[at];   /* (at its own saved tempo: REC goes on from there) */
     changed(); set_dirty = 0;
     ui.list_until = plat_ms() + 2000u; ui.pop_until = 0;
     char nm[32]; groove_name(set.cur.seed, nm); say_text("GROOVE", nm);

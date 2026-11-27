@@ -87,7 +87,8 @@ Generative at its core, with macros across the main features, as After Images ha
   colour, fading back to its grey).
 - REC carries one part (at random) into the new groove: its EDIT settings (SOUND: engine, TONE, WEIGHT, ENTROPY;
   MIX: LEVEL, DECAY, PITCH, PAN) as they were, its pattern new: flow between grooves when building a set.
-- TEMPO the owner's alone: 100 BPM at power-on; REC, loading a saved groove and history never change it (live).
+- TEMPO the owner's: 100 BPM at power-on; REC never changes it (live). A saved groove keeps its tempo: recalled (or
+  history stepped to), its tempo comes back, and REC follows on from it.
 - ACTIVITY by rank within each pattern: 0 stripped back (each part's core), 100 what 40 was in v0.2.
 - USB AUDIO as After Images: OUTPUT (MIX, or CLEAN: the kit without FX's effects, the speaker too), CONTROL (MASTER
   or FIXED), GAIN.

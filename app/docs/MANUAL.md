@@ -286,8 +286,9 @@ at full, or USB AUDIO's GAIN at 100, is unity.
 ![SCALE](img/scale.png)
 
 **GLO again: SCALE**: KEY · SCALE · SWING · TEMPO. KEY and SCALE are the perc's notes. SWING delays the off
-sixteenths (REC deals it: mostly straight). TEMPO is yours alone: 100 BPM at every power-on, and nothing changes it
-but you (not REC, not a saved groove, not going back through history), so it holds while you play live. Shown as IN
+sixteenths (REC deals it: mostly straight). TEMPO is yours: 100 BPM at every power-on, and REC never changes it, so it
+holds while you play live. A saved groove keeps its own tempo: recall it and it comes back at that tempo, and REC
+goes on from there (going back through history likewise). Shown as IN
 while it follows a clock.
 
 ## 13. The keys: punch-ins and randomisers

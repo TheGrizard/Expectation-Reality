@@ -39,3 +39,29 @@ wait 300
 expect tempo 100
 # one part's sound carried into each new groove
 expect kept 1
+# a saved groove keeps its tempo: recalled, its tempo back; REC goes on from it
+tap HOME
+wait 100
+tap GLO
+tap GLO
+wait 100
+expect page 10
+turn K4 10 250
+wait 300
+expect tempo 110
+tap SAVE
+wait 1500
+tap HOME
+wait 100
+tap REC
+wait 300
+expect tempo 110
+tap GLO
+tap GLO
+wait 100
+turn K4 -15 250
+wait 300
+expect tempo 95
+turn ALGO 1
+wait 500
+expect tempo 110
