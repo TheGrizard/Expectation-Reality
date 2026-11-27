@@ -353,7 +353,23 @@ static const uint16_t LPAL[NPAL][NPARTS] = {
     { RGB(255, 0, 85), RGB(0, 255, 102), RGB(123, 97, 255), RGB(255, 222, 0) },        /* candy */
 };
 static uint16_t PART_C[NPARTS] = { RGB(215, 255, 0), RGB(255, 0, 168), RGB(0, 229, 255), RGB(255, 255, 255) };
-static void palette_apply(void) { for (int p = 0; p < NPARTS; p++) PART_C[p] = LPAL[set.palette % NPAL][p]; }
+static uint16_t LOOP_C = RGB(255, 255, 255);   /* the loop's start on the grid: the one colour furthest from the palette's four */
+static void palette_apply(void)
+{
+    for (int p = 0; p < NPARTS; p++) PART_C[p] = LPAL[set.palette % NPAL][p];
+    static const uint16_t CAND[6] = { RGB(255, 255, 255), RGB(255, 30, 30), RGB(255, 230, 0), RGB(0, 255, 255), RGB(255, 0, 255), RGB(0, 255, 70) };
+    int best = 0, bd = -1;
+    for (int i = 0; i < 6; i++) {
+        int md = 1 << 30;
+        for (int p = 0; p < NPARTS; p++) {
+            int dr = (int)(CAND[i] >> 11 & 31u) * 8 - (int)(PART_C[p] >> 11 & 31u) * 8, dg = (int)(CAND[i] >> 5 & 63u) * 4 - (int)(PART_C[p] >> 5 & 63u) * 4,
+                db = (int)(CAND[i] & 31u) * 8 - (int)(PART_C[p] & 31u) * 8, d = dr * dr + dg * dg + db * db;
+            if (d < md) md = d;
+        }
+        if (md > bd) { bd = md; best = i; }
+    }
+    LOOP_C = CAND[best];
+}
 
 static struct {
     uint32_t btn, keys;
@@ -918,7 +934,8 @@ static int full_now(void) { return ui.page == PG_HOME; }
 #define PANEL_H 110
 #define PANEL_TOP (VIEW_H - PANEL_H)
 #define VG_MAX 24
-typedef struct { uint8_t part; uint8_t base; uint16_t f; uint32_t t; } VCell;   /* its colour (a part's), its brightness, its fade (ms), its last hit */
+typedef struct { uint8_t part, base, loop; uint16_t f; uint32_t t; } VCell;   /* its colour (a part's), its brightness, a hit
+                                                  * in the loop's first beat (loop), its fade (ms), its last hit */
 static VCell vg[VG_MAX][VG_MAX];
 static int vg_n_now = -1;
 static uint32_t jrng = 0x2545F491u;
@@ -960,7 +977,7 @@ static void vis_deal(void)               /* REC: the grid laid out anew, patches
             for (int i = 0; i < ns; i++) { float dx = sd[i].x - (float)x, dy = sd[i].y - (float)y, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = i; } }
             VCell *c = &vg[y][x];
             c->part = jr() % 100u < loose ? (uint8_t)(jr() % NPARTS) : sd[best].p;
-            c->base = (uint8_t)(90 + jr() % 166u); c->t = 0; c->f = 1;
+            c->base = (uint8_t)(90 + jr() % 166u); c->t = 0; c->f = 1; c->loop = 0;
         }
     vg_n_now = splash_grid ? -2 : set.peg_n;
 }
@@ -969,12 +986,19 @@ static void vis_hit(const UiHit *h, uint32_t now)
 {
     static const uint16_t FADE[NPARTS] = { 650, 420, 900, 160 };
     int cols = vg_cols(), rows = (VIEW_H) / vg_cell(); if (rows > VG_MAX) rows = VG_MAX; if (rows < 1) rows = 1;
-    int big = h->vel > 95 && h->part <= P_SNARE && cols >= 8 ? 2 : 1;
+    /* the loop's start: every hit in its first beat (the kick's and snare's patterns' cycle, one or two bars) a block of
+     * four in the one contrasting colour, settling back into its own as it grows back, so the top of the loop shows */
+    uint32_t lk = (uint32_t)eng.P[P_KICK].pat.len * RATE_TICKS[eng.P[P_KICK].pat.rate % NUM_RATES],
+             ls = (uint32_t)eng.P[P_SNARE].pat.len * RATE_TICKS[eng.P[P_SNARE].pat.rate % NUM_RATES], lp = lk > ls ? lk : ls;
+    if (lp < (uint32_t)TPB * 4u) lp = TPB * 4u;
+    int at_top = eng.tick % lp < (uint32_t)TPB;
+    int big = (at_top || (h->vel > 95 && h->part <= P_SNARE)) && cols >= 8 ? 2 : 1;
     int x0 = (int)(jr() % (uint32_t)(cols - big + 1)), y0 = (int)(jr() % (uint32_t)(rows - big + 1));
     float fk = 0.4f + (float)set.fade * 0.021f;                /* FADE: 0.4 .. 2.5 */
     float f = (float)FADE[h->part % NPARTS] * fk * (h->part == P_HATS && h->alt ? 3.0f : 1.0f);
+    if (at_top && f < 500.0f) f = 500.0f;        /* (long enough to see, the hats' too) */
     for (int a = 0; a < big; a++)
-        for (int b = 0; b < big; b++) { VCell *c = &vg[y0 + a][x0 + b]; c->part = h->part; c->t = now | 1u; c->f = (uint16_t)clamp((int)f, 60, 6000); c->base = 255; }
+        for (int b = 0; b < big; b++) { VCell *c = &vg[y0 + a][x0 + b]; c->part = h->part; c->t = now | 1u; c->f = (uint16_t)clamp((int)f, 60, 6000); c->base = 255; c->loop = (uint8_t)at_top; }
 }
 
 static void vis_step(void)
@@ -998,7 +1022,9 @@ static void draw_grid(void)
         for (int x = 0; x < cols; x++) {
             VCell *c = &vg[y][x];
             float k = 1.0f;
-            if (c->t) { float e = (float)(now - c->t) / (float)c->f; if (e < 1.0f) { k = e < 0 ? 0 : e; k = k * k * (3.0f - 2.0f * k); } else c->t = 0; }
+            if (c->t) { float e = (float)(now - c->t) / (float)c->f; if (e < 1.0f) { k = e < 0 ? 0 : e; k = k * k * (3.0f - 2.0f * k); } else { c->t = 0; c->loop = 0; } }
+            uint16_t own = PART_C[c->part % NPARTS];
+            if (c->loop && k < 1.0f) own = mix_c(LOOP_C, own, k * k);   /* (the loop's start: its colour, back to its own) */
             if (set.style) {                     /* TONES: each square a grey (its part's colour's own lightness, times its
                                                   * shade), a hit flooding it with the colour, fading back to its grey */
                 uint16_t pc = PART_C[c->part % NPARTS];
@@ -1006,7 +1032,7 @@ static void draw_grid(void)
                 /* (dark grey to white, never near-black: each part's grey the shade closest to its colour's own
                  * lightness, each square a little either side of it) */
                 float gv = clampf(0.25f + 0.75f * lum + ((float)c->base - 172.0f) * (0.25f / 166.0f), 0.25f, 1.0f) * br;
-                uint16_t gc = grey(gv), hc = dim(pc, br);
+                uint16_t gc = grey(gv), hc = dim(c->loop ? LOOP_C : pc, br);
                 cv_rect(x * cell, py, cell, cell, k >= 1.0f ? gc : mix_c(hc, gc, k));
                 continue;
             }
@@ -1014,7 +1040,7 @@ static void draw_grid(void)
             if (lv < 0.03f) continue;
             /* a square knocked out grows back as it fades in; whole, it fills its cell: no line, it meets its neighbours */
             int sz = k >= 1.0f ? cell : (int)((float)cell * (0.3f + 0.7f * k) + 0.5f), off = (cell - sz) / 2;
-            cv_rect(x * cell + off, py + off, sz, sz, dim(PART_C[c->part % NPARTS], lv));
+            cv_rect(x * cell + off, py + off, sz, sz, dim(own, c->loop ? fm_maxf(lv, 0.75f * br) : lv));
         }
     }
 }
