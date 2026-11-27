@@ -21,7 +21,10 @@ Generative at its core, with macros across the main features, as After Images ha
   engines and really interesting patterns: lots of polymeters. Sounds short and staccato, not cliché or predictable;
   perc low (just above the kick); pitch falls fast, never slow sweeps. Engines include a soft 808, a synthesised clap,
   a circuit-bent BENT (wild, every WEIGHT/ENTROPY setting its own), FOLEY (box and wood bangs, footsteps, drags: low,
-  never metallic), an almost-vocal hat and impulse-click hats. The owner may send reference samples to tune towards.
+  never metallic), an almost-vocal hat and impulse-click hats; and (v0.13, the owner's ask: five more a part, expressive across WEIGHT
+  and ENTROPY, their bodies taking ENTROPY's whole range) PING, FOLD, TAPE, THUD, RUMBLE; RIM, SNAP, BRUSH, SYNTH,
+  SPRING; BLOCK, TABLA, HAND, TINE, BOTTLE; SHAKER, FM HAT, AIR, CHIP, FOIL. The ENGINE knob steps through them
+  grouped by part. The owner may send reference samples to tune towards.
 - The kick is the anchor: ACTIVITY adds only a few kicks a bar (never neighbouring sixteenths unless written strong),
   CHAOS never touches it, EVOLVE gives it only accents, ghosts and conditions (no nudges, rolls, drops, swapped beats
   or rewrites), WARP loosens it least. ACTIVITY at 0 is a simple, sparse beat: each part's core hits.

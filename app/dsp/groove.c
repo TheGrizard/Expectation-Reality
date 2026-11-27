@@ -55,21 +55,23 @@ static void deal_part(Groove *g, int p, Rng *r, int keep_seq)
     PartP *q = &g->p[p];
     q->salt = (uint16_t)rng_u32(r); q->muts = 0;
     {   /* its engine: the part's own, weighted (Burial and IDM first: the 808 and the clap often) */
-        static const uint8_t EL[NPARTS][4] = { { D_808, D_MEMBRANE, D_BOX, D_FMKICK }, { D_CLAP, D_CRACK, D_WIRES, D_GRAIN },
-                                               { D_MATERIAL, D_FMPERC, D_STRING, D_FOLEY }, { D_METAL, D_DUST, D_DIGITAL, D_VOX } };
-        static const uint8_t EL5[NPARTS] = { D_FMKICK, D_BENT, D_BENT, D_CLICK };   /* (a fifth choice: BENT, the hats' clicks) */
-        static const uint8_t EW[NPARTS][5] = { { 4, 3, 2, 2, 0 }, { 4, 3, 2, 2, 2 }, { 3, 3, 2, 3, 2 }, { 2, 3, 2, 3, 3 } };
-        static const uint8_t GW[NUM_GENRES - 1][NPARTS][5] = {
-            { { 5, 1, 1, 5, 0 }, { 7, 2, 1, 1, 1 }, { 3, 3, 1, 1, 1 }, { 3, 1, 3, 0, 3 } },   /* TECHNO: the pounding kicks, the
-                                                  * clap first, the perc's materials and FM, the metallic, digital and
-                                                  * clicking hats */
-            { { 6, 3, 1, 0, 0 }, { 0, 1, 4, 5, 2 }, { 2, 2, 3, 3, 1 }, { 0, 5, 1, 2, 5 } },   /* AMBIENT: a soft 808 or membrane,
-                                                  * wires and grains for a snare, strings and foley, dust and clicks */
-            { { 6, 1, 4, 0, 0 }, { 2, 5, 3, 1, 0 }, { 3, 1, 1, 4, 0 }, { 3, 5, 0, 1, 1 } },   /* LOFI: the 808 and the box, a
-                                                  * crack or rim, materials and foley, dusty hats */
+        /* each part's ten (the first five as before, then the five added in v0.13), weighted by personality */
+        static const uint8_t EL[NPARTS][10] = {
+            { D_808, D_MEMBRANE, D_BOX, D_FMKICK, D_FMKICK, D_PING, D_FOLD, D_TAPE, D_THUD, D_RUMBLE },
+            { D_CLAP, D_CRACK, D_WIRES, D_GRAIN, D_BENT, D_RIM, D_SNAP, D_BRUSH, D_SYNTH, D_SPRING },
+            { D_MATERIAL, D_FMPERC, D_STRING, D_FOLEY, D_BENT, D_BLOCK, D_TABLA, D_HAND, D_TINE, D_BOTTLE },
+            { D_METAL, D_DUST, D_DIGITAL, D_VOX, D_CLICK, D_SHAKER, D_FMHAT, D_AIR, D_CHIP, D_FOIL } };
+        static const uint8_t GW[NUM_GENRES][NPARTS][10] = {
+            { { 4, 3, 2, 2, 0, 2, 2, 1, 1, 1 }, { 4, 3, 2, 2, 2, 2, 1, 1, 1, 2 }, { 3, 3, 2, 3, 2, 2, 2, 1, 2, 2 }, { 2, 3, 2, 3, 3, 1, 3, 1, 2, 2 } },   /* BRAINDANCE */
+            { { 5, 1, 1, 5, 0, 3, 2, 0, 0, 4 }, { 7, 2, 1, 1, 1, 3, 1, 0, 4, 1 }, { 3, 3, 1, 1, 1, 3, 1, 1, 1, 1 }, { 3, 1, 3, 0, 3, 3, 4, 1, 1, 1 } },   /* FLOORS: the pounding
+                                                  * kicks and RUMBLE, the clap and SYNTH, metal, FM HAT and the shaker */
+            { { 6, 3, 1, 0, 0, 1, 0, 3, 4, 1 }, { 0, 1, 4, 5, 2, 1, 1, 5, 0, 3 }, { 2, 2, 3, 3, 1, 2, 2, 1, 4, 4 }, { 0, 5, 1, 2, 5, 3, 1, 5, 0, 3 } },   /* CLOUDS: soft kicks,
+                                                  * THUD and TAPE, brushes and springs, tines and bottles, air and foil */
+            { { 6, 1, 4, 0, 0, 1, 0, 5, 4, 0 }, { 2, 5, 3, 1, 0, 5, 4, 3, 2, 0 }, { 3, 1, 1, 4, 0, 3, 3, 4, 2, 1 }, { 3, 5, 0, 1, 1, 4, 1, 1, 2, 2 } },   /* IMPLODE: TAPE and THUD,
+                                                  * rims, snaps and brushes, hand drums, the shaker */
         };
-        int k = pick(r, g->genre && g->genre < NUM_GENRES ? GW[g->genre - 1][p] : EW[p], 5);
-        q->engine = k < 4 ? EL[p][k] : EL5[p];
+        int k = pick(r, GW[g->genre < NUM_GENRES ? g->genre : 0][p], 10);
+        q->engine = EL[p][k];
     }
     groove_part_engine(g, p);
     if (!keep_seq) {

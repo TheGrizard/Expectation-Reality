@@ -55,7 +55,7 @@ expect sent 0
 tap GLO
 tap GLO
 wait 100
-turn K2 1
+turn K3 1
 wait 300
 expect sends 1
 tap HOME
@@ -67,7 +67,7 @@ expect kicksent 0
 tap GLO
 tap GLO
 wait 100
-turn K2 -1
+turn K3 -1
 wait 300
 tap HOME
 wait 100

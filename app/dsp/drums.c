@@ -5,11 +5,16 @@
 #include "drums.h"
 
 const char *const ENGINE_NAME[NUM_ENGINES] = { "MEMBRANE", "BOX", "FM KICK", "WIRES", "GRAIN", "CRACK",
-                                               "MATERIAL", "FM PERC", "STRING", "METAL", "DUST", "DIGITAL", "808", "CLAP", "VOX", "CLICK", "FOLEY", "BENT" };
-const uint8_t ENGINE_PART[NUM_ENGINES] = { 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 0, 1, 3, 3, 2, 1 };
+                                               "MATERIAL", "FM PERC", "STRING", "METAL", "DUST", "DIGITAL", "808", "CLAP", "VOX", "CLICK", "FOLEY", "BENT",
+                                               "PING", "FOLD", "TAPE", "THUD", "RUMBLE", "RIM", "SNAP", "BRUSH", "SYNTH", "SPRING",
+                                               "BLOCK", "TABLA", "HAND", "TINE", "BOTTLE", "SHAKER", "FM HAT", "AIR", "CHIP", "FOIL" };
+const uint8_t ENGINE_PART[NUM_ENGINES] = { 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3, 0, 1, 3, 3, 2, 1,
+                                           0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3 };
 
 /* each engine's level at a firm hit, mid settings: measured (tools/render calibrate), so the four parts sit together */
-static const float GAIN[NUM_ENGINES] = { 0.42f, 2.7f, 0.7f, 0.96f, 0.85f, 2.3f, 0.93f, 0.45f, 1.12f, 0.88f, 0.65f, 1.15f, 0.6f, 1.6f, 2.2f, 1.4f, 1.1f, 0.97f };
+static const float GAIN[NUM_ENGINES] = { 0.42f, 2.7f, 0.7f, 0.96f, 0.85f, 2.3f, 0.93f, 0.45f, 1.12f, 0.88f, 0.65f, 1.15f, 0.6f, 1.6f, 2.2f, 1.4f, 1.1f, 0.97f,
+                                         1.25f, 0.59f, 0.40f, 1.07f, 0.41f, 6.99f, 1.40f, 0.74f, 0.51f, 0.53f, 0.42f, 0.42f, 0.48f, 0.38f, 0.41f, 1.00f, 0.34f, 1.12f, 0.64f, 0.55f };   /* (the twenty newer: render calibrate,
+                                                  * each to its part's median; BRUSH and SHAKER, which swell, by their peak) */
 
 #include "drums_level.h"                 /* LEVEL: each engine's loudness across WEIGHT and ENTROPY, measured (render levels) */
 static float level_corr(int eng, float w, float e)
@@ -132,7 +137,7 @@ void hit_start(Hit *h, const HitP *p)
     int eng = p->engine % NUM_ENGINES;
     float ef = e;                            /* ENTROPY: mostly the hit's front (below); the body takes less of it, except
                                               * FOLEY's choice of sound and BENT's wiring, which are the body */
-    if (eng != D_FOLEY && eng != D_BENT) e *= 0.55f;
+    if (eng != D_FOLEY && eng != D_BENT && eng < D_PING) e *= 0.55f;   /* (the twenty newer: their bodies the whole range) */
     memset(h, 0, sizeof *h - sizeof h->line);    /* (the line: its engine fills it) */
     h->on = 1; h->engine = (uint8_t)eng; h->vel = clamp01(p->vel) * GAIN[eng] * (drums_level_raw ? 1.0f : level_corr(eng, w, ef)) * (p->shift < 0 ? fm_minf(semis(-p->shift * 0.3f), 3.0f) : 1.0f);   /* (WEIGHT and ENTROPY change the sound, not how loud) */
     h->w = w; h->e = e; h->b = b;
@@ -383,6 +388,214 @@ void hit_start(Hit *h, const HitP *p)
         h->ek = dk((0.006f + 0.14f * w * w) * d);
         svf_set(&h->f2, 120.0f, 0.7f);
         break; }
+    /* ---------------- the twenty more ---------------- */
+    case D_PING: {                               /* a resonance struck: the impulse scaled to ring it at about 1 */
+        h->f0 = (40.0f + 22.0f * b) * (1.2f - 0.4f * w) * pit;
+        h->f = h->f0 * (1.8f + 1.4f * b + 0.8f * e);
+        h->fk = dk(0.007f + 0.022f * w);
+        h->fb = 6.0f + 18.0f * w * w + 5.0f * e;   /* (its Q: how long it rings) */
+        h->a[1] = e > 0.35f ? (e - 0.35f) * 1.2f : 0.0f; h->df[1] = 1.47f + 1.2f * e * rng_f(&r);   /* (the clang) */
+        h->idx = 1.0f + 5.0f * e * e;              /* (the drive) */
+        h->ek = dk((0.07f + 0.28f * w) * d);
+        svf_set(&h->f1, h->f, h->fb); svf_set(&h->f2, h->f * h->df[1], h->fb * 0.6f);
+        break; }
+    case D_FOLD:
+        h->f0 = (42.0f + 18.0f * b) * (1.15f - 0.35f * w) * pit;
+        h->f = h->f0 * (2.4f + 2.0f * b);
+        h->fk = dk(0.009f + 0.03f * w);
+        h->a[0] = 0.6f + 6.5f * e;               /* (how far it folds, closing as it dies) */
+        h->ak[0] = dk(0.02f + 0.08f * w + 0.06f * e);
+        h->hv = e * e * 0.9f * (rng_f(&r) < 0.5f ? 1.0f : -1.0f);   /* (lopsided) */
+        h->ek = dk((0.05f + 0.2f * w) * d);
+        break;
+    case D_TAPE:
+        h->f0 = (44.0f + 18.0f * b) * (1.15f - 0.3f * w) * pit;
+        h->f = h->f0 * (2.0f + 1.5f * b);
+        h->fk = dk(0.01f + 0.025f * w);
+        h->a[1] = e * 0.05f; h->df[1] = (3.5f + 3.0f * rng_f(&r)) / SR; h->ph[1] = rng_f(&r);   /* (wow) */
+        h->a[2] = e * e * 0.02f; h->df[2] = (16.0f + 14.0f * rng_f(&r)) / SR;                   /* (flutter) */
+        h->idx = 1.3f + 3.0f * e + 1.5f * w;       /* (saturation) */
+        h->a[3] = e > 0.5f ? (e - 0.5f) * 0.9f : 0.0f;   /* (dropouts) */
+        op_set(&h->o1, (2500.0f + 5000.0f * b) * (1.0f - 0.5f * e)); op_set(&h->o2, 6000.0f);
+        h->ek = dk((0.05f + 0.2f * w) * d);
+        break;
+    case D_THUD: {
+        h->f0 = (48.0f + 20.0f * b) * (1.15f - 0.35f * w) * pit;
+        h->f = h->f0 * 1.6f; h->fk = dk(0.006f + 0.012f * w);
+        h->a[0] = 0.8f; h->ak[0] = dk(0.03f + 0.15f * w);
+        h->nenv = 1.0f; h->nk = dk(0.006f + 0.014f * w);
+        float lo = clampf((90.0f + 70.0f * b) * (1.2f - 0.4f * w) * pit, 30.0f, 400.0f);
+        svf_set(&h->f1, lo, 0.9f + 3.0f * e);
+        h->hv = 1.0f / fm_sqrtf(lo * 2.0f / SR) * 0.35f;   /* (the low-passed noise brought up to the body) */
+        svf_set(&h->f2, clampf((320.0f + 420.0f * e) * pit, 60.0f, 2000.0f), 2.0f + 9.0f * e);   /* (cardboard's ring) */
+        h->a[1] = e * 1.4f;
+        h->ek = dk((0.05f + 0.18f * w) * d);
+        break; }
+    case D_RUMBLE:
+        h->f0 = (40.0f + 16.0f * b) * (1.15f - 0.3f * w) * pit;
+        h->f = h->f0 * (2.2f + 2.0f * b);
+        h->fk = dk(0.008f + 0.02f * w);
+        h->a[1] = 0.25f + 0.75f * e; h->ak[1] = dk((0.07f + 0.28f * w) * d);   /* (the rumble, after the kick) */
+        h->ek = dk((0.05f + 0.15f * w) * d);
+        h->idx = 2.0f + 9.0f * e;                  /* (the drive) */
+        op_set(&h->o1, (500.0f + 900.0f * b) * (1.0f - 0.35f * e)); op_set(&h->o2, 60.0f + 40.0f * b);
+        break;
+    case D_RIM: {
+        float fc = (1700.0f + 900.0f * b) * pit;
+        svf_set(&h->f1, clampf(fc, 300.0f, 9000.0f), 6.0f + 30.0f * e);
+        svf_set(&h->f2, clampf((420.0f + 160.0f * b) * pit, 60.0f, 2000.0f), 3.0f + 6.0f * w);
+        svf_set(&h->f3, clampf(fc * (1.53f + 0.4f * rng_f(&r)), 300.0f, 12000.0f), 10.0f + 40.0f * e);
+        h->a[0] = 1.0f; h->a[1] = 0.25f + 0.9f * w; h->a[2] = e > 0.4f ? (e - 0.4f) * 1.4f : 0.0f;
+        h->nenv = 1.0f; h->nk = dk(0.0012f);
+        h->ek = dk((0.02f + 0.05f * w + 0.08f * e * e) * d);
+        break; }
+    case D_SNAP: {
+        int nb = 1 + (e > 0.3f) + (e > 0.7f);      /* (flammed: one, two or three snaps) */
+        float t = 0;
+        for (int i = 0; i < nb; i++) {
+            h->g_at[i] = (uint16_t)(t * SR); h->g_len[i] = (uint16_t)((0.0025f + 0.002f * rng_f(&r)) * SR);
+            h->g_amp[i] = i ? 0.45f + 0.35f * rng_f(&r) : 1.0f;
+            t += 0.006f + 0.016f * e * rng_f(&r);
+        }
+        h->g_n = (uint8_t)nb;
+        svf_set(&h->f1, clampf((1900.0f + 1100.0f * b) * pit * (1.0f + 0.1f * rng_bi(&r)), 300.0f, 9000.0f), 2.2f + 2.0f * e);
+        h->df[0] = (1050.0f + 400.0f * b) * pit / SR; h->a[0] = 0.0f; h->ak[0] = dk(0.004f);   /* (the pop) */
+        h->nk = dk((0.012f + 0.07f * w) * d); h->env = 0; h->ek = 1.0f;
+        svf_set(&h->f2, clampf(2600.0f * pit, 200.0f, 8000.0f), 0.8f);
+        break; }
+    case D_BRUSH: {
+        float s0 = (900.0f + 600.0f * b) * pit, s1 = s0 * (2.2f + 2.0f * e);
+        if (rng_f(&r) < 0.4f) { float t = s0; s0 = s1; s1 = t; }   /* (a stroke either way) */
+        h->f = s0; h->f0 = s1; h->fk = dk(0.012f + 0.03f * w - 0.008f * e);
+        h->hk = (0.004f + 0.022f * w) * SR;        /* (the swell, in samples) */
+        h->a[1] = e * e * 0.08f;                   /* (bristles: how often one catches) */
+        h->ek = dk((0.035f + 0.11f * w) * d);
+        svf_set(&h->f1, h->f, 1.3f + 1.5f * e); svf_set(&h->f2, clampf(500.0f * pit, 60.0f, 2000.0f), 0.7f);
+        break; }
+    case D_SYNTH:
+        h->f0 = (175.0f + 70.0f * b) * (1.12f - 0.25f * w) * pit;
+        h->f = h->f0 * 1.5f; h->fk = dk(0.004f + 0.006f * w);
+        h->df[1] = 1.78f;                          /* (its second mode) */
+        h->a[0] = 0.8f + 0.5f * w; h->a[1] = 0.45f; h->ak[0] = dk(0.03f + 0.09f * w); h->ak[1] = dk(0.02f + 0.05f * w);
+        h->nenv = 0.45f + 0.9f * e; h->nk = dk((0.035f + 0.08f * w) * d);
+        h->hk = e > 0.55f ? (16000.0f - 22000.0f * (e - 0.55f)) / SR : 0.0f;   /* (crushed past halfway) */
+        svf_set(&h->f1, clampf((1800.0f + 1500.0f * b) * pit, 200.0f, 9000.0f), 0.7f);
+        svf_set(&h->f2, clampf((4500.0f + 2500.0f * b) * pit, 400.0f, 12000.0f), 1.0f);
+        h->ek = dk((0.05f + 0.1f * w) * d);
+        break;
+    case D_SPRING: {
+        h->clen = clampi((int)((60.0f + 90.0f * w) / fm_sqrtf(pit)), 20, 158); h->cpos = 0;
+        h->fb = 0.55f + 0.25f * w + 0.15f * e;     /* (the loop's feedback) */
+        h->ks_apc = 0.25f + 0.6f * e;              /* (its dispersion: the chirp) */
+        h->nenv = 1.0f; h->nk = dk(0.004f + 0.004f * w);
+        h->f0 = (190.0f + 60.0f * b) * pit; h->df[0] = h->f0 / SR; h->a[0] = 0.7f; h->ak[0] = dk(0.025f + 0.04f * w);
+        h->ek = dk((0.06f + 0.16f * w + 0.06f * e) * d);
+        svf_set(&h->f1, clampf(3500.0f * pit, 300.0f, 9000.0f), 0.8f);
+        for (int i = 0; i < 160; i++) h->line.comb[i] = 0;
+        break; }
+    case D_BLOCK: {
+        float f = hz * (1.0f + 0.45f * (1.0f - w));
+        int tongue = e > 0.45f && rng_f(&r) < 0.5f;   /* (a slit drum: the other tongue, a fourth or fifth up) */
+        if (tongue) f *= rng_f(&r) < 0.5f ? 1.335f : 1.498f;
+        float rat = lerpf(2.92f, 1.52f, clamp01(e * 1.3f));   /* (block to slit drum) */
+        h->df[0] = f / SR; h->df[1] = f * rat / SR; h->df[2] = f * rat * 1.9f / SR;
+        h->a[0] = 1.0f; h->a[1] = 0.55f - 0.25f * e; h->a[2] = 0.2f * (1.0f - e);
+        h->ak[0] = dk((0.022f + 0.07f * w + 0.12f * e) * d); h->ak[1] = dk((0.015f + 0.035f * w + 0.06f * e) * d); h->ak[2] = dk(0.01f);
+        h->bend = 0.03f + 0.03f * w; h->bk = dk(0.004f);
+        h->nenv = 0.6f; h->nk = dk(0.004f + 0.004f * w);
+        svf_set(&h->f1, clampf(f * 1.1f, 40.0f, 3000.0f), 4.0f);   /* (the hollow) */
+        h->env = 1.0f; h->ek = dk((0.035f + 0.13f * w + 0.18f * e) * d);
+        break; }
+    case D_TABLA: {
+        float f = hz * (1.25f - 0.55f * w);
+        static const float HM[5] = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
+        for (int k = 0; k < 5; k++) {
+            h->df[k] = f * HM[k] * (1.0f + 0.004f * rng_bi(&r)) / SR;
+            float rim = k == 1 || k == 2 ? e : e * 0.5f;   /* (ENTROPY: the rim's tones ring) */
+            h->a[k] = (k == 0 ? 1.0f : 0.5f / (float)k) * (0.4f + 1.2f * rim);
+            h->ak[k] = dk((0.02f + 0.08f * e + 0.06f * w) * d / (1.0f + 0.3f * (float)k));
+        }
+        h->a[0] = 1.0f;
+        h->bend = w * 0.18f; h->bk = dk(0.05f + 0.05f * w);   /* (the bass drum's dip) */
+        h->nenv = 0.5f * (1.0f - e); h->nk = dk(0.003f);   /* (a damped slap at 0) */
+        svf_set(&h->f1, clampf(f * 6.0f, 200.0f, 5000.0f), 1.0f);
+        h->env = 1.0f; h->ek = dk((0.06f + 0.14f * w + 0.12f * e) * d);
+        break; }
+    case D_HAND: {
+        float f = hz * (1.45f - 0.6f * w);
+        float slap = clamp01((e - 0.35f) / 0.5f);
+        h->df[0] = f / SR; h->df[1] = f * 1.51f / SR; h->df[2] = f * 1.99f / SR;
+        h->a[0] = 1.0f - 0.6f * slap; h->a[1] = 0.35f + 0.3f * slap; h->a[2] = 0.15f + 0.4f * slap;
+        float mute = e < 0.35f ? e / 0.35f : 1.0f - slap;   /* (open at 0, muted in the middle) */
+        float L = (0.06f + 0.14f * w) * (1.0f - 0.65f * mute) * (1.0f - 0.5f * slap) * d;
+        h->ak[0] = dk(L); h->ak[1] = dk(L * 0.6f); h->ak[2] = dk(L * 0.4f);
+        h->bend = 0.06f; h->bk = dk(0.006f);
+        h->nenv = 0.15f + 1.3f * slap; h->nk = dk(0.004f + 0.006f * slap);
+        svf_set(&h->f1, clampf(f * (8.0f + 6.0f * slap), 300.0f, 7000.0f), 1.2f + 1.5f * slap);
+        h->env = 1.0f; h->ek = dk(L * 2.0f + 0.02f);
+        break; }
+    case D_TINE: {
+        float f = hz * (1.6f - 0.6f * w);
+        h->df[0] = f / SR; h->df[1] = f * 5.4f / SR; h->df[2] = f * (1.0f + 0.006f + 0.02f * e) / SR;   /* (a beating twin) */
+        h->a[0] = 1.0f; h->a[1] = 0.35f; h->a[2] = 0.3f * e;
+        h->ak[0] = dk((0.055f + 0.14f * w) * d); h->ak[1] = dk(0.02f + 0.02f * w); h->ak[2] = dk((0.05f + 0.12f * w) * d);
+        h->hv = e * e * 0.9f;                       /* (the rattle) */
+        h->df[3] = (60.0f + 80.0f * rng_f(&r)) / SR;   /* (its buzz) */
+        svf_set(&h->f1, clampf(f * 9.0f, 400.0f, 9000.0f), 2.0f);
+        h->env = 1.0f; h->ek = dk((0.09f + 0.24f * w) * d);
+        break; }
+    case D_BOTTLE: {
+        float f = hz * (2.2f - 0.9f * w);
+        h->df[0] = f / SR; h->df[1] = f * 2.76f / SR; h->df[2] = f * 5.4f / SR;
+        h->a[0] = 1.0f; h->a[1] = 0.45f; h->a[2] = 0.25f;
+        h->ak[0] = dk((0.05f + 0.16f * w) * d); h->ak[1] = dk(0.04f + 0.08f * w); h->ak[2] = dk(0.02f + 0.03f * w);
+        h->bend = e * 0.06f; h->bk = dk(0.06f + 0.1f * e);   /* (water: the wobble, dying) */
+        h->df[4] = (9.0f + 14.0f * e) / SR;
+        h->nenv = 0.1f + 0.5f * w; h->nk = dk((0.03f + 0.1f * w) * d);   /* (breath in a big one) */
+        svf_set(&h->f1, clampf(f, 60.0f, 4000.0f), 6.0f);
+        h->env = 1.0f; h->ek = dk((0.06f + 0.18f * w) * d);
+        break; }
+    case D_SHAKER:
+        h->hk = (0.003f + 0.02f * w) * SR;         /* (the swell, in samples) */
+        h->a[1] = 0.004f + 0.03f * e;              /* (the beads: how often one rattles) */
+        h->a[2] = 0.3f + 1.2f * e;                 /* (how loud they rattle) */
+        svf_set(&h->f1, clampf((6500.0f + 3500.0f * b) * pit * (1.0f - 0.3f * w), 1500.0f, 15000.0f), 1.6f - 1.0f * e);
+        svf_set(&h->f2, clampf(3500.0f * pit, 400.0f, 8000.0f), 0.7f);
+        h->ek = dk((0.03f + 0.15f * w) * d);
+        break;
+    case D_FMHAT: {
+        float fc = (5200.0f + 3000.0f * b) * pit * (1.0f - 0.25f * w);
+        h->df[0] = fc / SR; h->df[1] = fc * (1.41f + e * (1.0f + 1.8f * rng_f(&r))) / SR;
+        h->idx = 2.0f + 4.0f * e; h->ik = dk(0.02f + 0.08f * w);
+        h->fb = e * e * 0.35f;
+        svf_set(&h->f2, clampf(4500.0f * pit * (1.0f - 0.2f * w), 800.0f, 12000.0f), 0.8f);
+        h->ek = dk((0.015f + 0.2f * w * w) * d);
+        break; }
+    case D_AIR:
+        h->hk = (0.002f + 0.012f * w) * SR;
+        h->f0 = clampf((4200.0f + 3000.0f * b) * pit * (1.0f - 0.35f * w), 500.0f, 13000.0f);
+        h->fb = 0.8f + 1.2f * w * 0.0f + 26.0f * e * e;   /* (breath to whistle) */
+        h->a[1] = e * 0.03f; h->df[1] = (5.0f + 4.0f * rng_f(&r)) / SR;   /* (the whistle wavering) */
+        svf_set(&h->f1, h->f0, h->fb); svf_set(&h->f2, clampf(1200.0f * pit, 100.0f, 4000.0f), 0.7f);
+        h->ek = dk((0.025f + 0.12f * w) * d);
+        break;
+    case D_CHIP:
+        h->hk = clampf((22000.0f - 16000.0f * w * w) * (0.6f + 0.6f * b) * pit, 300.0f, 44000.0f) / SR;   /* (the clock) */
+        h->cpos = 1;                               /* (the shift register) */
+        h->clen = e > 0.45f;                       /* (its short loop: a tone) */
+        h->hk *= 1.0f - 0.5f * e;
+        h->fk = e > 0.3f ? dk(0.01f + 0.03f * w) : 1.0f;   /* (stepping down) */
+        h->ek = dk((0.02f + 0.14f * w) * d);
+        svf_set(&h->f2, clampf(1500.0f * pit, 100.0f, 5000.0f), 0.7f);
+        break;
+    case D_FOIL:
+        h->nenv = 1.0f; h->nk = dk((0.02f + 0.12f * w) * d);   /* (how thick the crinkles, thinning) */
+        h->hk = 0.08f + 0.35f * e;                 /* (and how many) */
+        svf_set(&h->f1, clampf((6200.0f + 2600.0f * b) * pit, 1200.0f, 14000.0f), 1.5f + 18.0f * e * e);
+        svf_set(&h->f2, clampf((10500.0f + 2000.0f * b) * pit, 2000.0f, 16000.0f), 1.2f + 12.0f * e * e);
+        svf_set(&h->f3, clampf(3000.0f * pit, 300.0f, 8000.0f), 0.7f);
+        h->ek = dk((0.025f + 0.12f * w) * d);
+        break;
     case D_DIGITAL:
         h->hk = clampf((3000.0f + 12000.0f * b) * pit, 150.0f, 20000.0f) / SR;    /* the sample rate (following the pitch) */
         h->fb = 8.0f - 6.0f * e;                  /* the bits */
@@ -615,6 +828,165 @@ int hit_render(Hit *h, float *out, int n)
             s = soft_clip(svf_hp(&h->f2, h->hv) * 1.6f) * g * h->env;   /* (clipped: as loud wherever the bends are) */
             fade(&h->env, h->ek);
             break; }
+        /* ---------------- the twenty more ---------------- */
+        case D_PING: {
+            glide(h);
+            if (++h->hold >= 8.0f) { h->hold = 0; svf_set(&h->f1, h->f, h->fb); if (h->a[1] > 0) svf_set(&h->f2, h->f * h->df[1], h->fb * 0.6f); }
+            x = h->n == 0 ? SR / (6.2832f * h->f) * 0.5f : 0.0f;   /* (struck: once) */
+            s = svf_bp(&h->f1, x);
+            if (h->a[1] > 0) s += h->a[1] * svf_bp(&h->f2, x * 0.7f);
+            s = soft_clip(s * h->idx) * (1.0f + 0.4f * h->idx) * 0.6f * h->env; fade(&h->env, h->ek);
+            break; }
+        case D_FOLD: {
+            glide(h);
+            h->ph[0] += h->f / SR; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            float g = 1.0f + h->a[0];
+            s = fold(sine_c(h->ph[0]) * g + h->hv * h->a[0] * 0.3f) * h->env;
+            fade(&h->a[0], h->ak[0]); fade(&h->env, h->ek);
+            break; }
+        case D_TAPE: {
+            glide(h);
+            h->ph[1] += h->df[1]; if (h->ph[1] > 1024.0f) h->ph[1] -= 1024.0f;
+            h->ph[2] += h->df[2]; if (h->ph[2] > 1024.0f) h->ph[2] -= 1024.0f;
+            float wob = h->a[1] * sine_c(h->ph[1]) + h->a[2] * sine_c(h->ph[2]);
+            h->ph[0] += h->f * (1.0f + wob) / SR; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            s = op_lp(&h->o1, soft_clip(sine_c(h->ph[0]) * h->idx)) * (0.9f + 0.25f * h->idx);
+            if (h->a[3] > 0) s *= 1.0f - h->a[3] * (0.5f + 0.5f * sine_c(h->ph[2] * 0.37f + 0.25f));   /* (dropouts) */
+            s = (s + op_lp(&h->o2, nz(&h->ns)) * h->a[1] * 0.4f) * h->env; fade(&h->env, h->ek);
+            break; }
+        case D_THUD: {
+            glide(h);
+            h->ph[0] += h->f / SR; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            x = nz(&h->ns) * h->nenv; fade(&h->nenv, h->nk);
+            s = sine_c(h->ph[0]) * h->a[0] + svf_lp(&h->f1, x) * h->hv;
+            if (h->a[1] > 0) s += bpn(&h->f2, x) * h->a[1];
+            s = soft_clip(s * 1.3f) * h->env; fade(&h->a[0], h->ak[0]); fade(&h->env, h->ek);
+            break; }
+        case D_RUMBLE: {
+            glide(h);
+            h->ph[0] += h->f / SR; h->ph[1] += h->f * 0.973f / SR;
+            if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            if (h->ph[1] > 1024.0f) h->ph[1] -= 1024.0f;
+            float k = sine_c(h->ph[0]) * h->env, rm = (sine_c(h->ph[1]) + op_lp(&h->o2, nz(&h->ns)) * 6.0f) * h->a[1];
+            s = op_lp(&h->o1, soft_clip((k + rm) * h->idx)) * 1.3f;
+            fade(&h->env, h->ek); fade(&h->a[1], h->ak[1]);
+            break; }
+        case D_RIM: {
+            x = (h->n == 0 ? 3.0f : 0.0f) + nz(&h->ns) * h->nenv; fade(&h->nenv, h->nk);
+            s = bpn(&h->f1, x) * h->a[0] + bpn(&h->f2, x) * h->a[1];
+            if (h->a[2] > 0) s += bpn(&h->f3, x) * h->a[2];
+            s = soft_clip(s * 2.0f) * h->env; fade(&h->env, h->ek);
+            break; }
+        case D_SNAP: {
+            float g = 0;
+            for (int k = 0; k < h->g_n; k++) {
+                uint32_t at = h->g_at[k], l = h->g_len[k];
+                if (h->n >= at && h->n < at + l) { float u = (float)(h->n - at) / (float)l; g += h->g_amp[k] * (1.0f - u) * (1.0f - u); }
+                if (h->n == at) h->a[0] = fm_maxf(h->a[0], h->g_amp[k]);
+            }
+            if (h->g_n && h->n == h->g_at[h->g_n - 1] + h->g_len[h->g_n - 1]) h->nenv = 0.35f;   /* (its tail) */
+            x = nz(&h->ns);
+            h->ph[0] += h->df[0]; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            s = bpn(&h->f1, x * (g + h->nenv)) * 2.2f + sine_c(h->ph[0]) * h->a[0] * 0.5f + svf_lp(&h->f2, x) * h->nenv * 0.3f;
+            fade(&h->a[0], h->ak[0]); fade(&h->nenv, h->nk);
+            if (h->g_n && h->n > (uint32_t)h->g_at[h->g_n - 1] + h->g_len[h->g_n - 1] && h->nenv == 0) h->env = 0;
+            else h->env = 1.0f;
+            break; }
+        case D_BRUSH: {
+            glide(h);
+            if (++h->hold >= 16.0f) { h->hold = 0; svf_set(&h->f1, h->f, 1.3f); }
+            float sw = (float)h->n < h->hk ? (float)h->n / h->hk : 1.0f;
+            x = nz(&h->ns);
+            if (h->a[1] > 0 && nu(&h->ns) < h->a[1]) h->hv = 1.0f;   /* (a bristle catches) */
+            fade(&h->hv, 0.97f);
+            s = (bpn(&h->f1, x) * (0.8f + h->hv * 2.0f) + svf_lp(&h->f2, x) * 0.15f) * sw * h->env;
+            if ((float)h->n >= h->hk) fade(&h->env, h->ek);
+            break; }
+        case D_SYNTH: {
+            glide(h);
+            h->ph[0] += h->f / SR; h->ph[1] += h->f * h->df[1] / SR;
+            if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            if (h->ph[1] > 1024.0f) h->ph[1] -= 1024.0f;
+            float body = sine_c(h->ph[0]) * h->a[0] + sine_c(h->ph[1]) * h->a[1];
+            float nzz = nz(&h->ns);
+            if (h->hk > 0) { h->hold += h->hk; if (h->hold >= 1.0f) { h->hold -= 1.0f; h->hv = nzz; } nzz = h->hv; }   /* (crushed) */
+            x = (svf_hp(&h->f1, nzz) + bpn(&h->f2, nzz) * 0.6f) * h->nenv;
+            s = soft_clip((body + x) * (1.2f + 0.8f * h->w)) * h->env;
+            fade(&h->a[0], h->ak[0]); fade(&h->a[1], h->ak[1]); fade(&h->nenv, h->nk); fade(&h->env, h->ek);
+            break; }
+        case D_SPRING: {
+            x = svf_hp(&h->f1, nz(&h->ns)) * h->nenv; fade(&h->nenv, h->nk);
+            int rp = h->cpos - h->clen; if (rp < 0) rp += 160;
+            float v = h->line.comb[rp];
+            float y1 = -h->ks_apc * v + h->ks_ap; h->ks_ap = v + h->ks_apc * y1;        /* (two allpasses: dispersion) */
+            float y2 = -h->ks_apc * y1 + h->ks_lp; h->ks_lp = y1 + h->ks_apc * y2;
+            float y = x + h->fb * y2;
+            h->line.comb[h->cpos] = fm_fabsf(y) < 1e-6f ? 0.0f : soft_clip(y);
+            if (++h->cpos >= 160) h->cpos = 0;
+            h->ph[0] += h->df[0]; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            s = (y * 0.8f + sine_c(h->ph[0]) * h->a[0]) * h->env;
+            fade(&h->a[0], h->ak[0]); fade(&h->env, h->ek);
+            if (fm_fabsf(h->ks_ap) < 1e-20f) h->ks_ap = 0;
+            if (fm_fabsf(h->ks_lp) < 1e-20f) h->ks_lp = 0;
+            break; }
+        case D_BLOCK: case D_TABLA: case D_HAND: case D_TINE: case D_BOTTLE: {   /* the tuned ones: modes, a bend, noise */
+            float bm = 1.0f;
+            if (h->engine == D_BOTTLE) { h->ph[4] += h->df[4]; if (h->ph[4] > 1024.0f) h->ph[4] -= 1024.0f; bm += h->bend * sine_c(h->ph[4]); fade(&h->bend, h->bk); }
+            else { bm += h->bend; fade(&h->bend, h->bk); }
+            int nm = h->engine == D_TABLA ? 5 : 3;
+            for (int k = 0; k < nm; k++) if (h->a[k] > 0) {
+                h->ph[k] += h->df[k] * bm; if (h->ph[k] > 1024.0f) h->ph[k] -= 1024.0f;
+                s += h->a[k] * sine_c(h->ph[k]); fade(&h->a[k], h->ak[k]);
+                if (h->a[k] < 2e-5f) h->a[k] = 0;
+            }
+            if (h->engine == D_TINE && h->hv > 0) {   /* (the rattle: a buzz riding the tine) */
+                h->ph[3] += h->df[3]; if (h->ph[3] > 1024.0f) h->ph[3] -= 1024.0f;
+                s += bpn(&h->f1, nz(&h->ns)) * h->hv * h->a[0] * (h->ph[3] - fm_floorf(h->ph[3]) < 0.3f ? 1.0f : 0.0f);
+            } else if (h->nenv > 0) { s += bpn(&h->f1, nz(&h->ns)) * h->nenv * 1.6f; fade(&h->nenv, h->nk); }
+            s *= h->env; fade(&h->env, h->ek);
+            break; }
+        case D_SHAKER: {
+            float sw = (float)h->n < h->hk ? (float)h->n / h->hk : 1.0f;
+            if (nu(&h->ns) < h->a[1]) h->hv = h->a[2];   /* (a bead) */
+            fade(&h->hv, 0.93f);
+            x = nz(&h->ns);
+            s = svf_hp(&h->f2, bpn(&h->f1, x)) * (0.6f + h->hv) * sw * h->env;
+            if ((float)h->n >= h->hk) fade(&h->env, h->ek);
+            break; }
+        case D_FMHAT: {
+            h->ph[1] += h->df[1]; if (h->ph[1] > 1024.0f) h->ph[1] -= 1024.0f;
+            float m = sine_c(h->ph[1] + h->fb * h->a[5]); h->a[5] = m;
+            h->ph[0] += h->df[0]; if (h->ph[0] > 1024.0f) h->ph[0] -= 1024.0f;
+            s = svf_hp(&h->f2, sine_c(h->ph[0] + h->idx * 0.16f * m)) * h->env;
+            fade(&h->idx, h->ik); fade(&h->env, h->ek);
+            break; }
+        case D_AIR: {
+            float sw = (float)h->n < h->hk ? (float)h->n / h->hk : 1.0f;
+            if (h->a[1] > 0 && (h->n & 15u) == 0) {
+                h->ph[1] += h->df[1] * 16.0f; if (h->ph[1] > 1024.0f) h->ph[1] -= 1024.0f;
+                svf_set(&h->f1, h->f0 * (1.0f + h->a[1] * sine_c(h->ph[1])), h->fb);
+            }
+            x = nz(&h->ns);
+            s = (bpn(&h->f1, x) + svf_hp(&h->f2, x) * 0.12f) * sw * h->env;
+            if ((float)h->n >= h->hk) fade(&h->env, h->ek);
+            break; }
+        case D_CHIP: {
+            h->hold += h->hk;
+            if (h->hold >= 1.0f) {                 /* (the register clocked: the 8-bit console's noise) */
+                h->hold -= 1.0f;
+                uint32_t sr = (uint32_t)h->cpos, fbk = (sr ^ (sr >> (h->clen ? 6 : 1))) & 1u;
+                h->cpos = (int)((sr >> 1) | (fbk << 14));
+                h->hv = (h->cpos & 1) ? 1.0f : -1.0f;
+            }
+            if (h->fk < 1.0f) h->hk *= 1.0f - (1.0f - h->fk) * 0.25f;   /* (stepping down) */
+            float lv = (float)(int)(h->env * 15.0f + 0.5f) * (1.0f / 15.0f);   /* (sixteen steps) */
+            s = svf_hp(&h->f2, h->hv) * lv * 0.5f; fade(&h->env, h->ek);
+            break; }
+        case D_FOIL: {
+            float imp = nu(&h->ns) < h->hk * h->nenv ? nz(&h->ns) * 2.5f : 0.0f;
+            s = svf_hp(&h->f3, bpn(&h->f1, imp) + bpn(&h->f2, imp) * 0.7f) * 1.4f * h->env;
+            fade(&h->nenv, h->nk); fade(&h->env, h->ek);
+            break; }
         case D_DIGITAL: {
             float j = 1.0f + h->e * 0.8f * nz(&h->ns);
             h->hold += h->hk * j;
@@ -653,6 +1025,11 @@ int hit_render(Hit *h, float *out, int n)
     case D_CLAP: lvl = h->env + h->nenv; break;
     case D_CLICK: lvl = h->env + (h->n < 400u ? 1.0f : 0.0f); break;
     case D_FOLEY: lvl = fm_minf(h->env, h->idx * 20.0f) + (h->n < 2500u ? 1.0f : 0.0f); break;
+    case D_SNAP: lvl = h->nenv + h->a[0] + (h->env > 0 ? 0.001f : 0.0f) + (h->n < 4000u ? 1.0f : 0.0f); break;
+    case D_SPRING: lvl = h->env * (fm_fabsf(h->ks_ap) + fm_fabsf(h->ks_lp) + 0.01f) + h->nenv + (h->n < 2000u ? 1.0f : 0.0f); break;
+    case D_BLOCK: case D_TABLA: case D_HAND: case D_TINE: case D_BOTTLE: lvl = fm_minf(h->env, h->a[0] + h->a[1] + h->a[2] + h->a[3] + h->a[4] + h->nenv); break;
+    case D_RUMBLE: lvl = h->env + h->a[1]; break;
+    case D_BRUSH: case D_SHAKER: case D_AIR: lvl = h->env + ((float)h->n < h->hk + 100.0f ? 1.0f : 0.0f); break;
     default: break;
     }
     if (lvl < LIVE) h->on = 0;

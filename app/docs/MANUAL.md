@@ -189,8 +189,8 @@ part in semitones.
 
 ## 8. The sounds
 
-Eighteen engines, four or five for each part, every one shaped by WEIGHT and ENTROPY (and made harder or softer,
-brighter or darker by MOOD). Any engine can be chosen for any part, and plays in that part's register: a snare's or a hat's engine on the kick
+Thirty-eight engines, nine or ten for each part, every one shaped by WEIGHT and ENTROPY (and made harder or softer,
+brighter or darker by MOOD). On the ENGINE knob they come grouped by part: the kicks, the snares, the perc, the hats. Any engine can be chosen for any part, and plays in that part's register: a snare's or a hat's engine on the kick
 drops to a kick's depth (STRING only to about 86 Hz, made duller there). REC deals from each part's own:
 
 | Part | Engine | What it is | ENTROPY turns it |
@@ -199,20 +199,43 @@ drops to a kick's depth (STRING only to about 86 Hz, made duller there). REC dea
 | KICK | MEMBRANE | a struck skin: a falling sine and a drumhead's off-pitch modes | into a growl, the modes bent |
 | KICK | BOX | a thump in a box: noise ringing two falling resonances | ringing, then rising instead of falling |
 | KICK | FM KICK | two operators, the pitch falling | off the harmonics, fed back on itself |
+| KICK | PING | a resonant filter struck (the analogue kick's circuit), the pitch falling | driven harder, a clanging second resonance |
+| KICK | FOLD | a falling sine through a wavefolder | folded further and lopsided, the folds closing as it dies |
+| KICK | TAPE | a kick on worn tape: saturated, the highs rolled off | wow, flutter, dropouts and hiss |
+| KICK | THUD | a felt thump: its air and its skin | from felt to cardboard: a boxy ring, a slap |
+| KICK | RUMBLE | a distorted kick and its rumble, two low tones beating | more drive, more rumble |
 | SNARE | CLAP | a synthesised clap: bursts of noise a few ms apart and a tail | the bursts loosened and roughened |
 | SNARE | WIRES | a body and its wires (noise through a short comb) | the wires ringing into metal |
 | SNARE | GRAIN | a cluster of tiny noise bursts | scattered into a stutter, each grain its own pitch |
 | SNARE | CRACK | a click ringing three resonances | the resonances pulled apart, glassy |
 | SNARE | BENT | a circuit-bent toy: two oscillators wired into each other, pitch jumps, a broken sample rate | rewires it: every WEIGHT and ENTROPY setting its own wild sound |
+| SNARE | RIM | a rim click: two short resonances | from wood to metal, ringing |
+| SNARE | SNAP | a finger snap: a pop in a band of noise | flammed: two or three snaps |
+| SNARE | BRUSH | a brush swished: noise swelling through a sweeping band | bristles catching, grittier, a faster stroke |
+| SNARE | SYNTH | the drum machine's: a tuned body and a noise snap | more snap, then crushed |
+| SNARE | SPRING | a snare through a spring: a burst boinging round a loop | more boing and chirp |
 | PERC | MATERIAL | a struck bar, dull and short | from wood to clay to glass |
 | PERC | FM PERC | FM blips with a snap of a pitch fall | inharmonic, fed back, decimated |
 | PERC | STRING | a struck string | struck sharp and settling, its overtones stretched |
 | PERC | FOLEY | found sounds: a box banged, a plank of wood, a footstep, something dragged | from one to the next (between two, each hit either) |
+| PERC | BLOCK | a wood block: a knock in a hollow | towards a slit drum, its two tongues a fourth or fifth apart, each hit either |
+| PERC | TABLA | a membrane's harmonic modes | from damped to ringing, the rim's tones |
+| PERC | HAND | a hand drum, open | muted, then a slap |
+| PERC | TINE | a plucked tine (a kalimba's) | a buzzing rattle and a beating twin |
+| PERC | BOTTLE | a struck bottle, glass partials over its note | water in it: a bubbling wobble |
 | HATS | METAL | six square waves at metal's ratios | towards the groove's own ratios, ring-modulated |
 | HATS | DUST | crackle: noise in sparse grains | pitched grains, smeared like a shaker |
 | HATS | DIGITAL | noise at a low sample rate and few bits | the rate jittering, the bits falling, a loop that sings |
 | HATS | VOX | almost a voice: breath and a buzz through vowel formants, very short | wider pitch jumps, the vowel sliding |
 | HATS | CLICK | impulse clicks through a resonance | a ping whose tone moves hit to hit, then bursts of clicks |
+| HATS | SHAKER | a shaker: noise swelling, its beads rattling | more beads, grittier, wider |
+| HATS | FM HAT | FM: a high carrier and an inharmonic modulator | further off, fed back |
+| HATS | AIR | a breath | tightening into a whistle that wavers |
+| HATS | CHIP | an 8-bit console's noise channel, its level in sixteen steps | its short loop's metallic tone, stepping down |
+| HATS | FOIL | tin foil crinkled: tiny clicks through two high resonances | denser and ringing: crinkle to tinkle |
+
+WEIGHT, for every engine, is fullness and length: bigger, lower, longer. The twenty newest take ENTROPY's whole range
+into their sound as well as their attack.
 
 The perc plays low, in the octave just above the kick (C2 to B2, in the groove's key). Every engine is short and
 staccato as dealt; REC deals WEIGHT mostly low. MIX's DECAY and MOOD make them longer.
@@ -320,7 +343,7 @@ extras that ACTIVITY brings in), a crack or rim on two and four with quiet ghost
 0, eighths as it rises, sixteenth pickups near the top, an open hat into the bar now and then) and a sparse rim or
 shaker for the perc. The hats and snare filtered dark, the kick boomy, and a heavy, lazy swing.
 
-**SENDS** (the second knob): **DRY**, every part dealt dry, the reverb, delay, pan and compressor yours to add (and
+**FX SENDS** (the third knob): **DRY**, every part dealt dry, the reverb, delay, pan and compressor yours to add (and
 the analogue out as clean as the kit); or **DEALT**, REC deals each personality's own sends for the snare, perc and
 hats (BRAINDANCE varied, FLOORS dub delay and a pumping compressor, CLOUDS rooms and trails, IMPLODE a small room and
 tape glue), all under 50. The kick is never sent to the reverb, delay or pan; DEALT gives it some compressor (most in

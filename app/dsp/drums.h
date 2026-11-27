@@ -36,6 +36,40 @@ enum {
                   * different; WEIGHT: a bigger object */
     D_BENT,      /* SNARE (and anywhere): a circuit-bent toy, two oscillators wired into each other, pitch jumps, a broken
                   * sample rate; WEIGHT and ENTROPY rewire it: every setting its own wild sound */
+    /* the twenty more (v0.13), five a part. Their bodies take ENTROPY's whole range (the older ones a little over half:
+     * theirs is mostly the front) */
+    D_PING,      /* KICK: a resonant filter struck (the analogue kick's bridged-T), the pitch falling; ENTROPY drives it and
+                  * rings a clanging second resonance; WEIGHT: longer, lower */
+    D_FOLD,      /* KICK: a falling sine through a wavefolder; ENTROPY folds it further and lopsided, the folds opening and
+                  * closing; WEIGHT: deeper, longer */
+    D_TAPE,      /* KICK: a kick on worn tape: saturated, the highs rolled off; ENTROPY: wow, flutter, dropouts, hiss */
+    D_THUD,      /* KICK: a felt thump, its air and its skin; ENTROPY: felt to cardboard (a boxy ring, a slap) */
+    D_RUMBLE,    /* KICK: a distorted kick and its rumble (two low tones beating, darkened); ENTROPY: more drive and rumble;
+                  * WEIGHT: a longer rumble */
+    D_RIM,       /* SNARE: a rim click: two short resonances; ENTROPY: wood to metal (ringing, a third mode); WEIGHT: body */
+    D_SNAP,      /* SNARE: a finger snap, a pop in a band of noise; ENTROPY: flammed, two or three snaps; WEIGHT: a tail */
+    D_BRUSH,     /* SNARE: a brush swished: noise swelling through a sweeping band; ENTROPY: bristles and grit, a faster
+                  * sweep; WEIGHT: a longer stroke */
+    D_SYNTH,     /* SNARE: the drum machine's: a tuned body and a noise snap; ENTROPY: more snap, then crushed;
+                  * WEIGHT: a bigger body */
+    D_SPRING,    /* SNARE: a snare through a spring: a burst boinging round a dispersive loop; ENTROPY: more boing and
+                  * chirp; WEIGHT: longer, lower */
+    D_BLOCK,     /* PERC: a wood block, a knock in a hollow; ENTROPY: towards a slit drum, its two tongues a fourth or
+                  * fifth apart, each hit either; WEIGHT: longer, lower */
+    D_TABLA,     /* PERC: a membrane's harmonic modes (a tabla's); ENTROPY: damped to ringing (the rim's tones);
+                  * WEIGHT: the bass drum, a quick dip of pitch */
+    D_HAND,      /* PERC: a hand drum: open, muted, then (ENTROPY) a slap; WEIGHT: bongo to tumba */
+    D_TINE,      /* PERC: a plucked tine (a kalimba's); ENTROPY: a buzzing rattle and a beating detune; WEIGHT: longer */
+    D_BOTTLE,    /* PERC: a struck bottle, glass partials over its note; ENTROPY: water in it (a bubbling wobble);
+                  * WEIGHT: a bigger bottle, breath in it */
+    D_SHAKER,    /* HATS: a shaker: noise swelling, its beads rattling; ENTROPY: more beads, grittier, wider; WEIGHT:
+                  * a longer shake */
+    D_FMHAT,     /* HATS: FM: a high carrier, an inharmonic modulator; ENTROPY: further off and fed back; WEIGHT: open */
+    D_AIR,       /* HATS: a breath; ENTROPY: tightening into a whistle that wavers; WEIGHT: longer, fuller */
+    D_CHIP,      /* HATS: an 8-bit console's noise channel: hiss, then (ENTROPY) its short loop's metallic tone, stepping
+                  * down, the level in sixteen steps; WEIGHT: longer, lower */
+    D_FOIL,      /* HATS: tin foil crinkled: tiny clicks through two high resonances, thinning; ENTROPY: denser, ringing
+                  * (crinkle to tinkle); WEIGHT: a longer crinkle */
     NUM_ENGINES
 };
 extern const char *const ENGINE_NAME[NUM_ENGINES];

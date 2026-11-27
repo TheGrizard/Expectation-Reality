@@ -2,7 +2,7 @@
 
 **Generative percussion for the M-VAVE FM-1, a partner to [After Images](https://github.com/TheGrizard/After-Images).**
 Press REC and it writes a groove: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length driving one
-of eighteen synthesised drum engines. **Expectation** is the groove it deals, a loop that plays the same every time.
+of thirty-eight synthesised drum engines. **Expectation** is the groove it deals, a loop that plays the same every time.
 Turn up EVOLVE and it becomes **reality**: to halfway the groove's step components come in one by one, weirder but still
 looping exactly; past halfway it flows freely and rewrites itself.
 
@@ -30,8 +30,10 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
   ghosts, open hats, pitches, accents. Each switches on at its own point on EVOLVE.
 - **A groove that breathes.** Velocities shaped by the bar's weight, a drifting accent cycle and a slow swell; WARP a
   humaniser; fills that change the groove a little, and a FILL key.
-- **Eighteen drum engines**: 808, MEMBRANE, BOX, FM KICK, CLAP, WIRES, GRAIN, CRACK, BENT (circuit-bent), MATERIAL,
-  FM PERC, STRING, FOLEY (boxes, wood, footsteps, drags), METAL, DUST, DIGITAL, VOX, CLICK. WEIGHT sets a hit's
+- **Thirty-eight drum engines**: kicks 808, MEMBRANE, BOX, FM KICK, PING, FOLD, TAPE, THUD, RUMBLE; snares CLAP,
+  WIRES, GRAIN, CRACK, BENT (circuit-bent), RIM, SNAP, BRUSH, SYNTH, SPRING; perc MATERIAL, FM PERC, STRING, FOLEY
+  (boxes, wood, footsteps, drags), BLOCK, TABLA, HAND, TINE, BOTTLE; hats METAL, DUST, DIGITAL, VOX, CLICK, SHAKER,
+  FM HAT, AIR, CHIP, FOIL. WEIGHT sets a hit's
   fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
   through the whole hit; MOOD plays the kit heavy and long or bright and short.
 - **Punch-ins on the white keys** (high-pass, a fill key, repeats, glitch, pitch down and up, tape mash, reverse, freeze, swell,

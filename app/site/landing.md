@@ -19,9 +19,11 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 - **Generators, not dice:** a groove map, Euclidean rhythms, Turing machines and broken IDM groupings; or other
   personalities: FLOORS' four on the floor, CLOUDS' soft micro-sounds, IMPLODE's dusty boom-bap.
 - **Step components:** ratchets, nudges, conditions, probabilities and ghosts, brought in by EVOLVE one at a time.
-- **Eighteen drum engines:** a soft 808, struck skins, resonant boxes, FM, claps, wires, grains, cracks, a circuit-bent
-  toy, wood and glass, strings, foley (boxes, wood, footsteps, drags), metal clusters, crackle, digital noise, an
-  almost-vocal hat and impulse clicks. WEIGHT sets the fullness, ENTROPY the attack, MOOD heavy and long to bright
+- **Thirty-eight drum engines:** a soft 808, struck skins, resonant boxes, FM, a struck filter, a wavefolder, worn tape,
+  felt thumps and rumbles; claps, wires, grains, cracks, a circuit-bent toy, rims, snaps, brushes, a drum machine's
+  snare and a spring; wood and glass, strings, foley, wood blocks and slit drums, tabla, hand drums, tines and bottles;
+  metal clusters, crackle, digital noise, an almost-vocal hat, impulse clicks, shakers, FM hats, breath, 8-bit noise
+  and crinkled foil. WEIGHT sets the fullness, ENTROPY the attack, MOOD heavy and long to bright
   and short.
 - **Punch-ins on the keys:** filters, a fill key, repeats held to the grid, glitch, pitch up and down, tape mash, reverse, freeze, swell, crush; on the beat, with a beat light to time them by.
 - **Randomisers on the black keys:** every hit of a part thrown somewhere new while you hold one.

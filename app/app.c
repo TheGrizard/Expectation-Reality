@@ -318,7 +318,8 @@ static const Knob PAGES[NPAGES][4] = {
     { { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "LINK", K_PCT, 0, GO(link) }, { "WARP", K_PCT, 0, GO(warp) }, { "FLOW", K_PCT, 0, GO(flow) }, { "CHAOS", K_PCT, 0, GO(chaos) } },
     { { "MOOD", K_PCT, 0, GO(mood) }, { "ACTIVITY", K_PCT, 0, GO(activity) }, { "EVOLVE", K_PCT, 0, GO(evolve) }, { "DRIFT", K_PCT, 0, GO(drift) } },
-    { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "SENDS", K_DEALT, 2, SO(sends) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
+    { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "", K_NONE, 0, 0 }, { "FX SENDS", K_DEALT, 2, SO(sends) }, { "", K_NONE, 0, 0 } },   /* (SENDS on
+                                                  * the third: PERSONALITY's long name and value need the room beside it) */
     { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "STYLE", K_STYLE, 2, SO(style) } },
     { { "KEY", K_KEY, 0, GO(key) }, { "SCALE", K_SCALE, 0, GO(scale) }, { "SWING", K_PCT, 0, GO(swing) }, { "TEMPO", K_TEMPO, 0, GO(tempo) } },
     { { "CLOCK", K_SYNC, 2, SO(sync) }, { "NOTES OUT", K_ONOFF, 2, SO(midi_on) }, { "LISTEN", K_ONOFF, 2, SO(listen) }, { "CC IN", K_ONOFF, 2, SO(cc_in) } },
@@ -423,6 +424,15 @@ static void knob_text(int pg, int k, char *s)
     default: int_text(v, s); break;
     }
 }
+/* ENGINE on the knob grouped by part (the kicks, the snares, the perc, the hats), each group's newer five after its
+ * older; kept in a groove by its own number */
+static const uint8_t ENG_ORD[NUM_ENGINES] = {
+    D_MEMBRANE, D_BOX, D_FMKICK, D_808, D_PING, D_FOLD, D_TAPE, D_THUD, D_RUMBLE,
+    D_WIRES, D_GRAIN, D_CRACK, D_CLAP, D_BENT, D_RIM, D_SNAP, D_BRUSH, D_SYNTH, D_SPRING,
+    D_MATERIAL, D_FMPERC, D_STRING, D_FOLEY, D_BLOCK, D_TABLA, D_HAND, D_TINE, D_BOTTLE,
+    D_METAL, D_DUST, D_DIGITAL, D_VOX, D_CLICK, D_SHAKER, D_FMHAT, D_AIR, D_CHIP, D_FOIL };
+static int eng_pos(int e) { for (int i = 0; i < NUM_ENGINES; i++) if (ENG_ORD[i] == e) return i; return 0; }
+
 /* SEQ's RATE on the knob slow to fast (1/8, 1/8T, 1/16, 1/16T, 1/32); kept in a groove by its own number, as saved
  * grooves have it */
 static const uint8_t RATE_ORD[NUM_RATES] = { R_8, R_8T, R_16, R_16T, R_32 };
@@ -438,7 +448,7 @@ static float knob_frac(int pg, int k)
     case K_STYLE: return (float)v;
     case K_PEGN: return (float)v / (NPEG_NS - 1);
     case K_SYNC: return (float)v / (NSYNC - 1);
-    case K_ENGINE: return (float)v / (NUM_ENGINES - 1);
+    case K_ENGINE: return (float)eng_pos((int)(v % NUM_ENGINES)) / (NUM_ENGINES - 1);
     case K_GEN: return (float)v / (NUM_GENS - 1);
     case K_LEN: return (float)(v - MINLEN) / (float)(MAXLEN - MINLEN);
     case K_RATE: return (float)rate_pos((int)(v % NUM_RATES)) / (NUM_RATES - 1);
@@ -632,7 +642,7 @@ static void select_part(int p)
 static void knob_turn(int k, int d)
 {
     const Knob *kn = knob_of(ui.page, k); uint8_t *p = knob_ptr(ui.page, k); uint8_t was = p ? *p : 0;
-    int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : kn->kind == K_RATE ? rate_pos(*p % NUM_RATES) : *p, lo = 0, hi = 100, step = 2, wrap = 0;
+    int v = kn->kind == K_PITCH ? (int8_t)*p : kn->kind == K_REC ? *p & 1 : kn->kind == K_ROUTE ? *p >> 1 & 1 : kn->kind == K_RATE ? rate_pos(*p % NUM_RATES) : kn->kind == K_ENGINE ? eng_pos(*p % NUM_ENGINES) : *p, lo = 0, hi = 100, step = 2, wrap = 0;
     if (kn->kind == K_NONE) return;
     switch (kn->kind) {
     case K_REC: case K_ROUTE: case K_STYLE: hi = 1; step = 1; break;
@@ -667,6 +677,7 @@ static void knob_turn(int k, int d)
     else if (kn->kind == K_REC) *p = (uint8_t)((*p & 2u) | (unsigned)v);          /* (CONTROL and OUTPUT share a byte) */
     else if (kn->kind == K_ROUTE) *p = (uint8_t)((*p & 1u) | (unsigned)v << 1);
     else if (kn->kind == K_RATE) *p = RATE_ORD[v];
+    else if (kn->kind == K_ENGINE) *p = ENG_ORD[v];
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
     if (kn->kind == K_GENRE && v != was) {       /* (a genre's own tempo when you choose it; REC keeps yours after) */
