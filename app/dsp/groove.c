@@ -4,7 +4,7 @@
 
 const char *const PART_NAME[NPARTS] = { "KICK", "SNARE", "PERC", "HATS" };
 const char *const GEN_NAME[NUM_GENS] = { "MAP", "EUCLID", "TURING", "BROKEN" };
-const char *const GENRE_NAME[NUM_GENRES] = { "IDM", "TECHNO", "AMBIENT", "LOFI" };
+const char *const GENRE_NAME[NUM_GENRES] = { "BRAINDANCE", "FLOORS", "CLOUDS", "IMPLODE" };   /* (IDM, techno, ambient, lofi hip hop) */
 const char *const RATE_NAME[NUM_RATES] = { "1/16", "1/8", "1/32", "1/16T", "1/8T" };
 const uint8_t RATE_TICKS[NUM_RATES] = { 24, 48, 12, 16, 32 };
 const char *const RT_NAME[NUM_RT] = { "ROOM", "GATED", "REVERSE", "FREEZE" };

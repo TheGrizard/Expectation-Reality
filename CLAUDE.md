@@ -38,13 +38,14 @@ Generative at its core, with macros across the main features, as After Images ha
   SCALE page), dealt by REC.
 - Velocity is shaped for groove, experimental but groovy (Autechre, Boards of Canada): the bar's weight (downbeats
   strongest), a drifting accent cycle of 3, 5 or 7 sixteenths, a slow wave; harder hits brighter and heavier.
-- First iteration: IDM in feel and machine-like. GLO's GENRE (its own page, GLO twice; GLO is MACROS, GENRE,
-  VISUALS, SCALE) chooses what REC deals: IDM, or TECHNO (four on the floor always, the snare or clap on two and
-  four, perc Euclid's on odd lengths and Turing hats round an off-beat: polymetric, hypnotic; next to no swing),
-  AMBIENT (soft and sparse, micro-sounds: a soft kick about once a bar, the snare a rare texture, tiny clicks, dust and
-  grains in 1/32s and triplets on odd lengths) or LOFI (boom-bap: written kicks, a crack on two and four with ghosts,
-  dusty hats, dark tones, heavy swing). Choosing one sets its tempo (IDM 100, TECHNO 135, AMBIENT 80, LOFI 85); a
-  groove keeps its genre.
+- First iteration: IDM in feel and machine-like. GLO's PERSONALITY (its own page, GLO twice; GLO is MACROS,
+  PERSONALITY, VISUALS, SCALE; in the code, a groove's genre) chooses what REC deals: BRAINDANCE (IDM, the first),
+  FLOORS (techno: four on the floor always, the snare or clap on two and four, perc Euclid's on odd lengths and
+  Turing hats round an off-beat: polymetric, hypnotic; next to no swing), CLOUDS (ambient: soft and sparse,
+  micro-sounds: a soft kick about once a bar, the snare a rare texture, tiny clicks, dust and grains in 1/32s and
+  triplets on odd lengths) or IMPLODE (lo-fi hip hop: boom-bap, written kicks, a crack on two and four with ghosts,
+  dusty hats, dark tones, heavy swing). Choosing one sets its tempo (BRAINDANCE 100, FLOORS 135, CLOUDS 65, IMPLODE
+  85); a groove keeps its personality.
 - Generators: Turing machines for the high percussion (hats, shakers); Euclidean rhythms, a Grids-style groove map,
   polymeters, fills as simple groove changes (no rolls, nothing accelerating), probability and ghost notes.
 - Effects, in three places:

@@ -38,7 +38,7 @@ wait 100
 turn K1 2
 wait 300
 expect genre 2
-expect tempo 80
+expect tempo 65
 turn K1 1
 wait 300
 expect genre 3

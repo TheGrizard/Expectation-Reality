@@ -19,8 +19,9 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 ## What makes it different
 
 - **Always a kit, never the same groove.** REC deals four sounds (one carried over from the last groove), four patterns, a palette, the effects and
-  a name. IDM and machine-like first: Autechre, Boards of Canada, Burial, Objekt. Or, with GLO's GENRE: TECHNO (four on the
-  floor, hypnotic polymetric perc and hats), AMBIENT (soft micro-sounds) or LOFI (boom-bap, dusty, swung).
+  a name. IDM and machine-like first: Autechre, Boards of Canada, Burial, Objekt. That's the BRAINDANCE personality; GLO's PERSONALITY also
+  has FLOORS (techno: four on the floor, hypnotic polymetric perc and hats), CLOUDS (ambient: soft micro-sounds) and
+  IMPLODE (lo-fi hip hop: boom-bap, dusty, swung).
 - **Polymeters.** The kick and snare hold the bar; the perc and hats loop on odd lengths (5, 7, 11, 13 ...), drifting
   against it and meeting again.
 - **Generators.** A groove map that blends half-time, 2-step, electro and broken grooves; Euclidean rhythms; Turing

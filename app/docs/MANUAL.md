@@ -21,7 +21,7 @@ repeat; past it, it flows freely and rewrites itself.
 9. The grooves and their step components
 10. Effects
 11. Motion
-12. Genre, key, swing and tempo
+12. Personality, key, swing and tempo
 13. The keys: punch-ins and randomisers
 14. Saving your grooves
 15. Playing with After Images
@@ -54,7 +54,7 @@ repeat; past it, it flows freely and rewrites itself.
 | ENV | MIX |
 | FX, again, again, again | SENDS, EFFECTS, TYPES, DELAY |
 | LFO | MOTION |
-| GLO, twice, three, four times | MACROS, GENRE, VISUALS, SCALE |
+| GLO, twice, three, four times | MACROS, PERSONALITY, VISUALS, SCALE |
 | ARP, twice, three times | MIDI, CHANNELS, USB AUDIO |
 | white keys | punch-in effects (section 13) |
 | black keys | randomisers (section 13) |
@@ -293,12 +293,12 @@ at full, or USB AUDIO's GAIN at 100, is unity.
 - **FLOW**: each part's sound slowly wandering.
 - **CHAOS**: rolls, skipped hits and hits pushed off the grid, at random (never the kick's).
 
-## 12. Genre, key, swing and tempo
+## 12. Personality, key, swing and tempo
 
-![GENRE](img/genre.png)
+![PERSONALITY](img/genre.png)
 
-**GLO twice: GENRE**: what REC deals: IDM, TECHNO, AMBIENT or LOFI. **IDM** is the groove as it has always been: broken, shuffled, machine-like.
-**TECHNO** deals:
+**GLO twice: PERSONALITY**: what REC deals: BRAINDANCE, FLOORS, CLOUDS or IMPLODE. **BRAINDANCE** (IDM) is the groove
+as it has always been: broken, shuffled, machine-like. **FLOORS** (techno) deals:
 
 - the kick four on the floor, every beat, always: ACTIVITY only adds a pounding extra on top (a pickup into the one, a
   rolling double), and nothing (EVOLVE, CHAOS, conditions) takes a floor kick away; FILL still drops it for a bar, as
@@ -308,18 +308,17 @@ at full, or USB AUDIO's GAIN at 100, is unity.
   with a looping sixteenth machine round them, often on a length that isn't 16: polymeters, hypnotic;
 - the punchier kicks, the clap, the metallic and digital hats; and next to no swing.
 
-**AMBIENT** deals soft and sparse, out of micro-sounds: a soft, long kick about once a bar (sometimes off the one), the
+**CLOUDS** (ambient) deals soft and sparse, out of micro-sounds: a soft, long kick about once a bar (sometimes off the one), the
 snare a rare texture of wires and grains rather than a backbeat, and the perc and hats tiny clicks, dust, grains and
 foley, often in 1/32s or triplets on odd loop lengths. Soft attacks, darker tones, gentler hits, a little swing.
 
-**LOFI** deals boom-bap: a written hip-hop kick (the one, then a second hit that moves from groove to groove, with
+**IMPLODE** (lo-fi hip hop) deals boom-bap: a written hip-hop kick (the one, then a second hit that moves from groove to groove, with
 extras that ACTIVITY brings in), a crack or rim on two and four with quiet ghosts, dusty hats (quarters at ACTIVITY
 0, eighths as it rises, sixteenth pickups near the top, an open hat into the bar now and then) and a sparse rim or
 shaker for the perc. The hats and snare filtered dark, the kick boomy, and a heavy, lazy swing.
 
-Choosing a genre sets its tempo: IDM 100, TECHNO 135, AMBIENT 80, LOFI 85 BPM; after that REC keeps your tempo, as
-always. A saved groove
-keeps its genre. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in both.
+Choosing a personality sets its tempo: BRAINDANCE 100, FLOORS 135, CLOUDS 65, IMPLODE 85 BPM; after that REC keeps
+your tempo, as always. A saved groove keeps its personality. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in each.
 
 ![SCALE](img/scale.png)
 

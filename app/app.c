@@ -8,7 +8,7 @@
  *   K1-K4              at HOME the parts' levels; HOME held + K1-K4 the macros (MOOD, ACTIVITY, EVOLVE, DRIFT); on
  *                      the other pages, their four settings
  *   HOME EDIT SEQ ENV FX LFO GLO ARP   the pages: HOME, SOUND, GROOVE, MIX, SENDS, MOTION, MACROS, MIDI; pressed again
- *                      FX: EFFECTS, TYPES, DELAY; GLO: GENRE, VISUALS, SCALE; ARP: CHANNELS, USB AUDIO
+ *                      FX: EFFECTS, TYPES, DELAY; GLO: PERSONALITY, VISUALS, SCALE; ARP: CHANNELS, USB AUDIO
  *   HOME tapped at HOME   the processor's load, and whether saving works
  *   SELECT, SEL        the part the SOUND, GROOVE, MIX and SENDS pages show
  *   PRESET             the chosen part's engine;   ALGORITHM   your saved grooves
@@ -297,7 +297,7 @@ static const char *const NOTE_NAME[12] = { "C", "C#", "D", "D#", "E", "F", "F#",
 enum { PG_HOME, PG_SOUND, PG_SEQ, PG_MIX, PG_SENDS, PG_FXBUS, PG_TYPES, PG_DELAY, PG_MOTION, PG_MACROS, PG_GENRE, PG_SCREEN, PG_SCALE,
        PG_MIDI, PG_CHAN, PG_USB, NPAGES };
 static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX", "SENDS", "EFFECTS", "TYPES", "DELAY", "MOTION",
-                                                "MACROS", "GENRE", "VISUALS", "SCALE", "MIDI", "CHANNELS", "USB AUDIO" };
+                                                "MACROS", "PERSONALITY", "VISUALS", "SCALE", "MIDI", "CHANNELS", "USB AUDIO" };
 static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
 enum { K_NONE, K_PCT, K_ENGINE, K_GEN, K_LEN, K_RATE, K_PITCH, K_PAN, K_TONE, K_SEND, K_RT, K_CT, K_DT, K_PT, K_DTIME,
        K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE, K_GENRE };
@@ -317,7 +317,7 @@ static const Knob PAGES[NPAGES][4] = {
     { { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "LINK", K_PCT, 0, GO(link) }, { "WARP", K_PCT, 0, GO(warp) }, { "FLOW", K_PCT, 0, GO(flow) }, { "CHAOS", K_PCT, 0, GO(chaos) } },
     { { "MOOD", K_PCT, 0, GO(mood) }, { "ACTIVITY", K_PCT, 0, GO(activity) }, { "EVOLVE", K_PCT, 0, GO(evolve) }, { "DRIFT", K_PCT, 0, GO(drift) } },
-    { { "GENRE", K_GENRE, 0, GO(genre) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
+    { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
     { { "COUNT", K_PEGN, 2, SO(peg_n) }, { "FADE", K_PCT, 2, SO(fade) }, { "BRIGHT", K_PCT, 2, SO(bright) }, { "STYLE", K_STYLE, 2, SO(style) } },
     { { "KEY", K_KEY, 0, GO(key) }, { "SCALE", K_SCALE, 0, GO(scale) }, { "SWING", K_PCT, 0, GO(swing) }, { "TEMPO", K_TEMPO, 0, GO(tempo) } },
     { { "CLOCK", K_SYNC, 2, SO(sync) }, { "NOTES OUT", K_ONOFF, 2, SO(midi_on) }, { "LISTEN", K_ONOFF, 2, SO(listen) }, { "CC IN", K_ONOFF, 2, SO(cc_in) } },
@@ -666,7 +666,7 @@ static void knob_turn(int k, int d)
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
     if (kn->kind == K_GENRE && v != was) {       /* (a genre's own tempo when you choose it; REC keeps yours after) */
-        static const uint8_t GT[NUM_GENRES] = { 100, 135, 80, 85 };   /* (IDM, TECHNO, AMBIENT, LOFI) */
+        static const uint8_t GT[NUM_GENRES] = { 100, 135, 65, 85 };   /* (BRAINDANCE, FLOORS, CLOUDS, IMPLODE) */
         set.cur.tempo = (uint8_t)(GT[v % NUM_GENRES] - 40);
     }
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
@@ -1169,7 +1169,8 @@ static void draw_panel_rows(int y0)
                 w1[sp] = 0;
                 cv_text(cx - text_w(&FONT_XS, w1) / 2, y - 10, &FONT_XS, w1, hot ? pc : C_SUB);
                 cv_text(cx - text_w(&FONT_XS, nm + sp + 1) / 2, y, &FONT_XS, nm + sp + 1, hot ? pc : C_SUB);
-            } else cv_text(cx - text_w(&FONT_XS, nm) / 2, y, &FONT_XS, nm, hot ? pc : C_SUB);
+            } else { int tx = cx - text_w(&FONT_XS, nm) / 2; cv_text(tx < 4 ? 4 : tx, y, &FONT_XS, nm, hot ? pc : C_SUB); }   /* (one word
+                                                  * too wide for its column, PERSONALITY: from the edge, not cut off) */
         }
         char v[24]; knob_text(pg, k, v);
         int room = k < 3 && knob_of(pg, k + 1)->kind == K_NONE ? 112 : 56;
