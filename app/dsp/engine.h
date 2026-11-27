@@ -25,7 +25,7 @@ typedef struct {
     int16_t at[EVQ]; uint8_t nat;        /* this block's: the queue's first nat start at these samples */
     float bus[2][BLKN];                  /* this block's sound, after its TONE and level */
     uint32_t step;                       /* the next of its steps to deal */
-    Svf lp[2], hp[2]; float tone_now; int tone_cnt;
+    Svf lp[2], hp[2], floor[2]; float tone_now; int tone_cnt;
     float gain, present, present_t; int drift_bars;
     Drift fw, fe, fb;                    /* FLOW: its colours wandering */
     float fw_v, fe_v, fb_v;
@@ -37,9 +37,9 @@ typedef struct {
 /* the room's memory: the gated room's pre-delay, the reversed room's two chunks */
 #define ROOM_BUF 8192
 #define DLY_BUF 16384                    /* the delay: each side's line (0.37 s) */
-#define PUNCH_BUF 16384                  /* the punch-ins' memory: the last 0.37 s, stereo */
+#define PUNCH_BUF 16384                  /* the punch-ins' memory: the last 0.37 s, stereo (an eighth down to 82 BPM) */
 
-enum { PU_NONE, PU_LPF, PU_REP4, PU_REP8, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP, PU_REVERSE,
+enum { PU_NONE, PU_LPF, PU_RATCHET, PU_REP8, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP, PU_REVERSE,
        PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_REP12, PU_HPF, NUM_PU };
 extern const char *const PU_NAME[NUM_PU];
 
@@ -60,7 +60,7 @@ struct Engine {
     /* the bus */
     float sc;                            /* the kick's level: the sidechain */
     Reverb rv; float rv_in[2][BLKN], rv_out[2][BLKN];
-    int16_t room_buf[ROOM_BUF]; int room_w; float gate, gate_hold; int rchunk; float room_dip, room_t_now;
+    int16_t room_buf[ROOM_BUF]; int room_w; float gate, gate_hold, gate_s[BLKN]; int rchunk; float room_dip, room_t_now;
     int16_t dl[2][DLY_BUF]; int dw; float dt_a, dt_b, dxf, dfb_now, dly_dip; int dly_t_now; uint32_t dl_step;
     float dg_ph, dg_rate, dg_rate_t; OnePole dlp[2];
     float cmp_lvl, cmp_g, smash;         /* COMP: its level, its gain, CLEAN to TAPE SMASH (glided) */
@@ -71,6 +71,7 @@ struct Engine {
     int pu, pu_rel; float pu_mix; int16_t pb[2][PUNCH_BUF]; int pw, ps0, pu_frozen;
     float rpos, rlen, rnext, rate_ts; float lp_c, hp_c; Svf plp[2], php[2]; int pf_cnt;
     int pu_cap, pu_fwd, rec_since;       /* capturing forward: how much so far; the memory's clean run since it last froze */
+    int rat_left;                        /* RATCHET: passes left before it doubles its speed */
     Shifter shf[2]; float crush_h, crush_v[2]; float kill_g; float frz; int swell_left, swell_len;
     /* MIDI out */
     void (*midi)(uint32_t pkt);

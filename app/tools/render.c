@@ -64,6 +64,8 @@ static void apply_env(Groove *g)
         char buf[128]; strncpy(buf, getenv("ENGS"), sizeof buf - 1); buf[sizeof buf - 1] = 0;
         int p = 0; for (char *t = strtok(buf, ","); t && p < NPARTS; t = strtok(NULL, ","), p++) { int e = engine_by_name(t); if (e >= 0) { g->p[p].engine = (uint8_t)e; groove_part_engine(g, p); } }
     }
+    if (getenv("SOLO")) { int k = atoi(getenv("SOLO")); for (int p = 0; p < NPARTS; p++) if (p != k) g->p[p].level = 0; }   /* (one part alone) */
+    if (getenv("DRY")) { const char *d = getenv("DRY"); if (strchr(d, 'r')) g->room = 0; if (strchr(d, 'd')) g->delay = 0; if (strchr(d, 'c')) g->comp = 0; if (strchr(d, 'p')) g->pan = 0; }   /* (r d c p: effects off) */
     if (getenv("SMOOTH")) {                       /* a smooth kit (sines only): any step in the output is a click */
         g->p[P_KICK].engine = D_MEMBRANE; g->p[P_SNARE].level = 0; g->p[P_HATS].level = 0; g->p[P_PERC].engine = D_MATERIAL;
         g->p[P_KICK].entropy = 10; g->p[P_PERC].entropy = 30; g->room = 0; g->delay = 0;
@@ -123,10 +125,10 @@ static void run(const char *path, float secs, int punch)
     static float L[BLKN], R[BLKN];
     int evosweep = env_i("EVOSWEEP", 0), actsweep = env_i("ACTSWEEP", 0), ai = env_i("AI", 0);
     static const struct { float beat; int pu; } PLAN[] = {
-        { 8, PU_REP8 }, { 10, 0 }, { 12, PU_REP16 }, { 13, PU_REP32 }, { 14, 0 }, { 16, PU_PDOWN }, { 18, 0 }, { 20, PU_PUP }, { 22, 0 },
-        { 24, PU_STOP }, { 26, 0 }, { 28, PU_REVERSE }, { 30, 0 }, { 32, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
-        { 43.3f, PU_SWELL }, { 44.2f, 0 }, { 46, PU_CRUSH }, { 48, 0 }, { 50, PU_KILL }, { 52, 0 }, { 54, PU_REP12 }, { 56, 0 },
-        { 58, -1 }, { 61, -2 }, { 64, 0 } };
+        { 8.3f, PU_REP8 }, { 10, 0 }, { 12.15f, PU_REP16 }, { 13.4f, PU_REP32 }, { 14, 0 }, { 16, PU_PDOWN }, { 18, 0 }, { 20, PU_PUP }, { 22, 0 },
+        { 24, PU_STOP }, { 26, 0 }, { 28.35f, PU_REVERSE }, { 30, 0 }, { 32.2f, PU_GLITCH }, { 35, 0 }, { 36, PU_FREEZE }, { 40, 0 },
+        { 43.3f, PU_SWELL }, { 44.2f, 0 }, { 46, PU_CRUSH }, { 48, 0 }, { 50, PU_KILL }, { 52, 0 }, { 54.1f, PU_REP12 }, { 56, 0 },
+        { 58, -1 }, { 61, -2 }, { 64, 0 }, { 68.4f, PU_RATCHET }, { 71.6f, 0 } };   /* (pressed off the beat: they keep to the grid) */
     int next = 0; float last_beat = -1;
     clock_t t0 = clock();
     for (long done = 0; done < frames; done += BLKN) {
@@ -182,13 +184,14 @@ static void sweep(int engine, const char *path)
     int n = 24;
     for (int k = 0; k < 2 * n; k++) {
         HitP p; memset(&p, 0, sizeof p);
-        p.engine = (uint8_t)engine; p.vel = 0.85f; p.bright = 0.5f; p.decay = 1.0f; p.seed = 77u + (uint32_t)k; p.gseed = 1234u;
-        p.note = engine_part(engine) == P_PERC ? 57.0f + (float)((k * 5) % 12) : 60.0f;
-        if (k < n) { p.weight = (float)k / (float)(n - 1); p.entropy = 0.2f; }
+        p.engine = (uint8_t)engine; p.vel = 0.85f; p.bright = 0.5f; p.decay = getenv("DECAY") ? (float)atof(getenv("DECAY")) : 1.0f; p.seed = 77u + (uint32_t)k; p.gseed = 1234u;
+        p.note = engine_part(engine) == P_PERC ? 40.0f + (float)((k * 5) % 12) : 60.0f;
+        if (getenv("EONLY")) { if (k >= n) break; p.weight = 0.5f; p.entropy = (float)k / (float)(n - 1); }   /* (ENTROPY alone, WEIGHT in the middle) */
+        else if (k < n) { p.weight = (float)k / (float)(n - 1); p.entropy = 0.2f; }
         else { p.weight = 0.45f; p.entropy = (float)(k - n) / (float)(n - 1); }
         if (h.on) { hit_choke(&h); while (h.on) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); for (int i = 0; i < BLK; i++) wav_put(&w, buf[i], buf[i]); } }
         hit_start(&h, &p);
-        long len = (long)(0.38f * SR);
+        long len = (long)((getenv("SPACE") ? (float)atof(getenv("SPACE")) : 0.38f) * SR);
         for (long d = 0; d < len; d += BLK) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); for (int i = 0; i < BLK; i++) wav_put(&w, buf[i], buf[i]); }
         if (k == n - 1) for (int i = 0; i < (int)(0.6f * SR); i++) { memset(buf, 0, sizeof buf); if (h.on) hit_render(&h, buf, 1); wav_put(&w, buf[0], buf[0]); }
     }
@@ -208,6 +211,70 @@ static void calibrate(void)
             for (int b = 0; b < 400 && h.on; b++) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); for (int i = 0; i < BLK; i++) { float a = fm_fabsf(buf[i]); if (a > pk) pk = a; if (b < 20) { ss += (double)(buf[i] * buf[i]); cnt++; } } }
         }
         printf("  %-10s peak %.2f  rms(first 15 ms) %.3f\n", ENGINE_NAME[e], (double)pk, __builtin_sqrt(ss / (double)(cnt ? cnt : 1)));
+    }
+}
+
+/* each engine's loudness across WEIGHT and ENTROPY (the first 60 ms: its punch), as a correction table for drums.c */
+extern int drums_level_raw;
+static void level_table(void)
+{
+    static Hit h; float buf[BLK];
+    drums_level_raw = 1;
+    printf("/* SPDX-License-Identifier: MPL-2.0 */\n/* each engine's level correction across WEIGHT (rows 0, 0.25 .. 1) and ENTROPY (columns 0, 0.0625 .. 1): measured by\n * tools/render levels (each hit's loudest 10 ms against the engine's middle), so a sweep keeps its level */\nstatic const float LEVEL[NUM_ENGINES][5][17] = {\n");
+    for (int e = 0; e < NUM_ENGINES; e++) {
+        double ref = 0, m[5][17];
+        for (int wi = 0; wi < 5; wi++) for (int ei = 0; ei < 17; ei++) {
+            double ss = 0; long cnt = 0;   /* (the loudest 10 ms of each hit: how loud a drum sounds) */
+            for (int k = 0; k < 16; k++) {
+                HitP p; memset(&p, 0, sizeof p);
+                p.engine = (uint8_t)e; p.vel = 1.0f; p.bright = 0.5f; p.decay = 1.0f; p.seed = 31u + (uint32_t)k * 7u; p.gseed = 5u;
+                p.weight = 0.25f * (float)wi; p.entropy = 0.0625f * (float)ei; p.note = engine_part(e) == P_PERC ? 40.0f + (float)(k * 2) : 60.0f;
+                hit_start(&h, &p);
+                static float win[4410]; int nw = 0;
+                for (int b = 0; b < (int)(0.1f * SR / BLK) && h.on; b++) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); for (int i = 0; i < BLK && nw < 4410; i++) win[nw++] = buf[i]; }
+                while (h.on) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); }
+                while (nw < 441) win[nw++] = 0;    /* (a hit shorter than the window: the rest silence) */
+                double best = 0;
+                for (int s0 = 0; s0 + 441 <= nw; s0 += 110) { double q = 0; for (int i = 0; i < 441; i++) q += (double)(win[s0 + i] * win[s0 + i]); if (q > best) best = q; }
+                ss += best; cnt += 441;
+            }
+            m[wi][ei] = __builtin_sqrt(ss / (double)(cnt ? cnt : 1));
+        }
+        ref = m[2][4] * 0.5 + m[2][8] * 0.5;
+        printf("    {");
+        for (int wi = 0; wi < 5; wi++) { printf(" {"); for (int ei = 0; ei < 17; ei++) { double c = m[wi][ei] > 1e-6 ? ref / m[wi][ei] : 1.0; if (c > 4.0) c = 4.0; if (c < 0.25) c = 0.25; printf(" %.2ff%s", c, ei < 16 ? "," : ""); } printf(" }%s", wi < 4 ? "," : ""); }
+        printf(" },   /* %s */\n", ENGINE_NAME[e]);
+    }
+    printf("};\n");
+}
+
+static double loud10(HitP *p)              /* a hit's loudest 10 ms, in dB, averaged over a few seeds */
+{
+    static Hit h; static float win[8820]; float buf[BLK]; double sum = 0;
+    for (int k = 0; k < 4; k++) {
+        p->seed = 101u + (uint32_t)k * 13u; hit_start(&h, p); int nw = 0;
+        while (h.on && nw + BLK <= 8820) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); for (int i = 0; i < BLK; i++) win[nw++] = buf[i]; }
+        while (h.on) { memset(buf, 0, sizeof buf); hit_render(&h, buf, BLK); }
+        while (nw < 441) win[nw++] = 0;
+        double best = 0;
+        for (int s0 = 0; s0 + 441 <= nw; s0 += 55) { double q = 0; for (int i = 0; i < 441; i++) q += (double)(win[s0 + i] * win[s0 + i]); if (q > best) best = q; }
+        sum += best / 441.0;
+    }
+    return 10.0 * __builtin_log10(sum / 4.0 + 1e-12);
+}
+static void level_check(void)
+{
+    printf("each engine's level across WEIGHT (ENTROPY 0.3) and across ENTROPY (WEIGHT 0.5): the spread, loudest to quietest; its middle's level\n");
+    for (int e = 0; e < NUM_ENGINES; e++) {
+        double wmin = 1e9, wmax = -1e9, emin = 1e9, emax = -1e9;
+        for (int i = 0; i <= 10; i++) {
+            HitP p; memset(&p, 0, sizeof p); p.engine = (uint8_t)e; p.vel = 1.0f; p.bright = 0.5f; p.decay = 1.0f; p.gseed = 5u;
+            p.note = engine_part(e) == P_PERC ? 50.0f : 60.0f;
+            p.weight = (float)i / 10.0f; p.entropy = 0.3f; double a = loud10(&p); if (a < wmin) wmin = a; if (a > wmax) wmax = a;
+            p.weight = 0.5f; p.entropy = (float)i / 10.0f; double b = loud10(&p); if (b < emin) emin = b; if (b > emax) emax = b;
+        }
+        HitP m; memset(&m, 0, sizeof m); m.engine = (uint8_t)e; m.vel = 1.0f; m.bright = 0.5f; m.decay = 1.0f; m.gseed = 5u; m.weight = 0.5f; m.entropy = 0.3f; m.note = engine_part(e) == P_PERC ? 50.0f : 60.0f;
+        printf("  %-9s WEIGHT %4.1f dB   ENTROPY %4.1f dB   (%5.1f dB)\n", ENGINE_NAME[e], wmax - wmin, emax - emin, loud10(&m));
     }
 }
 
@@ -235,12 +302,14 @@ int main(int argc, char **argv)
     if (argc < 2) { fprintf(stderr, "render SEED|default SECONDS OUT.wav | sweep ENGINE OUT.wav | punch SEED OUT.wav | calibrate | bench\n"); return 2; }
     if (!strcmp(argv[1], "calibrate")) { calibrate(); return 0; }
     if (!strcmp(argv[1], "bench")) { bench(); return 0; }
+    if (!strcmp(argv[1], "levels")) { level_table(); return 0; }
+    if (!strcmp(argv[1], "levelcheck")) { level_check(); return 0; }
     if (!strcmp(argv[1], "sweep") && argc > 3) { int e = engine_by_name(argv[2]); if (e < 0) return 2; sweep(e, argv[3]); return 0; }
     groove_default(&gr);
     if (!strcmp(argv[1], "punch") && argc > 3) {
         if (strcmp(argv[2], "default")) groove_roll(&gr, (uint32_t)strtoul(argv[2], 0, 0), 1);
         apply_env(&gr); describe(&gr);
-        run(argv[3], 68.0f * 60.0f / (float)(gr.tempo + 40), 1);
+        run(argv[3], 74.0f * 60.0f / (float)(gr.tempo + 40), 1);
         return 0;
     }
     if (argc < 4) return 2;

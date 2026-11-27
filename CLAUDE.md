@@ -14,12 +14,18 @@ Generative at its core, with macros across the main features, as After Images ha
 - A partner firmware to After Images, inheriting the look and feel of its menu system. Keep a lot of After Images:
   its pages and setting names wherever they mean the same thing (EDIT's SOUND page: ENGINE, TONE, WEIGHT, ENTROPY,
   with TONE as After Images' DJ filter: 12 o'clock open, left a low-pass, right a high-pass); rename only where the
-  drum meaning differs.
+  drum meaning differs. ENTROPY focuses on the hit's attack (its first moments: a soft start, click, noise snap, zap,
+  ring-modulated edge, crushed stutter), its character carried through the rest of the hit and stretched as the hit
+  gets longer; WEIGHT is the hit's fullness and spreads the exciter (longer, lower, wider).
 - Always a kit: four roles (KICK, SNARE, PERC, HATS) that hold the groove, with really interesting synthesised
-  engines and really interesting patterns: lots of polymeters.
+  engines and really interesting patterns: lots of polymeters. Sounds short and staccato, not cliché or predictable;
+  perc low (just above the kick); pitch falls fast, never slow sweeps. Engines include a soft 808, a synthesised clap,
+  a circuit-bent BENT (wild, every WEIGHT/ENTROPY setting its own), FOLEY (box and wood bangs, footsteps, drags: low,
+  never metallic), an almost-vocal hat and impulse-click hats. The owner may send reference samples to tune towards.
 - REC generates a fixed groove that loops exactly; the macros add evolution into it: probability and step components
   like Teenage Engineering's and Elektron's sequencers (conditions, ratchets, nudges and so on).
-- HOME held + K1-K4 (and GLO's MACROS page) keep After Images' names: MOOD (dark and heavy to bright and metallic),
+- HOME held + K1-K4 (and GLO's MACROS page) keep After Images' names: MOOD (how the hits are played: hard, staccato
+  and bright at 0; soft, long, full and darker at 100; in the middle a variety, each part dealt its own place),
   ACTIVITY (density), EVOLVE (from the fixed loop, expectation, towards variation and evolving, reality), DRIFT (the
   mixer: drum parts fading in and out over time; 0 keeps everything as set). Timing lives in MOTION's WARP.
 - The LFO page keeps After Images' MOTION settings by name (LINK, WARP, FLOW, CHAOS), read for drums: LINK the
@@ -34,8 +40,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - Effects, in three places:
   - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (about 500 Hz, to be confirmed)
     on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
-    pitch down (the owner especially likes these), repeats, glitch, tape stop, reverse, a room freeze, a reverse
-    swell, crush, kill kick.
+    pitch down (the owner especially likes these), a ratchet (eighths to 64ths), repeats, glitch, tape stop, reverse, a
+    room freeze, a reverse swell, crush, kill kick. Repeats, ratchet, glitch and reverse are held to the grid.
   - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
     first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
     every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
@@ -51,7 +57,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - Visuals: After Images' MATRIX turned inside out, squares instead of circles, brighter and more extreme. REC lays
   the grid out anew in a random arrangement of colours; each hit knocks a square out somewhere on the grid
   (scattered, not in rows), and it fades back in in that part's colour, so the hits slowly repaint the layout
-  (After Images adds a dot on a hit; this removes one). 8x8 by default (the owner loves it), with After Images'
+  (After Images adds a dot on a hit; this removes one). Whole squares meet edge to edge (no black line); a knocked-out
+  one grows back. 8x8 by default (the owner loves it), with After Images'
   COUNT setting on the SCREEN page for other sizes. Only loud kicks and snares knock out a 2x2 block.
   Colours: four clearly contrasting hues a palette, one per part, as After Images' rule has it; REC deals one from a
   shuffled deck: After Images' nine (classic, sunset, ocean, neon, ember, forest, slate, jade, amber) and the owner's

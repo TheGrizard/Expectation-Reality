@@ -5,7 +5,7 @@
   "author": "TheGrizard",
   "license": "MPL-2.0",
   "tagline": "generative percussion: four parts, one button, endless grooves",
-  "description": "Expectation Reality makes endless percussion: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length (polymeters) from a groove map, Euclidean rhythms, a Turing machine or broken IDM groupings, driving one of twelve synthesised drum engines. REC deals a groove that loops exactly; EVOLVE brings in its step components, then rewrites it. Made to play under After Images: it follows its clock and hears its notes. Punch-ins on the keys, randomisers on the black keys, a kick-sidechained tape compressor, a glitch delay.",
+  "description": "Expectation Reality makes endless percussion: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length (polymeters) from a groove map, Euclidean rhythms, a Turing machine or broken IDM groupings, driving one of eighteen synthesised drum engines. REC deals a groove that loops exactly; EVOLVE brings in its step components, then rewrites it. Made to play under After Images: it follows its clock and hears its notes. Punch-ins on the keys, randomisers on the black keys, a kick-sidechained tape compressor, a glitch delay.",
   "tags": ["drum-machine", "generative", "experimental"],
   "install": "https://github.com/TheGrizard/Expectation-Reality/releases/latest",
   "source": "https://github.com/TheGrizard/Expectation-Reality",

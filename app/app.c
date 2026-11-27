@@ -609,11 +609,11 @@ static void page_to(int pg)
 }
 
 /* ------------------------------------------------------------------ the keys: punch-ins and randomisers
- * White keys, low to high: HIGH-PASS, REPEAT 1/4, 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE STOP,
+ * White keys, low to high: HIGH-PASS, RATCHET, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE STOP,
  * REVERSE, FREEZE, SWELL, CRUSH, KILL KICK, LOW-PASS. The latest held plays (the filters alongside, their own).
  * Black keys, in their groups: KICK's TONE, WEIGHT, ENTROPY; SNARE's WEIGHT, ENTROPY; PERC's TONE, WEIGHT, ENTROPY;
  * HATS' WEIGHT, ENTROPY; the top one every part's three. Held, each hit of the part takes new values. */
-static const uint8_t PU_KEY[16] = { PU_HPF, PU_REP4, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP,
+static const uint8_t PU_KEY[16] = { PU_HPF, PU_RATCHET, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_STOP,
                                     PU_REVERSE, PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_LPF };
 static const struct { int8_t part; uint8_t bits; } RND_KEY[11] = {
     { P_KICK, 1 }, { P_KICK, 2 }, { P_KICK, 4 }, { P_SNARE, 2 }, { P_SNARE, 4 }, { P_PERC, 1 }, { P_PERC, 2 }, { P_PERC, 4 },
@@ -729,7 +729,8 @@ void app_input_only(void) { input(); }
  * A grid of lit squares, laid out anew by each REC in the palette's four colours. Each hit knocks a square out, somewhere
  * on the grid, and it fades back in in its part's colour, as long as the sound takes to die away; the loud kicks and
  * snares knock out a block of four. So the hits slowly repaint the layout: a hat-heavy groove drifts towards the hats'
- * colour, a sparse one keeps more of what REC laid out. SCREEN: COUNT (squares across), FADE, BRIGHT. */
+ * colour, a sparse one keeps more of what REC laid out. A whole square fills its cell, meeting its neighbours edge to
+ * edge; one knocked out grows back to it. SCREEN: COUNT (squares across), FADE, BRIGHT. */
 #define HEAD_H 30
 static int full_now(void) { return ui.page == PG_HOME; }
 #define VIEW_Y (full_now() ? 0 : HEAD_H)
@@ -794,7 +795,7 @@ static void vis_step(void)
 
 static void draw_grid(void)
 {
-    int cols = vg_cols(), cell = vg_cell(), rows = VIEW_H / cell, gap = cell >= 20 ? 3 : cell >= 12 ? 2 : 1;
+    int cols = vg_cols(), cell = vg_cell(), rows = VIEW_H / cell;
     if (rows > VG_MAX) rows = VG_MAX;
     int y0 = (VIEW_H - rows * cell) / 2;
     uint32_t now = plat_ms();
@@ -808,7 +809,9 @@ static void draw_grid(void)
             if (c->t) { float e = (float)(now - c->t) / (float)c->f; if (e < 1.0f) { k = e < 0 ? 0 : e; k = k * k * (3.0f - 2.0f * k); } else c->t = 0; }
             float lv = k * (float)c->base / 255.0f * br;
             if (lv < 0.03f) continue;
-            cv_rect(x * cell + gap / 2, py + gap / 2, cell - gap, cell - gap, dim(PART_C[c->part % NPARTS], lv));
+            /* a square knocked out grows back as it fades in; whole, it fills its cell: no line, it meets its neighbours */
+            int sz = k >= 1.0f ? cell : (int)((float)cell * (0.3f + 0.7f * k) + 0.5f), off = (cell - sz) / 2;
+            cv_rect(x * cell + off, py + off, sz, sz, dim(PART_C[c->part % NPARTS], lv));
         }
     }
 }

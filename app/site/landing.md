@@ -16,9 +16,11 @@ Made to play under [After Images](https://TheGrizard.github.io/After-Images/).
 - **Polymeters:** the kick and snare hold the bar while the perc and hats loop on odd lengths, drifting against it.
 - **Generators, not dice:** a groove map, Euclidean rhythms, Turing machines and broken IDM groupings.
 - **Step components:** ratchets, nudges, conditions, probabilities and ghosts, brought in by EVOLVE one at a time.
-- **Twelve drum engines:** struck skins, resonant boxes, FM, wires, grains, cracks, wood to metal to glass, strings,
-  metal clusters, crackle and digital noise, each with WEIGHT and ENTROPY.
-- **Punch-ins on the keys:** filters, repeats, glitch, pitch up and down, tape stop, reverse, freeze, swell, crush.
+- **Eighteen drum engines:** a soft 808, struck skins, resonant boxes, FM, claps, wires, grains, cracks, a circuit-bent
+  toy, wood and glass, strings, foley (boxes, wood, footsteps, drags), metal clusters, crackle, digital noise, an
+  almost-vocal hat and impulse clicks. WEIGHT sets the fullness, ENTROPY the attack, MOOD hard and staccato to soft
+  and long.
+- **Punch-ins on the keys:** filters, a ratchet and repeats held to the grid, glitch, pitch up and down, tape stop, reverse, freeze, swell, crush.
 - **Randomisers on the black keys:** every hit of a part thrown somewhere new while you hold one.
 - **A kit bus:** a kick-sidechained tape compressor, a room that gates, reverses and freezes, a glitch delay, pans.
 - **A partner to After Images:** follows its clock to the beat and bar and listens to its notes.

@@ -84,8 +84,9 @@ settings: switching doesn't mix them up.
 ![Home: the grid](img/home.png)
 
 At home the whole screen is a grid of squares in four colours, one for each part. Every hit knocks a square out of
-the grid, somewhere at random, and it fades back in in that part's colour, as fast as the sound dies away: a hat
-blinks, a tom leaves a hole that slowly fills. Loud kicks and snares knock out a block of four. So the hits slowly
+the grid, somewhere at random, and it grows back in that part's colour, as fast as the sound dies away: a hat
+blinks, a tom leaves a hole that slowly fills. Whole squares fill their cells and meet their neighbours edge to edge,
+so the colours lie in solid fields. Loud kicks and snares knock out a block of four. So the hits slowly
 repaint the grid: a groove heavy with hats drifts towards their colour. Each REC lays the grid out afresh in a new
 palette.
 
@@ -110,7 +111,9 @@ and hats run on odd lengths (5, 7, 9, 11, 13 steps) so they drift against the ba
 
 Hold **HOME** and turn K1 to K4 (they're also on GLO's first page):
 
-- **MOOD**: dark and heavy to the left (deeper kicks, duller hats), bright and metallic to the right.
+- **MOOD**: how the hits are played. To the left, hard, staccato and bright; to the right, soft, long, full and
+  darker. In the middle a mix: each part is dealt its own place between the two (some tight, some ringing), and
+  every hit varies a little around it.
 - **ACTIVITY**: how much of each pattern plays. Low, only the strongest hits; high, everything.
 - **EVOLVE**: expectation to reality. At 0 the groove loops exactly. Turning up brings in each step's component
   (see section 9) at its own point on the knob. Past about 70 the patterns start to rewrite themselves, a step at a
@@ -130,8 +133,15 @@ Choose the part with **SEL** (or the SELECT knob), then:
 - **ENGINE**: which drum engine (section 8). The PRESET knob changes it from any page.
 - **TONE**: After Images' DJ filter: at 12 o'clock open; to the left a low-pass closing down; to the right a
   high-pass going up.
-- **WEIGHT**: light and short to heavy, long and driven.
-- **ENTROPY**: clean to strange; each engine breaks down in its own way.
+- **WEIGHT**: the hit's fullness: light and short to heavy, long and driven. It also spreads the attack (below):
+  longer, lower and wider as it rises.
+- **ENTROPY**: mostly the hit's attack, its first moments, where most of a drum's feel is. As it rises the attack
+  changes kind, each fading into the next: a softened start (no edge at all), a click, a noise snap, a zap (a tone
+  diving from high), a metallic ring-modulated edge, and at the top a crushed stutter. Each leaves its mark on the
+  rest of the hit too, so a long hit keeps its character to the end: the click leaves the body ringing, the snap a
+  rasp, the zap keeps diving, the ring and the crush stay, lighter. The attack stretches as the hit gets longer
+  (DECAY, MOOD). ENTROPY still changes each engine's body a little, in its own way (FOLEY's and BENT's a lot: see
+  section 8). The level stays steady as it moves.
 
 ![GROOVE](img/groove.png)
 
@@ -149,22 +159,32 @@ part in semitones.
 
 ## 8. The sounds
 
-Three engines for each part, every one shaped by WEIGHT and ENTROPY (and brightened or darkened by MOOD):
+Eighteen engines, four or five for each part, every one shaped by WEIGHT and ENTROPY (and made harder or softer,
+brighter or darker by MOOD). Any engine can be chosen for any part; REC deals from each part's own:
 
 | Part | Engine | What it is | ENTROPY turns it |
 |---|---|---|---|
+| KICK | 808 | a soft, round kick: a sine, a gentle fall, a softened front | dust, a deeper fall, warmth |
 | KICK | MEMBRANE | a struck skin: a falling sine and a drumhead's off-pitch modes | into a growl, the modes bent |
 | KICK | BOX | a thump in a box: noise ringing two falling resonances | ringing, then rising instead of falling |
 | KICK | FM KICK | two operators, the pitch falling | off the harmonics, fed back on itself |
+| SNARE | CLAP | a synthesised clap: bursts of noise a few ms apart and a tail | the bursts loosened and roughened |
 | SNARE | WIRES | a body and its wires (noise through a short comb) | the wires ringing into metal |
 | SNARE | GRAIN | a cluster of tiny noise bursts | scattered into a stutter, each grain its own pitch |
 | SNARE | CRACK | a click ringing three resonances | the resonances pulled apart, glassy |
-| PERC | MATERIAL | a struck bar | from wood to metal to glass, beating and bending |
-| PERC | FM PERC | FM blips with a swept pitch | inharmonic, fed back, decimated |
-| PERC | STRING | a struck string | going slack and sagging, its overtones stretched |
+| SNARE | BENT | a circuit-bent toy: two oscillators wired into each other, pitch jumps, a broken sample rate | rewires it: every WEIGHT and ENTROPY setting its own wild sound |
+| PERC | MATERIAL | a struck bar, dull and short | from wood to clay to glass |
+| PERC | FM PERC | FM blips with a snap of a pitch fall | inharmonic, fed back, decimated |
+| PERC | STRING | a struck string | struck sharp and settling, its overtones stretched |
+| PERC | FOLEY | found sounds: a box banged, a plank of wood, a footstep, something dragged | from one to the next (between two, each hit either) |
 | HATS | METAL | six square waves at metal's ratios | towards the groove's own ratios, ring-modulated |
 | HATS | DUST | crackle: noise in sparse grains | pitched grains, smeared like a shaker |
 | HATS | DIGITAL | noise at a low sample rate and few bits | the rate jittering, the bits falling, a loop that sings |
+| HATS | VOX | almost a voice: breath and a buzz through vowel formants, very short | wider pitch jumps, the vowel sliding |
+| HATS | CLICK | impulse clicks through a resonance | a ping whose tone moves hit to hit, then bursts of clicks |
+
+The perc plays low, in the octave just above the kick (C2 to B2, in the groove's key). Every engine is short and
+staccato as dealt; REC deals WEIGHT mostly low. MIX's DECAY and MOOD make them longer.
 
 Every hit is also shaped by how hard it is: harder hits are a little brighter and heavier, as a real drum is.
 
@@ -251,7 +271,7 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 500 Hz; press harder for more |
-| 2 | REPEAT 1/4 |
+| 2 | RATCHET: a roll speeding up, eighths to sixteenths to 32nds to 64ths |
 | 3 | REPEAT 1/8 |
 | 4 | REPEAT 1/12 (triplets) |
 | 5 | REPEAT 1/16 |
@@ -260,14 +280,15 @@ sixteenths (REC deals it: mostly straight). TEMPO is the groove's own (shown as 
 | 8 | PITCH DOWN an octave |
 | 9 | PITCH UP an octave |
 | 10 | TAPE STOP |
-| 11 | REVERSE |
+| 11 | REVERSE: the eighth before, backwards, in time |
 | 12 | FREEZE: the room held as an endless wash, the groove going on over it |
 | 13 | SWELL: the last moments backwards, swelling into the next beat |
 | 14 | CRUSH |
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz; strike it harder for more |
 
-The repeats keep the moment you press the key and loop it. The latest key held plays; the two filters work alongside
+The repeats, RATCHET, GLITCH and REVERSE are held to the grid: however late you press, the loop starts on the last
+line of its own grid (an eighth, a sixteenth...) and repeats in time with the groove. The latest key held plays; the two filters work alongside
 the others. Everything fades in and out over a few milliseconds, so nothing clicks.
 
 **The black keys are randomisers.** While you hold one, every hit of its part takes a new random value of one of its

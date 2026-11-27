@@ -4,7 +4,7 @@
  * 4 ms, filters' settings move in small steps every few samples. */
 #include "engine.h"
 
-const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "REPEAT 1/4", "REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "GLITCH",
+const char *const PU_NAME[NUM_PU] = { "", "LOW-PASS", "RATCHET", "REPEAT 1/8", "REPEAT 1/16", "REPEAT 1/32", "GLITCH",
     "PITCH DOWN", "PITCH UP", "TAPE STOP", "REVERSE", "FREEZE", "SWELL", "CRUSH", "KILL KICK", "REPEAT 1/12", "HIGH-PASS" };
 
 /* the pool: the engine and the screen's canvas (29 KB) must fit the FM-1's 336 KB, with room for fm1-base's own */
@@ -47,6 +47,10 @@ void engine_init(Engine *e, Groove *g)
         pattern_make(&P->pat, g, p); P->sig = sig_of(g, p);
         P->present = P->present_t = 1.0f; P->gain = 0;
         P->tone_now = (float)g->p[p].tone * 0.01f; tone_set(P, P->tone_now);
+        {   /* each part's floor: the low end left to the kick (the snare from 100 Hz, the perc from 50, the hats from 300) */
+            static const float FLOOR[NPARTS] = { 0, 100.0f, 50.0f, 300.0f };
+            for (int c = 0; c < 2; c++) svf_set(&P->floor[c], FLOOR[p] > 0 ? FLOOR[p] : 20.0f, 0.707f);
+        }
         P->fw.len = 23.0f + 7.0f * (float)p; P->fe.len = 31.0f + 5.0f * (float)p; P->fb.len = 19.0f + 11.0f * (float)p;
     }
     e->bpm = (float)(g->tempo + 40);
@@ -117,26 +121,32 @@ static float part_note(const Engine *e, int p, float pitch)
     const Scale *sc = &SCALES[g->scale % NUM_SCALES];
     int deg = (int)pitch, n = sc->n, o = deg >= 0 ? deg / n : -((-deg + n - 1) / n), k = deg - o * n;
     int root = g->follow && e->ai_ground >= 0 ? e->ai_ground % 12 : g->key;   /* (in After Images' key, as its GROUND has it) */
-    return 60.0f + (float)root + (float)(sc->st[k] + 12 * o) + (float)g->p[p].pitch;
+    return 36.0f + (float)root + (float)(sc->st[k] + 12 * o) + (float)g->p[p].pitch;   /* (low: C2 to B2, just above the kick) */
 }
 
 static void make_hit(Engine *e, int p, float vel, float pitch, int alt, HitP *hp)
 {
     const Groove *g = e->g; const PartP *q = &g->p[p]; Part *P = &e->P[p];
-    float mood = (float)g->mood * 0.01f;
+    /* MOOD: hard, staccato and bright at 0; soft, long, full and darker at 100. Between, a variety: each part dealt its
+     * own place (most spread at the middle, none at the ends), each hit a little either side */
+    float mood = (float)g->mood * 0.01f, spread = 1.0f - fm_fabsf(2.0f * mood - 1.0f);
+    uint32_t hsh = (g->seed ^ (uint32_t)q->salt * 2654435761u) * 2246822519u;
+    float own = (float)(hsh >> 8) * (1.0f / 16777216.0f) - 0.5f;   /* (the part's place, -0.5..0.5: fixed for the groove) */
+    float c = clamp01(mood + own * spread * 1.1f + rng_bi(&e->rng) * 0.08f * spread);
     hp->engine = q->engine;
     hp->vel = clamp01(vel);
-    hp->weight = clamp01((float)q->weight * 0.01f + (0.5f - mood) * 0.3f + P->fw_v);
+    hp->weight = clamp01((float)q->weight * 0.01f + (c - 0.45f) * 0.3f + P->fw_v);
     hp->entropy = clamp01((float)q->entropy * 0.01f + P->fe_v);
-    hp->bright = clamp01(0.1f + 0.8f * mood + P->fb_v);
-    hp->decay = fm_exp2f(((float)q->decay - 50.0f) * 0.04f);
+    hp->bright = clamp01(0.88f - 0.7f * c + P->fb_v);
+    hp->decay = fm_exp2f(((float)q->decay - 50.0f) * 0.04f) * fm_exp2f(lerpf(-1.2f, p == P_KICK ? 0.8f : 1.3f, c));   /* (x0.44 .. x2.5; the kick x1.7) */
+    hp->soft = clamp01((c - 0.55f) / 0.45f);
     hp->bright = clamp01(hp->bright + (hp->vel - 0.7f) * 0.25f);   /* (harder: brighter, and a little heavier) */
     hp->weight = clamp01(hp->weight + (hp->vel - 0.7f) * 0.12f);
     hp->note = part_note(e, p, pitch);
     if (alt) {
-        if (p == P_HATS) { hp->decay *= 7.0f; hp->weight = clamp01(hp->weight + 0.1f); }   /* the open hat */
+        if (p == P_HATS) { hp->decay *= 4.0f; hp->weight = clamp01(hp->weight + 0.1f); }   /* the open hat */
         else if (p == P_SNARE) { hp->decay *= 0.35f; hp->entropy = clamp01(hp->entropy + 0.2f); }
-        else if (p == P_PERC) { hp->note += 12.0f; hp->decay *= 1.5f; }
+        else if (p == P_PERC) { hp->note += 12.0f; }
         else hp->decay *= 0.6f;
     }
     uint8_t rb = e->rnd_bits[p];
@@ -218,7 +228,7 @@ static void deal_step(Engine *e, int p, uint32_t s)
         e->ai_light_new = 0;
         if (rng_chance(&e->rng, L * 0.7f) && e->ai_light >= 0) {   /* LIGHT's melody answered, an eighth later, an octave up */
             HitP hp; make_hit(e, P_PERC, 0.35f, 0, 0, &hp);
-            hp.note = (float)(e->ai_light % 12 + 72) + (float)g->p[P_PERC].pitch;
+            hp.note = (float)(e->ai_light % 12 + 48) + (float)g->p[P_PERC].pitch;
             push_ev(P, t0, 48.0f, &hp, hit_pan(e, p), 0);
         }
     }
@@ -459,6 +469,7 @@ void engine_block_part(Engine *e, int p)
             float x = P->bus[c][i];
             if (use_lp) x = svf_lp(&P->lp[c], x); else { P->lp[c].ic1 = 0; P->lp[c].ic2 = x; }   /* (its state: the sound itself) */
             if (use_hp) x = svf_hp(&P->hp[c], x); else { P->hp[c].ic1 = 0; P->hp[c].ic2 = 0; }
+            if (p != P_KICK) x = svf_hp(&P->floor[c], x);
             P->bus[c][i] = x * g;
         }
         float a = fm_fabsf(P->bus[0][i]) + fm_fabsf(P->bus[1][i]); if (a > pk) pk = a;
@@ -492,11 +503,12 @@ static float grain_rate(Engine *e)            /* a grain's speed: mostly as it w
 
 static void punch_engage(Engine *e, int pu)
 {
-    e->pu = pu; e->rpos = 0; e->ps0 = e->pw; e->rnext = 0;
+    e->pu = pu; e->rpos = 0; e->ps0 = e->pw; e->rnext = 0; e->rat_left = 2;
     float beat = 60.0f / e->bpm * SR, cap = (float)(PUNCH_BUF - 256);
-    float div = pu == PU_REP4 ? 0.25f : pu == PU_REP8 ? 0.125f : pu == PU_REP16 ? 0.0625f : pu == PU_REP32 ? 0.03125f
-              : pu == PU_REP12 ? 1.0f / 12.0f : pu == PU_GLITCH ? 0.0625f : pu == PU_REVERSE ? 0.5f : 0.25f;
-    e->rlen = fm_minf(beat * div * 4.0f, cap);   /* (div: of a bar: 1/4 a beat, 1/16 a sixteenth) */
+    /* div: of a bar (1/8 an eighth). RATCHET starts on an eighth and doubles, REVERSE plays an eighth backwards */
+    float div = pu == PU_REP8 || pu == PU_RATCHET || pu == PU_REVERSE || pu == PU_GLITCH ? 0.125f : pu == PU_REP16 ? 0.0625f
+              : pu == PU_REP32 ? 0.03125f : pu == PU_REP12 ? 1.0f / 12.0f : 0.25f;
+    e->rlen = fm_minf(beat * div * 4.0f, cap);
     if (pu == PU_STOP) e->rate_ts = 1.0f;
     if (pu == PU_SWELL) {                        /* the next beat (or eighth) it lands on, within its memory */
         float to = ((float)TPB - (float)(e->tick % TPB) - e->frac) / e->rate;
@@ -506,13 +518,27 @@ static void punch_engage(Engine *e, int pu)
         if (to > half) to = half;
         e->swell_len = e->swell_left = (int)to;
     }
-    /* the repeats and GLITCH capture from the key on: the first pass plays as it is while it's kept, then it loops (so
-     * what loops is always one unbroken stretch: no seam, no click). REVERSE plays the moments before the key, when the
-     * memory holds a clean run of them; else it too captures first */
-    int slice = pu == PU_REP4 || pu == PU_REP8 || pu == PU_REP16 || pu == PU_REP32 || pu == PU_REP12 || pu == PU_GLITCH || pu == PU_REVERSE;
-    if (pu == PU_GLITCH) e->rlen = fm_minf(beat * 0.5f, cap);   /* (GLITCH keeps an eighth, then plays parts of it) */
-    e->pu_fwd = slice && !(pu == PU_REVERSE && (float)e->rec_since >= e->rlen + 8.0f);
-    e->pu_cap = 0;
+    /* the repeats, RATCHET, GLITCH and REVERSE are held to the grid: the slice starts on the last line of its own grid
+     * (an eighth, a sixteenth...) before the key, so it loops in time with the groove however late it was pressed. The
+     * memory already holds the slice up to now: it plays on as it is (nothing jumps) to the slice's end, then loops (one
+     * unbroken stretch: no seam, no click). REVERSE plays the eighth before that line backwards, in step with the grid */
+    int slice = pu == PU_RATCHET || pu == PU_REP8 || pu == PU_REP16 || pu == PU_REP32 || pu == PU_REP12 || pu == PU_GLITCH || pu == PU_REVERSE;
+    float ph = 0;                                /* samples since the slice's grid line */
+    if (slice && e->playing && e->rlen < cap) {
+        uint32_t gt = (uint32_t)((float)TPB * 4.0f * div + 0.5f);   /* (its grid in ticks: 48 an eighth) */
+        float t = (float)(e->tick % gt) + e->frac - e->rate * (float)e->nblk;   /* (where this block began) */
+        while (t < 0) t += (float)gt;
+        ph = t / e->rate;
+        if (ph >= e->rlen - 64.0f) ph = 0;       /* (all but on the next line: start there) */
+    }
+    if (pu == PU_REVERSE) {
+        int clean = (float)e->rec_since >= ph + e->rlen + 8.0f;
+        e->pu_fwd = !clean; e->pu_cap = 0;
+        if (clean) { e->ps0 = e->pw - (int)ph; if (e->ps0 < 0) e->ps0 += PUNCH_BUF; e->rpos = ph; }
+    } else {
+        e->pu_fwd = slice; e->pu_cap = 0;
+        if (slice && (float)e->rec_since >= ph + 8.0f) { e->ps0 = e->pw - (int)ph; if (e->ps0 < 0) e->ps0 += PUNCH_BUF; e->pu_cap = (int)ph; }
+    }
     e->pu_frozen = slice && !e->pu_fwd;
 }
 
@@ -601,6 +627,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             if (e->gate_hold > 0) { e->gate_hold -= 1.0f; e->gate += (1.0f - e->gate) * 0.02f; }
             else e->gate += (0.0f - e->gate) * 0.004f;
         }
+        e->gate_s[i] = e->gate;                  /* (each sample's: the room after it gated sample by sample, no step a block) */
         e->rv_in[0][i] = rl * feed * (rt == RT_FREEZE ? 0.35f : 1.0f); e->rv_in[1][i] = rr * feed * (rt == RT_FREEZE ? 0.35f : 1.0f);
         /* the delay: two taps crossfaded (a new time, GLITCH's jumps), ping-pong; GRANULAR: grains read from it, jittered,
          * some an octave off, dirty in its loop */
@@ -641,7 +668,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
     reverb_run(&e->rv, e->rv_in[0], e->rv_in[1], e->rv_out[0], e->rv_out[1], n);
     for (int i = 0; i < n; i++) {
         float wl = e->rv_out[0][i], wr = e->rv_out[1][i];
-        if (rt == RT_GATED) { wl *= e->gate * 1.4f; wr *= e->gate * 1.4f; }
+        if (rt == RT_GATED) { wl *= e->gate_s[i] * 1.4f; wr *= e->gate_s[i] * 1.4f; }
         if (rt == RT_REVERSE) {                   /* the room's sound in chunks, each played backwards as the next is kept */
             int half = e->rchunk & 1, pos = e->room_w;
             e->room_buf[half * (ROOM_BUF / 2) + pos] = to16((wl + wr) * 0.5f);
@@ -727,10 +754,14 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 for (int c = 0; c < 2; c++) fx[c] = from16(e->pb[c][i0]) * clamp01(fade);
                 e->rpos += 1.0f;
                 if (e->rpos >= len) {
-                    e->rpos = 0;
+                    e->rpos -= len;                /* (the fraction kept: hours of repeats stay on the grid) */
+                    if (pu == PU_RATCHET && --e->rat_left <= 0 && e->rlen > beat * 0.0625f * 1.5f) {
+                        e->rlen *= 0.5f; e->rat_left = 4;   /* RATCHET: eighths, sixteenths for a beat, 32nds for half, then 64ths */
+                        if (e->rpos >= e->rlen) e->rpos = 0;
+                    }
                     if (pu == PU_GLITCH) {        /* GLITCH: a new length each pass (within what it kept) */
                         static const float GL[5] = { 0.125f, 0.0625f, 0.03125f, 1.0f / 12.0f, 1.0f / 24.0f };
-                        e->rlen = fm_minf(beat * GL[rng_int(&e->rng, 5)] * 4.0f, (float)e->pu_cap);
+                        e->rpos = 0; e->rlen = fm_minf(beat * GL[rng_int(&e->rng, 5)] * 4.0f, (float)e->pu_cap);
                         if (e->rlen < 64.0f) e->rlen = 64.0f;
                     }
                 }

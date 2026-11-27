@@ -2,7 +2,7 @@
 
 **Generative percussion for the M-VAVE FM-1, a partner to [After Images](https://github.com/TheGrizard/After-Images).**
 Press REC and it writes a groove: four parts (KICK, SNARE, PERC, HATS), each a pattern on its own length driving one
-of twelve synthesised drum engines. **Expectation** is the groove it deals, a loop that plays the same every time.
+of eighteen synthesised drum engines. **Expectation** is the groove it deals, a loop that plays the same every time.
 Turn up EVOLVE and it becomes **reality**: the groove's step components come in one by one, then it rewrites itself.
 
 Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), built on
@@ -27,10 +27,12 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
   ghosts, open hats, pitches, accents. Each switches on at its own point on EVOLVE.
 - **A groove that breathes.** Velocities shaped by the bar's weight, a drifting accent cycle and a slow swell; WARP a
   humaniser; bouncing-ball fills.
-- **Twelve drum engines** with WEIGHT and ENTROPY: MEMBRANE, BOX, FM KICK, WIRES, GRAIN, CRACK, MATERIAL, FM PERC,
-  STRING, METAL, DUST, DIGITAL.
-- **Punch-ins on the white keys** (high-pass, repeats, glitch, pitch down and up, tape stop, reverse, freeze, swell,
-  crush, kill kick, low-pass) and **randomisers on the black keys** (each part's colours thrown at every hit).
+- **Eighteen drum engines**: 808, MEMBRANE, BOX, FM KICK, CLAP, WIRES, GRAIN, CRACK, BENT (circuit-bent), MATERIAL,
+  FM PERC, STRING, FOLEY (boxes, wood, footsteps, drags), METAL, DUST, DIGITAL, VOX, CLICK. WEIGHT sets a hit's
+  fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
+  through the whole hit; MOOD plays the kit hard and staccato or soft and long.
+- **Punch-ins on the white keys** (high-pass, ratchet, repeats, glitch, pitch down and up, tape stop, reverse, freeze, swell,
+  crush, kill kick, low-pass; the repeats held to the grid) and **randomisers on the black keys** (each part's colours thrown at every hit).
 - **The kit's bus.** Sends a part: ROOM, DELAY, PAN, DUCK. A tape compressor with the kick wired to its sidechain
   (CLEAN or TAPE SMASH); a room that is ROOM, GATED, REVERSE or FREEZE; a delay CLEAN or GRANULAR, with GLITCH.
 - **Plays with After Images.** Follows its MIDI clock to the beat and the bar and hears its notes: busier when it's

@@ -25,11 +25,22 @@ enum {
     D_METAL,     /* six square waves at metal's ratios, ENTROPY bending them towards the groove's own and ring-modulating */
     D_DUST,      /* crackle: noise in sparse grains through a band; ENTROPY pitches the grains and smears them, a shaker */
     D_DIGITAL,   /* digital: noise held at a low sample rate and few bits; ENTROPY: the rate jitters, the bits fall, a loop sings */
+    /* added later, at the end (so the others keep their numbers) */
+    D_808,       /* KICK: a soft, round kick: a sine, a gentle fall, a softened front; ENTROPY: dust, a deeper fall, warmth */
+    D_CLAP,      /* SNARE: a synthesised clap: bursts of noise a few ms apart and a tail; ENTROPY loosens and roughens them */
+    D_VOX,       /* HATS: almost a voice: breath and a buzz through three vowel formants, each hit its own pitch and vowel,
+                  * very short; ENTROPY: wider pitch jumps, the vowel sliding */
+    D_CLICK,     /* HATS: impulse clicks through a resonance: a dry tick, then (ENTROPY) a ping whose tone moves hit to hit,
+                  * then a little burst of clicks */
+    D_FOLEY,     /* PERC: found sounds: a drop, a knock, a snap, keys; ENTROPY moves from one to the next, each hit a little
+                  * different; WEIGHT: a bigger object */
+    D_BENT,      /* SNARE (and anywhere): a circuit-bent toy, two oscillators wired into each other, pitch jumps, a broken
+                  * sample rate; WEIGHT and ENTROPY rewire it: every setting its own wild sound */
     NUM_ENGINES
 };
 extern const char *const ENGINE_NAME[NUM_ENGINES];
-#define ENGINES_A_PART 3
-static inline int engine_part(int e) { return e / ENGINES_A_PART; }   /* KICK, SNARE, PERC, HATS */
+extern const uint8_t ENGINE_PART[NUM_ENGINES];   /* each engine's part: KICK, SNARE, PERC, HATS */
+static inline int engine_part(int e) { return ENGINE_PART[e % NUM_ENGINES]; }
 
 typedef struct {
     uint8_t engine;
@@ -37,6 +48,7 @@ typedef struct {
     float vel;                           /* 0..1 */
     float weight, entropy, bright;       /* 0..1 each */
     float decay;                         /* the length, times (MIX's DECAY, a step's open hat) */
+    float soft;                          /* MOOD's soft side: 0 a hard front, 1 a soft one (the attack eased, the exciter lower) */
     uint32_t seed;                       /* the hit's own (ENTROPY's randomness), and the groove's (METAL's ratios) */
     uint32_t gseed;
 } HitP;
@@ -60,6 +72,11 @@ typedef struct {
     /* WIRES: the comb; STRING: the line */
     int cpos, clen;
     float ks_len, ks_rate, ks_lp, ks_damp, ks_ap, ks_apc;
+    /* the front: every engine's attack and its character through the rest of the hit, from ENTROPY (what kind) and WEIGHT
+     * (how wide and long it spreads), stretched as the hit gets longer: a softened start, a click that leaves the body
+     * ringing, a noise snap that leaves a rasp, a zap that keeps diving, a ring-modulated edge, a crushed stutter */
+    struct { Svf f, f2; float click, nzv, nzk, zf, zf0, zf1, zk, za, zak, zph, rm, rmf, rmk, rph, rdf, cr, crf, crk, crr, cph, cv,
+             gph, gdf, gs, fol, tn, tz, tres; uint16_t atk, len, zper, zcnt; uint8_t ring, tail; } fr;
     union { float comb[160]; int16_t ks[KS_LEN]; } line;   /* (last: hit_start clears all before it; the engines fill it) */
 } Hit;
 
