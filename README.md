@@ -36,9 +36,11 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
   FM HAT, AIR, CHIP, FOIL. WEIGHT sets a hit's
   fullness; ENTROPY its attack (a soft start, a click, a snap, a zap, a metal edge, a crushed stutter), carried
   through the whole hit; MOOD plays the kit heavy and long or bright and short.
-- **Punch-ins on the white keys** (high-pass, a fill key, repeats, glitch, pitch down and up, tape mash, reverse, freeze, swell,
-  crush, kill kick, low-pass; quantised to the beat, the repeats held to the grid, a beat light in the corner of the
-  screen, holds on OCT- and OCT+ in either order) and **randomisers on the black keys** (each part's colours thrown at every hit).
+- **Punch-ins on the white keys** (high-pass, kill kick, a fill key, glitch, repeats, pitch down and up, tape mash,
+  reverse, freeze, swell, crush, low-pass; one at a time, FILL alongside; quantised to the beat, the repeats held to the
+  grid, a beat light in the corner of the screen, holds on OCT- and OCT+ in either order; tape mash, crush and reverse
+  tuned on their own page, reverse on the whole kit or one part) and **randomisers on the black keys** (each part's
+  colours thrown at every hit, as many together as you like).
 - **The kit's bus.** Sends a part: REVERB, DELAY, PAN, COMP (all dry as dealt). A tape compressor with the kick wired to
   its sidechain (CLEAN or TAPE SMASH); a reverb that is ROOM, GATED, REVERSE or FREEZE, its size yours; a delay CLEAN or
   GRANULAR, with GLITCH. The mix balanced as After Images' is, and limited under -1 dBFS.
@@ -52,7 +54,7 @@ Free and open source (MPL-2.0). By [TheGrizard](https://github.com/TheGrizard), 
 1. **Install.** Open the [web installer](https://TheGrizard.github.io/Expectation-Reality/install/) in Chrome or Edge
    on a computer, plug in the FM-1 by USB and follow the page.
 2. **Listen.** It starts playing. **K1 to K4** set the four parts' levels.
-3. **Press REC** for a new groove (the tempo stays yours). Hold it for one in the same key.
+3. **Press REC** for a new groove, coming in at the end of the loop (the tempo stays yours). Hold it for one in the same key.
 4. **Hold HOME and turn K1 to K4** for the macros: MOOD, ACTIVITY, EVOLVE and DRIFT.
 5. **Hold a white key** for a punch-in, **a black key** for a randomiser.
 6. **SAVE** keeps a groove; ALGORITHM steps through your saved ones.

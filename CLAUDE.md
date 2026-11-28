@@ -116,8 +116,13 @@ Generative at its core, with macros across the main features, as After Images ha
   colour, fading back to its grey).
 - REC carries one part (at random) into the new groove: its EDIT settings (SOUND: engine, TONE, WEIGHT, ENTROPY;
   MIX: LEVEL, DECAY, PITCH, PAN) as they were, its pattern new: flow between grooves when building a set.
-- TEMPO the owner's: 100 BPM at power-on; REC never changes it (live). A saved groove keeps its tempo: recalled (or
-  history stepped to), its tempo comes back, and REC follows on from it.
+- TEMPO the owner's: 100 BPM at power-on. Playing, nothing changes it but the owner: PERSONALITY chosen, REC, a saved
+  groove recalled, history stepped (v0.17, for consistency between tracks). Stopped: a personality chosen brings its
+  own tempo, REC deals at the personality's, a saved groove (or history) comes back at its own.
+- While playing, REC, a saved groove and history wait for the loop's end (the kick's loop, to the bar line at or after
+  it, counted from where the groove began: engine pend, groove_switch): the old groove dealt to the line, the new from
+  its first steps, the time unbroken. REC's carries the macros and MOTION as they are then; a knob turned while one
+  waits is turned in it too. Stopped: at once.
 - ACTIVITY by rank within each pattern: 0 stripped back (each part's core), 100 what 40 was in v0.2.
 - USB AUDIO as After Images: OUTPUT (MIX, or CLEAN: the kit without FX's effects, the speaker too), CONTROL (MASTER
   or FIXED), GAIN.

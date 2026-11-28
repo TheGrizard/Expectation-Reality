@@ -26,19 +26,22 @@ static Groove gr;
 
 static void w32(FILE *f, uint32_t v) { fputc(v & 255, f); fputc(v >> 8 & 255, f); fputc(v >> 16 & 255, f); fputc(v >> 24 & 255, f); }
 static void w16(FILE *f, uint32_t v) { fputc(v & 255, f); fputc(v >> 8 & 255, f); }
-typedef struct { FILE *f; long frames; float peak; double ss; int jumps; float last[2]; } Wav;
+typedef struct { FILE *f; long frames; float peak; double ss; int jumps; float last[2]; long nans, quiet, quiet_max; } Wav;   /* (nans: not a number
+                                                  * or infinite; quiet_max: the longest silence, in samples) */
 static int wav_open(Wav *w, const char *path) { memset(w, 0, sizeof *w); w->f = fopen(path, "wb"); if (!w->f) return 0; for (int i = 0; i < 44; i++) fputc(0, w->f); return 1; }
 static inline float soft(float x) { float a = fm_fabsf(x); if (a < 0.8f) return x; float y = 0.8f + 0.2f * fm_tanhf((a - 0.8f) / 0.2f); return x < 0 ? -y : y; }
 static void wav_put(Wav *w, float l, float r)
 {
     float in[2] = { l, r };
     for (int c = 0; c < 2; c++) {
+        if (!(in[c] == in[c]) || in[c] > 1e30f || in[c] < -1e30f) { w->nans++; in[c] = 0; }
         float a = fm_fabsf(in[c]); if (a > w->peak) w->peak = a;
         w->ss += (double)(in[c] * in[c]);
         if (fm_fabsf(in[c] - w->last[c]) > 0.9f) w->jumps++;
         w->last[c] = in[c];
         w16(w->f, (uint32_t)(int16_t)(soft(in[c]) * 32000.0f));
     }
+    if (fm_fabsf(l) + fm_fabsf(r) < 1e-5f) { if (++w->quiet > w->quiet_max) w->quiet_max = w->quiet; } else w->quiet = 0;
     w->frames++;
 }
 static void wav_close(Wav *w, const char *name)
@@ -48,10 +51,14 @@ static void wav_close(Wav *w, const char *name)
     w32(w->f, 16); w16(w->f, 1); w16(w->f, 2); w32(w->f, 44100); w32(w->f, 44100 * 4); w16(w->f, 4); w16(w->f, 16);
     fwrite("data", 1, 4, w->f); w32(w->f, (uint32_t)w->frames * 4);
     fclose(w->f);
-    fprintf(stderr, "%s: %.1f s, peak %.2f, rms %.3f, jumps %d\n", name, (double)w->frames / 44100.0, (double)w->peak,
-            w->frames ? __builtin_sqrt(w->ss / (double)(w->frames * 2)) : 0.0, w->jumps);
+    fprintf(stderr, "%s: %.1f s, peak %.2f, rms %.3f, jumps %d, nans %ld, longest silence %.1f s\n", name, (double)w->frames / 44100.0, (double)w->peak,
+            w->frames ? __builtin_sqrt(w->ss / (double)(w->frames * 2)) : 0.0, w->jumps, w->nans, (double)w->quiet_max / 44100.0);
 }
 
+#ifdef ER_HITLOG
+static FILE *hitlog_f;
+void er_hitlog(int p, uint32_t tick) { if (hitlog_f) fprintf(hitlog_f, "%u %d\n", tick, p); }
+#endif
 static int env_i(const char *k, int def) { const char *v = getenv(k); return v ? atoi(v) : def; }
 static int engine_by_name(const char *s) { for (int e = 0; e < NUM_ENGINES; e++) if (!strcmp(ENGINE_NAME[e], s)) return e; return -1; }
 
@@ -228,8 +235,21 @@ static void run(const char *path, float secs, int punch)
             if ((int)b != (int)last_beat) { engine_hear(&eng, 0, 36 + ((int)b / 4 % 3) * 5, 90); for (int i = 0; i < 3; i++) engine_hear(&eng, 2, 72 + i * 3, 70); }
             last_beat = b;
         }
+#ifdef ER_HITLOG
+        if (!hitlog_f && getenv("HITLOG")) hitlog_f = fopen(getenv("HITLOG"), "w");
+        {   /* SWITCHSEED=n SWITCHAT=beat: at that beat, a groove dealt from seed n queued for the next bar line (the switch test) */
+            static int sw_done; if (getenv("SWITCHSEED") && !sw_done && eng.beat >= (float)atoi(getenv("SWITCHAT"))) {
+                sw_done = 1; Groove ng = gr; groove_roll(&ng, (uint32_t)atoi(getenv("SWITCHSEED")), 1); ng.tempo = gr.tempo;
+                ng.mood = gr.mood; ng.activity = gr.activity; ng.evolve = gr.evolve; ng.warp = gr.warp; ng.chaos = gr.chaos; ng.link = gr.link;
+                eng.pend = ng; eng.pend_carry = 0; eng.pend_at = (eng.tick / BAR + 1u) * BAR; eng.pend_on = 1;
+                fprintf(stderr, "switch queued at tick %u for %u\n", eng.tick, eng.pend_at);
+            }
+        }
+#endif
         if (getenv("FILLHOLD")) eng.fill_want = 1;   /* (FILL held throughout) */
-        if (getenv("SOLOPU")) eng.pu_want = eng.beat >= 8.0f && eng.beat < 20.0f ? atoi(getenv("SOLOPU")) : 0;   /* (SOLOPU=n: that
+        if (getenv("REVSWAP") && eng.beat >= (float)atoi(getenv("REVSWAP"))) eng.rev_part = 3;   /* (REVERSE's part changed mid-way: to HATS) */
+        if (getenv("SOLOPU")) eng.pu_want = (eng.beat >= 8.0f && eng.beat < 20.0f) || (getenv("SOLOPU2") && eng.beat >= 24.0f && eng.beat < 32.0f) ? atoi(getenv("SOLOPU")) : 0;   /* (SOLOPU2:
+                                                    * again, beats 24 to 32) */   /* (SOLOPU=n: that
                                                     * punch-in held from beat 8 to 20) */
         if (pudemo) while (dnext < (int)(sizeof DEMO / sizeof DEMO[0]) && eng.beat >= DEMO[dnext].beat) { eng.pu_want = DEMO[dnext].pu; dnext++; }
         if (punch) {

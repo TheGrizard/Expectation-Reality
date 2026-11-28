@@ -1,20 +1,26 @@
 # SPDX-License-Identifier: MPL-2.0
-# REC: a new groove (a new seed, a new palette), held: the same tempo; SEL held + REC: one part anew; OCT- / OCT+:
-# back and forward through the grooves REC replaced; every part still playing afterwards
+# REC: a new groove (a new seed, a new palette) at the loop's end, held: the same key; SEL held + REC: one part anew;
+# OCT- / OCT+: back and forward through the grooves REC replaced (each heard; one replaced while still waiting isn't
+# kept); every part still playing afterwards
 wav rec.wav
 wait 3000
 expect hist 0
 tap REC
-wait 1500
+wait 300
+expect pend 1
 expect hist 1
+wait 11000
+expect pend 0
 shot rec.png
 tap REC
-wait 1500
+wait 300
+tap REC
+wait 11000
 expect hist 2
 press REC
 wait 1200
 release REC
-wait 500
+wait 11000
 expect hist 3
 press SEL
 tap REC
@@ -39,7 +45,7 @@ wait 300
 expect tempo 100
 # one part's sound carried into each new groove
 expect kept 1
-# a saved groove keeps its tempo: recalled, its tempo back; REC goes on from it
+# a saved groove keeps its tempo: recalled stopped, its tempo back (playing, the tempo as it is); REC goes on from it
 tap HOME
 wait 100
 tap GLO
@@ -67,5 +73,12 @@ turn K4 -15 250
 wait 300
 expect tempo 95
 turn ALGO 1
-wait 500
+wait 11000
+expect tempo 95
+tap PLAY
+wait 300
+turn ALGO 1
+wait 300
 expect tempo 110
+tap PLAY
+wait 300

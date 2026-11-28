@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
-# GLO's GENRE (GLO twice): what REC deals. TECHNO chosen: its tempo, 135; REC keeps the genre and your tempo; a saved
-# groove keeps its genre; IDM again: 100
+# GLO's PERSONALITY (GLO twice): what REC deals. Playing, the tempo stays as it is (chosen, REC, a saved groove: for a
+# set that holds together); REC and a saved groove wait for the loop's end. Stopped, a personality chosen brings its
+# own tempo, REC its personality's, a saved groove its own
 wait 3000
 expect genre 0
+expect tempo 100
 tap GLO
 tap GLO
 wait 100
@@ -10,15 +12,21 @@ expect page 11
 turn K1 1
 wait 300
 expect genre 1
-expect tempo 130
+expect tempo 100
 tap HOME
 wait 100
 tap REC
-wait 500
+wait 300
+expect pend 1
+wait 11000
+expect pend 0
 expect genre 1
-expect tempo 130
+expect tempo 100
 tap SAVE
 wait 1500
+# stopped: each personality its own tempo when chosen (BRAINDANCE 140, FLOORS 130, CLOUDS 65, IMPLODE 85)
+tap PLAY
+wait 300
 tap GLO
 tap GLO
 wait 100
@@ -26,15 +34,6 @@ turn K1 -1
 wait 300
 expect genre 0
 expect tempo 140
-tap HOME
-wait 100
-tap REC
-wait 500
-expect genre 0
-# all four, each its own tempo when chosen: IDM 100, TECHNO 135, AMBIENT 80, LOFI 85; REC keeps the genre
-tap GLO
-tap GLO
-wait 100
 turn K1 2
 wait 300
 expect genre 2
@@ -47,11 +46,30 @@ tap HOME
 wait 100
 tap REC
 wait 500
+expect pend 0
 expect genre 3
 expect tempo 85
+# a saved groove recalled while playing (FLOORS, saved at 100) waits for the loop's end and keeps the tempo playing, 85
+tap PLAY
+wait 2000
+turn ALGO 1
+wait 300
+expect pend 1
+wait 11000
+expect pend 0
+expect slot 0
+expect genre 1
+expect tempo 85
+# stopped, recalled: its own saved tempo, at once
+tap PLAY
+wait 300
+turn ALGO 1
+wait 300
+expect pend 0
+expect tempo 100
+tap PLAY
+wait 500
 # PERSONALITY's SENDS: DRY, every part dry; DEALT, REC deals the sends (the kick never to the reverb, delay or pan)
-expect sends 0
-expect sent 0
 tap GLO
 tap GLO
 wait 100
@@ -61,7 +79,7 @@ expect sends 1
 tap HOME
 wait 100
 tap REC
-wait 500
+wait 11500
 expect sent >0
 expect kicksent 0
 tap GLO
@@ -72,5 +90,5 @@ wait 300
 tap HOME
 wait 100
 tap REC
-wait 500
+wait 11500
 expect sent 0

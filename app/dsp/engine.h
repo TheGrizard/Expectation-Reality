@@ -25,6 +25,7 @@ typedef struct {
     int16_t at[EVQ]; uint8_t nat;        /* this block's: the queue's first nat start at these samples */
     float bus[2][BLKN];                  /* this block's sound, after its TONE and level */
     uint32_t step;                       /* the next of its steps to deal */
+    uint32_t s0;                         /* the step its pattern began on (a groove switched in at a loop's end: from there) */
     Svf lp[2], hp[2], floor[2]; float tone_now; int tone_cnt;
     float gain, present, present_t; int drift_bars;
     Drift fw, fe, fb;                    /* FLOW: its colours wandering */
@@ -36,6 +37,9 @@ typedef struct {
 
 /* the room's memory: the gated room's pre-delay, the reversed room's two chunks */
 #define ROOM_BUF 8192
+#ifndef BAR
+#define BAR (TPB * 4)                    /* a bar, in ticks */
+#endif
 #define DLY_BUF 16384                    /* the delay: each side's line (0.37 s), counted in the sample rate's samples */
 #define DL_DIV 4                         /* (the delay at a quarter of the rate, 11 kHz (v0.14; half before): its echoes
                                           * dulled below its top anyway; a quarter of the work and memory) */
@@ -55,6 +59,10 @@ struct Engine {
     float bpm, ext_bpm, beat;            /* beat: for the screen and the clock's lock (ticks / 96, within 4096 beats) */
     volatile float beat_adj;             /* following a clock: how far our beat is off the leader's, taken up gently */
     volatile int sync_req;               /* a Start: the top of the bar, every part from its first step */
+    /* a groove waiting for the loop's end (REC, a saved groove, history, while it plays): switched in at pend_at (a bar
+     * line), every part from its first step, the time going on unbroken. pend_carry: REC's, the macros and MOTION as they
+     * are then. loop0: where the groove playing began (its loops counted from there); swaps: how many, for the app */
+    Groove pend; uint32_t pend_at, loop0; volatile uint8_t pend_on, pend_carry; volatile uint32_t swaps;
     int playing;
     uint32_t clk_tick;                   /* MIDI clock out: the tick of the next (every 4) */
     Rng rng;

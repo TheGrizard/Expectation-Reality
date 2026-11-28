@@ -38,7 +38,7 @@ repeat; past it, it flows freely and rewrites itself.
 | HOME held + K1 to K4 | MOOD, ACTIVITY, EVOLVE, DRIFT |
 | HOME tapped at home | the FM-1's health: CPU, drops, saving |
 | HOME elsewhere | back home |
-| REC | a new groove (a new key too; one part's sound carried over; the tempo stays as you set it) |
+| REC | a new groove at the end of the loop playing (a new key too; one part's sound carried over; the tempo stays as it is) |
 | REC held | a new groove in the same key |
 | SEL held + REC | the chosen part dealt afresh |
 | OCT- / OCT+ held as you press a key, or tapped while you hold it | hold that punch-in or randomiser: to the loop's end (OCT-) or for good (OCT+) |
@@ -73,7 +73,8 @@ settings: switching doesn't mix them up.
 ## 3. The first five minutes
 
 1. **Listen.** It starts playing a groove. Turn **K1 to K4** to set KICK, SNARE, PERC and HATS.
-2. **Press REC.** A new groove: new sounds, new patterns and colours, at the same tempo. One part keeps its sound from
+2. **Press REC.** A new groove: new sounds, new patterns and colours, at the same tempo, coming in at the end of the
+   loop playing (on its bar line, so it stays in time). One part keeps its sound from
    the groove before (its SOUND and MIX settings, with a new pattern), so a run of grooves flows like a set: the
    popup says which. Press it a few times.
 3. **Hold HOME and turn K3 (EVOLVE).** At 0 the groove loops exactly. Turn it up and the groove's hidden details come
@@ -357,15 +358,16 @@ hats (BRAINDANCE varied, FLOORS dub delay and a pumping compressor, CLOUDS rooms
 tape glue), all under 50. The kick is never sent to the reverb, delay or pan; DEALT gives it some compressor (most in
 FLOORS and IMPLODE). Starts on DRY.
 
-Choosing a personality sets its tempo: BRAINDANCE 140, FLOORS 130, CLOUDS 65, IMPLODE 85 BPM; after that REC keeps
-your tempo, as always. A saved groove keeps its personality. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in each.
+**The tempo while it plays is yours.** Playing, choosing a personality, REC, a saved groove and history all keep the
+tempo as it is, so a set holds together. Stopped, choosing a personality sets its own tempo (BRAINDANCE 140, FLOORS
+130, CLOUDS 65, IMPLODE 85 BPM), REC deals at the personality's tempo, and a saved groove comes back at its own. A saved groove keeps its personality. MOOD, EVOLVE, DRIFT, MOTION and every punch-in work just the same in each.
 
 ![SCALE](img/scale.png)
 
 **GLO four times: SCALE**: KEY · SCALE · SWING · TEMPO. KEY and SCALE are the perc's notes. SWING delays the off
 sixteenths (REC deals it: mostly straight). TEMPO is yours: 100 BPM at every power-on, and REC never changes it, so it
-holds while you play live. A saved groove keeps its own tempo: recall it and it comes back at that tempo, and REC
-goes on from there (going back through history likewise). Shown as IN
+holds while you play live. A saved groove keeps its own tempo: recalled while stopped it comes back at that tempo,
+and REC goes on from there (going back through history likewise); recalled while playing, it takes the tempo playing. Shown as IN
 while it follows a clock.
 
 ## 13. The keys: punch-ins and randomisers
@@ -441,8 +443,10 @@ groups, low to high:
 
 ## 14. Saving your grooves
 
-**SAVE** keeps the groove playing (up to 16); **ALGORITHM** steps through them. If you've changed a saved groove,
-its name shows a star. EVOLVE's rewrites are part of a groove, so SAVE keeps them too.
+**SAVE** keeps the groove playing (up to 16); **ALGORITHM** steps through them. While it plays, the groove you step to
+comes in at the end of the loop playing, on its bar line (the list says NEXT LOOP); stopped, at once. REC and going
+back through history (HOME held + OCT- / OCT+) wait for the loop's end the same way. If you've changed a saved groove,
+its name shows a star (not for the tempo: recalled while playing, a groove takes the tempo playing). EVOLVE's rewrites are part of a groove, so SAVE keeps them too.
 
 Your settings and the groove playing are kept by themselves once you stop with **PLAY**: after a few seconds of
 silence (writing to the FM-1's memory interrupts the sound, so it never does it while playing). Updates keep

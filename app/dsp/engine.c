@@ -13,7 +13,6 @@ typedef char engine_fits_the_pool[sizeof(Engine) <= 285u * 1024u ? 1 : -1];
 #include "balance.h"
 int engine_balance_raw;                  /* (the simulator's measuring: 1 no balance, 2 the parts' gains alone) */
 #define LOOK 12                          /* ticks dealt ahead: room for a hit nudged early */
-#define BAR (TPB * 4)
 
 static inline int clampi(int v, int lo, int hi) { return v < lo ? lo : v > hi ? hi : v; }
 static inline float from16(int16_t v) { return (float)v * (1.0f / 16384.0f); }
@@ -248,8 +247,9 @@ static void deal_step(Engine *e, int p, uint32_t s)
         int beat = (int)(t0 / TPB);
         if (beat != P->remap_beat) { P->remap_beat = beat; P->remap = p != P_KICK && E > 0.505f && rng_chance(&e->rng, (E - 0.5f) * 0.9f) ? (int)spb * (1 + rng_int(&e->rng, 3)) : 0; }
     }
-    int ls = (int)((s + (uint32_t)P->remap) % (uint32_t)len);
-    uint32_t cyc = s / (uint32_t)len;
+    uint32_t sr = s - P->s0;                      /* (its steps since its pattern began) */
+    int ls = (int)((sr + (uint32_t)P->remap) % (uint32_t)len);
+    uint32_t cyc = sr / (uint32_t)len;
     float fr = evo_free(E);                       /* (EVOLVE past 50: how much is left to chance) */
     {   /* EVOLVE: neighbouring sixteenths trading places now and then (a hit moved), more as it rises: from 10, a loop of
          * four passes at 50, free past it. Never the kick's: it holds the groove */
@@ -435,6 +435,26 @@ static void midi_hit(Engine *e, int p, const Ev *v)
     e->off_note[p] = (uint8_t)note; e->off_left[p] = 12;   /* (its note-off ~70 ms on) */
 }
 
+/* the waiting groove in, at tick at (a bar line): REC's carrying the macros and MOTION as they are now; each part's
+ * pattern written anew and begun at its first step on or after it; the fills begun afresh */
+static void groove_switch(Engine *e, uint32_t at)
+{
+    Groove *g = e->g;
+    if (e->pend_carry) {
+        e->pend.mood = g->mood; e->pend.activity = g->activity; e->pend.evolve = g->evolve; e->pend.drift = g->drift;
+        e->pend.link = g->link; e->pend.warp = g->warp; e->pend.flow = g->flow; e->pend.chaos = g->chaos;
+    }
+    *g = e->pend;
+    for (int p = 0; p < NPARTS; p++) {
+        Part *P = &e->P[p];
+        pattern_make(&P->pat, g, p); P->sig = sig_of(g, p);
+        uint32_t tps = RATE_TICKS[P->pat.rate % NUM_RATES];
+        P->step = P->s0 = (at + tps - 1u) / tps; P->remap = 0;
+    }
+    e->loop0 = at; e->fill_from = e->fill_to = 0;
+    e->pend_on = 0; e->swaps++;
+}
+
 void engine_block_begin(Engine *e, int nsub)
 {
     Groove *g = e->g;
@@ -452,8 +472,10 @@ void engine_block_begin(Engine *e, int nsub)
     if (e->shed != e->shed_seen) { e->shed_seen = e->shed; e->gov = fm_maxf(0.3f, e->gov * 0.8f); }
     if (e->sync_req) {
         e->sync_req = 0; e->tick = 0; e->frac = 0; e->clk_tick = 0; e->last_bar = 0; e->fill_from = e->fill_to = 0; e->afill_bar = 0xFFFFFFFFu;
-        for (int p = 0; p < NPARTS; p++) { e->P[p].step = 0; e->P[p].nq = 0; e->P[p].remap = 0; }
+        for (int p = 0; p < NPARTS; p++) { e->P[p].step = 0; e->P[p].s0 = 0; e->P[p].nq = 0; e->P[p].remap = 0; }
+        e->loop0 = 0;
     }
+    if (e->pend_on && !e->playing) groove_switch(e, e->tick);   /* (stopped: at once) */
     for (int p = 0; p < NPARTS; p++) {           /* a pattern's settings changed (a knob, REC, a saved groove): written anew */
         Part *P = &e->P[p];
         uint32_t sg = sig_of(g, p);
@@ -461,7 +483,8 @@ void engine_block_begin(Engine *e, int nsub)
             uint32_t old_tps = RATE_TICKS[P->pat.rate % NUM_RATES];
             pattern_make(&P->pat, g, p); P->sig = sg;
             uint32_t tps = RATE_TICKS[P->pat.rate % NUM_RATES];
-            if (tps != old_tps) P->step = (e->tick + LOOK + tps - 1u) / tps;   /* (a new rate: stepping on from here) */
+            if (tps != old_tps) { P->step = (e->tick + LOOK + tps - 1u) / tps; P->s0 = (e->loop0 + tps - 1u) / tps; }   /* (a new rate:
+                                                  * stepping on from here, counted from where the groove began) */
         }
         P->nat = 0;
     }
@@ -495,6 +518,16 @@ void engine_block_begin(Engine *e, int nsub)
     if (e->playing) {
         /* the bars turning */
         while (e->last_bar * BAR + BAR <= end) { e->last_bar++; bar_turned(e, e->last_bar); }
+        /* a groove waiting for the loop's end, and the end in reach: the old one dealt up to it, then the new from its
+         * first steps (no hit of the old one's after it, none of the new one's before) */
+        if (e->pend_on && (int32_t)(e->pend_at - (uint32_t)LOOK - end) <= 0) {
+            for (int p = 0; p < NPARTS; p++) {
+                Part *P = &e->P[p]; uint32_t tps = RATE_TICKS[P->pat.rate % NUM_RATES];
+                int guard = 0;
+                while ((int32_t)(P->step * tps - e->pend_at) < 0 && guard++ < 16) deal_step(e, p, P->step++);
+            }
+            groove_switch(e, e->pend_at);
+        }
         /* the steps: each part dealt one ahead of time */
         for (int p = 0; p < NPARTS; p++) {
             Part *P = &e->P[p]; uint32_t tps = RATE_TICKS[P->pat.rate % NUM_RATES];
@@ -521,6 +554,9 @@ void engine_block_begin(Engine *e, int nsub)
             if (at >= (float)n) break;
             P->at[k] = (int16_t)clampi((int)at, 0, n - 1);
             midi_hit(e, p, &P->q[k]);
+#ifdef ER_HITLOG
+            { extern void er_hitlog(int p, uint32_t tick); er_hitlog(p, P->q[k].tick); }   /* (the renderer's switch test) */
+#endif
             UiHit u; u.part = (uint8_t)p; u.vel = (uint8_t)clampi((int)(P->q[k].hp.vel * 127.0f), 1, 127); u.alt = P->q[k].alt;
             u.dur = (uint8_t)clampi((int)(P->q[k].hp.decay * (p == P_HATS ? 1.0f : p == P_PERC ? 4.0f : 2.5f)), 1, 30);
             e->uiq[e->uiq_head % UI_Q] = u; e->uiq_head++;
@@ -966,7 +1002,9 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 } else if (e->pn_dw[p] <= 0) { e->pn_w[p] = e->pn_c0[p] = e->pn_c1[p] = e->pn_dw[p] = e->pn_d0[p] = e->pn_d1[p] = 0; }
             }
         }
-        if (p == e->rev_part || p == e->rev_now) part_reverse(e, p, px0, px1, n);   /* (REVERSE on this part alone) */
+        if (p == ((e->pu == PU_REVERSE || e->pr_on) ? e->rev_now : e->rev_part)) part_reverse(e, p, px0, px1, n);   /* (REVERSE on this
+                                                  * part alone: one part's memory only ever, the one reversing, or the one
+                                                  * chosen for next time) */
         for (int i = 0; i < n; i++) { mL[i] += px0[i]; mR[i] += px1[i]; }
         if (p == P_KICK) for (int i = 0; i < n; i++) { kX0[i] = px0[i]; kX1[i] = px1[i]; }
         if (scmp[p] > 0) { float a = scmp[p]; for (int i = 0; i < n; i++) { cLb[i] += px0[i] * a; cRb[i] += px1[i] * a; } }

@@ -401,6 +401,7 @@ static struct {
     uint16_t lat_w, lat_b; uint32_t lat_w_until[16], lat_b_until[11]; float lat_w_dep[16], lat_b_dep[11];
     int oct_used[2], kept_ok;
     int pu_shown;
+    uint8_t pend_kind, pend_slot; uint32_t swaps_seen;   /* (a groove waiting for the loop's end: REC's, a slot's, history's) */
 } ui;
 
 static void settings_apply(void);
@@ -529,7 +530,11 @@ static void changed(void) { set_dirty = 1; autosave_at = plat_ms() + AUTOSAVE_MS
 static void groove_label(char *t)
 {
     groove_name(set.cur.seed, t);
-    if (set.slot != 255 && memcmp(&set.cur, &set.saved[set.slot], sizeof(Groove))) text_cat(t, "*");
+    if (set.slot != 255) {                       /* (edited since saved: a star. The tempo isn't counted: recalled while playing,
+                                                  * a groove takes the tempo as it is) */
+        Groove a = set.saved[set.slot]; a.tempo = set.cur.tempo;
+        if (memcmp(&set.cur, &a, sizeof(Groove))) text_cat(t, "*");
+    }
 }
 
 static uint8_t deck[NPAL]; static int deck_n;
@@ -546,38 +551,76 @@ static void palette_next(void)           /* REC's palettes: a shuffled deck, non
 }
 
 static void vis_deal(void);
-static void new_groove(int keep)          /* REC: a new groove (a new key too); held: in the same key. The tempo never: it's yours */
+static const uint8_t GT[NUM_GENRES] = { 140, 130, 65, 85 };   /* each personality's own tempo (BRAINDANCE, FLOORS, CLOUDS, IMPLODE) */
+enum { PEND_REC = 1, PEND_SLOT, PEND_HIST };
+
+/* the switch: the end of the loop playing (the kick's pattern, to the bar line at or after its end), counted from where
+ * the groove began; not within a sixteenth of now (the next one then) */
+static uint32_t next_switch(void)
 {
-    int key = set.cur.key, scale = set.cur.scale, tempo = set.cur.tempo;
-    PartP was[NPARTS]; for (int p = 0; p < NPARTS; p++) was[p] = set.cur.p[p];
-    palette_next();
-    hist_push();
-    uint32_t seed = (set.cur.seed * 1664525u + 1013904223u) ^ plat_ms() * 2654435761u ^ plat_ticks24();
-    groove_roll(&set.cur, seed, 1);
-    if (keep || CLK_IN) { set.cur.key = (uint8_t)key; set.cur.scale = (uint8_t)scale; }
-    set.cur.tempo = (uint8_t)tempo;   /* (the tempo only ever changed by you: never by REC, live) */
+    const Pattern *pt = &eng.P[P_KICK].pat;
+    uint32_t lk = (uint32_t)(pt->len ? pt->len : 16) * RATE_TICKS[pt->rate % NUM_RATES];
+    uint32_t lb = (lk + BAR - 1u) / BAR * BAR; if (lb < BAR) lb = BAR;
+    uint32_t t = eng.tick, b0 = eng.loop0, end = b0 + ((t - b0) / lb + 1u) * lb;
+    if (end - t < (uint32_t)(TPB / 4)) end += lb;
+    return end;
+}
+
+/* a groove switched in (by the engine, at the loop's end; at once when stopped): the screen's part of it */
+static void after_switch(int kind, int slot)
+{
+    if (kind == PEND_REC) { palette_next(); set.slot = 255; vis_deal(); }
+    else if (kind == PEND_SLOT) set.slot = (uint8_t)slot;
+    else set.slot = 255;
+    changed();
+    if (kind == PEND_SLOT) set_dirty = 0;
+}
+
+/* REC, a saved groove, history: while it plays, waiting for the loop's end (the engine switches it in on its bar line,
+ * the time going on unbroken, the tempo as it is); stopped, at once */
+static void groove_queue(const Groove *ng, int kind, int slot)
+{
+    if (set.playing) {
+        eng.pend_on = 0; __asm__ volatile("" ::: "memory");   /* (not switched in half written) */
+        eng.pend = *ng; eng.pend_carry = kind == PEND_REC; eng.pend_at = next_switch();
+        ui.pend_kind = (uint8_t)kind; ui.pend_slot = (uint8_t)slot;
+        __asm__ volatile("" ::: "memory"); eng.pend_on = 1;
+    } else { set.cur = *ng; after_switch(kind, slot); }
+}
+static const Groove *groove_next(void) { return eng.pend_on ? &eng.pend : &set.cur; }   /* (the newest: waiting, or playing) */
+
+static void new_groove(int keep)          /* REC: a new groove (a new key too); held: in the same key. Playing, the tempo as
+                                           * it is (yours, live); stopped, the personality's own */
+{
+    const Groove *base = groove_next();
+    int key = base->key, scale = base->scale;
+    int tempo = set.playing || CLK_IN ? set.cur.tempo : GT[base->genre % NUM_GENRES] - 40;
+    PartP was[NPARTS]; for (int p = 0; p < NPARTS; p++) was[p] = base->p[p];
+    if (!eng.pend_on) hist_push();               /* (the one playing; one never heard isn't kept) */
+    uint32_t seed = (base->seed * 1664525u + 1013904223u) ^ plat_ms() * 2654435761u ^ plat_ticks24();
+    Groove ng = *base;
+    groove_roll(&ng, seed, 1);
+    if (keep || CLK_IN) { ng.key = (uint8_t)key; ng.scale = (uint8_t)scale; }
+    ng.tempo = (uint8_t)tempo;
     /* one part's sound carried over from the last groove, a part at random: its EDIT settings as they were (SOUND:
      * ENGINE, TONE, WEIGHT, ENTROPY; MIX: LEVEL, DECAY, PITCH, PAN), only its pattern new. Grooves dealt one after
      * another share a thread, for a set that flows */
     int kp = (int)((seed >> 11) % NPARTS);
-    {   PartP *q = &set.cur.p[kp]; const PartP *o = &was[kp];
+    {   PartP *q = &ng.p[kp]; const PartP *o = &was[kp];
         q->engine = o->engine; q->tone = o->tone; q->weight = o->weight; q->entropy = o->entropy;
         q->level = o->level; q->decay = o->decay; q->pitch = o->pitch; q->pan = o->pan;
     }
     ui.kept_ok = 0;                              /* (the parts sounding as before: one, at least; for the tests) */
     for (int p = 0; p < NPARTS; p++) {
-        const PartP *q = &set.cur.p[p], *o = &was[p];
+        const PartP *q = &ng.p[p], *o = &was[p];
         if (q->engine == o->engine && q->tone == o->tone && q->weight == o->weight && q->entropy == o->entropy && q->level == o->level
             && q->decay == o->decay && q->pitch == o->pitch && q->pan == o->pan) ui.kept_ok++;
     }
-    set.slot = 255;
-    changed();
-    eng.sync_req = set.playing && !CLK_IN;    /* (from the top: its one on the one; following a clock, the leader's) */
-    vis_deal();
+    groove_queue(&ng, PEND_REC, 255);
     char nm[32]; groove_name(seed, nm);
     {
-        pop(keep ? "SAME KEY" : "NEW GROOVE", nm, PART_C[(seed >> 3) % NPARTS]);
-        text_cat(ui.pop_3, NOTE_NAME[set.cur.key]); text_cat(ui.pop_3, " "); text_cat(ui.pop_3, SCALES[set.cur.scale].name);
+        pop(set.playing ? (keep ? "SAME KEY, NEXT LOOP" : "NEW GROOVE, NEXT LOOP") : keep ? "SAME KEY" : "NEW GROOVE", nm, PART_C[(seed >> 3) % NPARTS]);
+        text_cat(ui.pop_3, NOTE_NAME[ng.key]); text_cat(ui.pop_3, " "); text_cat(ui.pop_3, SCALES[ng.scale].name);
         text_cat(ui.pop_3, "  KEPT: "); text_cat(ui.pop_3, PART_NAME[kp]);
     }
 }
@@ -592,19 +635,20 @@ static void new_part(void)
 
 static void hist_step(int d)
 {
-    char nm[32];                                  /* (a groove recalled: at the tempo it had) */
+    char nm[32];                                  /* (a groove recalled: playing, at the tempo as it is; stopped, at its own) */
+    Groove ng;
     if (d < 0) {
         if (hist_at == 0) { pop("HISTORY", "THE FIRST", C_SUB); return; }
         if (hist_at == hist_n) { hist_push(); hist_at = hist_n - 1; }
-        set.cur = hist[--hist_at];
+        ng = hist[--hist_at];
     } else {
         if (hist_at + 1 >= hist_n) { pop("HISTORY", "THE LATEST", C_SUB); return; }
-        set.cur = hist[++hist_at];
+        ng = hist[++hist_at];
     }
-    set.slot = 255;
-    changed();
-    groove_name(set.cur.seed, nm);
-    pop(d < 0 ? "BACK TO" : "FORWARD TO", nm, C_TXT);
+    if (set.playing) ng.tempo = set.cur.tempo;
+    groove_queue(&ng, PEND_HIST, 255);
+    groove_name(ng.seed, nm);
+    pop(d < 0 ? (set.playing ? "BACK TO, NEXT LOOP" : "BACK TO") : (set.playing ? "FORWARD, NEXT LOOP" : "FORWARD TO"), nm, C_TXT);
 }
 
 /* SAVE while it plays: the flash's erase stops the sound for tens of ms, so the sound fades out first, the save, and
@@ -632,12 +676,15 @@ static void save_groove(void)
 static void load_step(int d)
 {
     if (!set.nsaved) { pop("NO GROOVES", "SAVE ONE FIRST", C_SUB); return; }
-    int at = set.slot == 255 ? (d > 0 ? 0 : set.nsaved - 1) : (set.slot + d % set.nsaved + set.nsaved) % set.nsaved;
-    if (set.slot == 255) hist_push();
-    set.slot = (uint8_t)at; set.cur = set.saved[at];   /* (at its own saved tempo: REC goes on from there) */
-    changed(); set_dirty = 0;
+    int cur = eng.pend_on && ui.pend_kind == PEND_SLOT ? ui.pend_slot : set.slot;   /* (stepping on from one waiting) */
+    int at = cur == 255 ? (d > 0 ? 0 : set.nsaved - 1) : (cur + d % set.nsaved + set.nsaved) % set.nsaved;
+    if (set.slot == 255 && !eng.pend_on) hist_push();
+    Groove ng = set.saved[at];
+    if (set.playing) ng.tempo = set.cur.tempo;   /* (playing: the tempo as it is, for a set that holds together; stopped,
+                                                  * its own saved tempo: REC goes on from there) */
+    groove_queue(&ng, PEND_SLOT, at);
     ui.list_until = plat_ms() + 2000u; ui.pop_until = 0;
-    char nm[32]; groove_name(set.cur.seed, nm); say_text("GROOVE", nm);
+    char nm[32]; groove_name(ng.seed, nm); say_text("GROOVE", nm);
 }
 
 static uint32_t stopped_at;
@@ -720,9 +767,13 @@ static void knob_turn(int k, int d)
     else if (kn->kind == K_ENGINE) *p = ENG_ORD[v];
     else *p = (uint8_t)v;
     if (kn->kind == K_ENGINE) groove_part_engine(&set.cur, ui.sel);   /* (a new engine: its colours dealt to suit) */
-    if (kn->kind == K_GENRE && v != was) {       /* (a genre's own tempo when you choose it; REC keeps yours after) */
-        static const uint8_t GT[NUM_GENRES] = { 140, 130, 65, 85 };   /* (BRAINDANCE, FLOORS, CLOUDS, IMPLODE) */
+    if (kn->kind == K_GENRE && v != was && !set.playing)   /* (stopped: a personality's own tempo when you choose it;
+                                                  * playing, the tempo stays as it is) */
         set.cur.tempo = (uint8_t)(GT[v % NUM_GENRES] - 40);
+    if (eng.pend_on && kn->where != 2) {         /* (a groove waiting for the loop's end: the knob turned in it too) */
+        uint8_t *q = kn->where == 1 ? (uint8_t *)&eng.pend.p[ui.sel] + kn->off : (uint8_t *)&eng.pend + kn->off;
+        *q = *p;
+        if (kn->kind == K_ENGINE) groove_part_engine(&eng.pend, ui.sel);
     }
     if (kn->where == 2) { autosave_at = plat_ms() + AUTOSAVE_MS; settings_apply(); }
     else changed();
@@ -780,9 +831,9 @@ static float key_depth(uint32_t kk, int pressure_ok)
 static uint32_t loop_end(void)          /* where the groove's loop ends next (the kick's pattern), at least a beat away */
 {
     const Pattern *pt = &eng.P[P_KICK].pat;
-    uint32_t loop = (uint32_t)(pt->len ? pt->len : 16) * RATE_TICKS[pt->rate % NUM_RATES], t = eng.tick;
+    uint32_t loop = (uint32_t)(pt->len ? pt->len : 16) * RATE_TICKS[pt->rate % NUM_RATES], t = eng.tick, b0 = eng.loop0;
     if (loop < (uint32_t)TPB) loop = TPB * 4u;
-    uint32_t end = (t / loop + 1u) * loop;
+    uint32_t end = b0 + ((t - b0) / loop + 1u) * loop;   /* (counted from where the groove began) */
     if (end - t < (uint32_t)TPB) end += loop;
     return end ? end : 1u;
 }
@@ -1058,11 +1109,11 @@ static void vis_loop(uint32_t now)
     uint32_t lk = (uint32_t)eng.P[P_KICK].pat.len * RATE_TICKS[eng.P[P_KICK].pat.rate % NUM_RATES],
              ls = (uint32_t)eng.P[P_SNARE].pat.len * RATE_TICKS[eng.P[P_SNARE].pat.rate % NUM_RATES], lp = lk > ls ? lk : ls;
     if (lp < (uint32_t)TPB * 4u) lp = TPB * 4u;
-    uint32_t n = eng.tick / lp;
+    uint32_t t = eng.tick - eng.loop0, n = t / lp + eng.swaps * 65536u;   /* (counted from where the groove began) */
     if (n == last || !set.playing) { last = set.playing ? n : 0xFFFFFFFFu; return; }
-    int fresh = last != 0xFFFFFFFFu && eng.tick % lp < (uint32_t)TPB;   /* (the loop came round, not a jump) */
+    int fresh = last != 0xFFFFFFFFu && t % lp < (uint32_t)TPB;   /* (the loop came round, not a jump) */
     last = n;
-    if (!fresh && eng.tick % lp >= (uint32_t)TPB) return;
+    if (!fresh && t % lp >= (uint32_t)TPB) return;
     int cols = vg_cols(), rows = (VIEW_H) / vg_cell(); if (rows > VG_MAX) rows = VG_MAX;
     int w = cols / 2 < 2 ? 2 : cols / 2, hgt = rows / 2 < 2 ? 2 : rows / 2, x0 = (cols - w) / 2, y0 = (rows - hgt) / 2;
     float f = 600.0f * (0.4f + (float)set.fade * 0.021f) * 0.6f + 240.0f;   /* (about 0.6 s at FADE 50) */
@@ -1134,10 +1185,11 @@ static void draw_popup(void)
 }
 static void draw_list(void)
 {
-    int n = set.nsaved, cur = set.slot == 255 ? 0 : set.slot, rows = 4;
+    int sl = eng.pend_on && ui.pend_kind == PEND_SLOT ? ui.pend_slot : set.slot;   /* (one waiting for the loop's end: that one) */
+    int n = set.nsaved, cur = sl == 255 ? 0 : sl, rows = 4;
     int first = clamp(cur - rows / 2, 0, n > rows ? n - rows : 0);
     frame_box(6, 4, 228, 94, C_TXT);
-    cv_text(14, 6, &FONT_S, "GROOVES", C_TXT);
+    cv_text(14, 6, &FONT_S, eng.pend_on && ui.pend_kind == PEND_SLOT ? "GROOVES: NEXT LOOP" : "GROOVES", C_TXT);
     for (int i = 0; i < rows && first + i < n; i++) {
         char t[40], nm[32]; int y = 26 + i * 18;
         int_text(first + i + 1, t); text_cat(t, "  "); groove_name(set.saved[first + i].seed, nm); text_cat(t, nm);
@@ -1347,7 +1399,7 @@ void app_ui_init(void)
     ui.sel = P_HATS;
     settings_apply();
     ui.page = PG_HOME;
-    ui.uiq_tail = eng.uiq_head;
+    ui.uiq_tail = eng.uiq_head; ui.swaps_seen = eng.swaps;   /* (no switch to answer at start-up) */
     lcd_fill(0, 0, 240, 240, C_BLACK);
     app_splash();
     ui.splash_on = 1; ui.splash_t0 = plat_ms(); ui.touched = 0;
@@ -1355,6 +1407,8 @@ void app_ui_init(void)
 
 void app_frame(void)
 {
+    if (eng.swaps != ui.swaps_seen) { ui.swaps_seen = eng.swaps; after_switch(ui.pend_kind, ui.pend_slot); }   /* (a groove
+                                                  * switched in at the loop's end: the screen's part of it) */
     if (!vol_ready) {                            /* the volume knob: settled once its reading has stopped moving for a
                                                   * dozen passes (or after 5 s, whatever) */
         static uint32_t last_m = 0xFFFFFFFFu; static int calm, passes;
@@ -1455,6 +1509,7 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "crush_rate")) *got = set.crush_rate;
     else if (!strcmp(what, "rev_to")) *got = set.rev_to;
     else if (!strcmp(what, "setver")) *got = set.ver;
+    else if (!strcmp(what, "pend")) *got = eng.pend_on;
     else if (!strcmp(what, "sent")) { int n = 0; for (int p = 0; p < NPARTS; p++) n += set.cur.p[p].s_room + set.cur.p[p].s_delay + set.cur.p[p].s_pan; *got = n; }
     else if (!strcmp(what, "kicksent")) *got = set.cur.p[P_KICK].s_room + set.cur.p[P_KICK].s_delay + set.cur.p[P_KICK].s_pan;
     else if (!strcmp(what, "ratepos")) *got = rate_pos(set.cur.p[ui.sel].rate % NUM_RATES);
