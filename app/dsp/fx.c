@@ -43,7 +43,14 @@ ER_RAM void reverb_run(Reverb *rv, const float *inL, const float *inR, float *ou
         }
         float in[2] = { m + sd, m - sd };
         float o[RV_LINES], h[RV_LINES];
-        for (int k = 0; k < RV_LINES; k++) { o[k] = op_lp(&rv->damp[k], (float)rv->buf[k][rv->pos[k]] * (1.0f / 16384.0f)) * rv->g[k]; h[k] = o[k]; }
+        /* (no calls in here: it runs from RAM, and the FM-1's compiler keeps even small inline helpers as calls into the
+         * flash, out of reach: the damping's one-pole and the 16-bit store written out) */
+        for (int k = 0; k < RV_LINES; k++) {
+            OnePole *dp = &rv->damp[k];
+            dp->z += dp->a * ((float)rv->buf[k][rv->pos[k]] * (1.0f / 16384.0f) + ((k & 1) ? 1e-18f : -1e-18f) - dp->z);   /* (a guard
+                                                  * against the denormals, as op_lp's) */
+            o[k] = dp->z * rv->g[k]; h[k] = o[k];
+        }
         _Static_assert(RV_LINES == 8, "the Hadamard below is written out for eight lines");
         /* Hadamard: the eight lines' sums and differences, in three stages (written out: the same sums, without a loop's
          * work round each) */
@@ -54,7 +61,8 @@ ER_RAM void reverb_run(Reverb *rv, const float *inL, const float *inR, float *ou
 #undef BF
         for (int k = 0; k < RV_LINES; k++) {
             float x = h[k] * 0.35355339f + ((k & 1) ? in[1] : in[0]) * ((k & 2) ? -0.5f : 0.5f);
-            rv->buf[k][rv->pos[k]] = to16(x);
+            x *= 16384.0f; if (x > 32767.0f) x = 32767.0f; if (x < -32768.0f) x = -32768.0f;
+            rv->buf[k][rv->pos[k]] = (int16_t)x;
             rv->pos[k] = rv->pos[k] + 1 >= rv->len[k] ? 0 : rv->pos[k] + 1;
         }
         outL[i] = o[0] - o[2] + o[4] - o[6];

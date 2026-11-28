@@ -638,7 +638,7 @@ ER_RAM static void rv_core(Engine *e, int n)
                 for (int j = 0; j < RV_DIV; j++) { z += RV_AA_K * (x[RV_DIV * k + j] - z); acc += z; }
                 e->rv_h[c][k] = acc * (1.0f / RV_DIV);
             }
-            e->rv_aa[c] = fm_fabsf(z) < 1e-20f ? 0.0f : z;
+            e->rv_aa[c] = (z < 1e-20f && z > -1e-20f) ? 0.0f : z;   /* (written out: no calls from RAM, fx.c reverb_run) */
         }
         reverb_run(&e->rv, e->rv_h[0], e->rv_h[1], e->rv_h[2], e->rv_h[3], h);
         for (int c = 0; c < 2; c++) {             /* out: slid from each to the next, smoothed */
@@ -648,7 +648,7 @@ ER_RAM static void rv_core(Engine *e, int n)
                 for (int j = 0; j < RV_DIV; j++) { prev += d; z += RV_AA_K * (prev - z); o[RV_DIV * k + j] = z; }
                 prev = y[k];
             }
-            e->rv_last[c] = prev; e->rv_sm[c] = fm_fabsf(z) < 1e-20f ? 0.0f : z;
+            e->rv_last[c] = prev; e->rv_sm[c] = (z < 1e-20f && z > -1e-20f) ? 0.0f : z;
         }
     }
 }
