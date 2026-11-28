@@ -110,7 +110,9 @@ Generative at its core, with macros across the main features, as After Images ha
   through; clock-following allows for the 5.8 ms). The device's own readings: with sends DRY ~50% whatever is played; DEALT
   far heavier than the model's instruction counts show (memory and the shared instruction cache, likely), so v0.14 also
   runs the reverb and delay at a quarter of the rate (RV_DIV, DL_DIV), the reverb's smear on one channel and its work
-  from RAM (.c1_text, fx.h ER_RAM, reached through a pointer), the delay in a loop of its own; the reverb runs on the second core and rests when
+  from RAM (.c1_text, fx.h ER_RAM, reached through a pointer), the delay in a loop of its own. v1.0 at the extremes (dealt, ACTIVITY and EVOLVE 100, MOOD 40) read 75% on the device, 70%
+  with OUTPUT CLEAN, 67% with COMP and PAN at 0: the drums' voices the weight, the effects light. v1.1: the load guard
+  (past 66%) a level deeper, one voice a part at its bottom (model 80% -> 64%); the reverb runs on the second core and rests when
   silent, the delay rests, the compressor works only on what's sent, each part's filters rest at TONE's middle.
 - SCREEN's STYLE: KNOCKOUT, or TONES (greys from each part's colour's lightness; a hit floods the square with the
   colour, fading back to its grey).

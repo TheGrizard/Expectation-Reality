@@ -573,7 +573,9 @@ static void start_voice(Engine *e, Part *P, int p, const Ev *v)
 {
     int sounding = 0, free_v = -1, quiet = -1; float ql = 1e9f;
     static const int CAP[NPARTS] = { 2, 3, 3, 3 };   /* (at most this many ringing at once: the oldest faintest let go) */
-    int cap = e->gov < 0.6f ? 1 + (p != P_KICK) : e->gov < 0.85f ? 2 + (p == P_SNARE) : CAP[p];
+    int cap = e->gov < 0.45f ? 1 : e->gov < 0.6f ? 1 + (p != P_KICK) : e->gov < 0.85f ? 2 + (p == P_SNARE) : CAP[p];   /* (the load guard:
+                                                  * fewer voices as it falls; at its deepest, one a part, a new hit
+                                                  * ending the last, as most drum machines) */
     if ((p == P_PERC || p == P_HATS) && e->fill_add && e->tick >= e->fill_from && e->tick < e->fill_to && cap > 2) cap = 2;   /* (a fill
                                                   * that adds: its run of short hits two at a time, not piling up) */
     for (int i = 0; i < NV; i++) {
