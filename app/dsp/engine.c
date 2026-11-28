@@ -290,10 +290,27 @@ static void deal_step(Engine *e, int p, uint32_t s)
         plays = above < allowed;
     }
     if (!on16 && A < 0.35f && rng_f(&e->rng) > A / 0.35f) plays = 0;   /* (low ACTIVITY: the 32nds and off-grid steps thinned) */
+    int fill_new = 0;
+    if (infill && e->fill_add && (p == P_PERC || p == P_HATS)) {   /* a fill that adds (ACTIVITY low): the perc and hats
+                                                  * busier however sparse the groove. Every hit of their pattern plays,
+                                                  * ghosts and 32nds too; and on the sixteenths it hasn't, some of their
+                                                  * own: the hats a light run of sixteenths, the perc a 3-3-2 across each
+                                                  * half bar. Never a roll, nothing speeding up */
+        if (st->lvl > 0) plays = plays || rng_chance(&e->rng, on16 ? 0.55f : 0.2f);   /* (the 32nds and triplets now and then:
+                                                  * busier, not frantic) */
+        else if (on16 && tps <= 24u) {
+            uint32_t k16 = (t0 / 24u) % 8u;
+            if (p == P_HATS ? (k16 != 0 && rng_chance(&e->rng, 0.35f - 0.2f * A)) : (k16 == 3 || k16 == 6) && rng_chance(&e->rng, 0.6f - 0.3f * A)) {
+                plays = 1; fill_new = 1;
+            }
+        }
+    }
     if (p == P_KICK && ls == 0 && E < 0.9f && st->lvl >= 250) plays = 1;   /* (the one: always, till EVOLVE is right up) */
     int floor_k = p == P_KICK && g->genre == GENRE_TECHNO && st->lvl >= 250 && !infill;   /* (TECHNO: the four on the floor) */
     if (floor_k) plays = 1;
     float vel = (float)st->vel / 127.0f, pitch = (float)st->pitch, off = 0;
+    if (fill_new) vel = p == P_HATS ? 0.32f + 0.2f * rng_f(&e->rng) : 0.45f + 0.15f * rng_f(&e->rng);   /* (a fill's own: lighter
+                                                  * than the pattern's, the hats ghostly) */
     int alt = st->alt, ratch = 1;
     int comp = st->ct && (int)(E * 100.0f + 0.5f) >= st->cu ? st->ct : C_NONE;
     if (p == P_KICK && (comp == C_NUDGE || comp == C_RATCHET || comp == C_PROB)) comp = C_NONE;   /* (the kick: the anchor. From EVOLVE

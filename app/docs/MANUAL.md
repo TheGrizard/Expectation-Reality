@@ -395,8 +395,7 @@ while it follows a clock.
 
 FILL plays alongside the other white keys. A fill is a contrast, a simple change of the groove, not a roll: the
 kick steps out (only the bar's downbeat, if the fill reaches one) and the snare plays a slight variation of its own.
-With ACTIVITY low, the perc and hats bring in more of their own patterns (on the sixteenths, never rolled or speeding
-up); with ACTIVITY high, they drop back to their core hits, a breakdown; in between, each fill goes one way or the
+With ACTIVITY low, the perc and hats get busier: their whole patterns, ghosts included, and where a pattern is sparse some sixteenths of their own (a light run on the hats, a 3-3-2 on the perc), never rolled or speeding up; with ACTIVITY high, they drop back to their core hits, a breakdown; in between, each fill goes one way or the
 other at random. Then the groove comes back as it was. Each fill is a different variation.
 
 None of them goes silent if you press between the hits. The repeats loop one piece of sound and hold it: if the slice
