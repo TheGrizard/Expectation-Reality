@@ -67,7 +67,7 @@ void dirt_run(Dirt *d, float character, float mix, float *L, float *R, int n);  
  * short line, crossfaded) and fed back into it, so the shimmer climbs and sinks as it rings */
 #define SHIM_LINE 4096
 typedef struct { int16_t buf[SHIM_LINE]; int pos; float ph[2]; } Shifter;
-void shifter_run(Shifter *s, const float *in, float *up, float *down, int n);
+void shifter_run(Shifter *s, const float *in, float *up, float *down, int n);   /* (up or down null: that octave not worked out) */
 
 /* CHORUS (WARBLE's), the Juno's way: one short line read at two points swung by a slow triangle, the sides opposite */
 typedef struct { float l1, l2, r1, r2, s1, ph, ph2; } Wear;

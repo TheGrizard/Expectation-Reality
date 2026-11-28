@@ -228,6 +228,7 @@ static void run(const char *path, float secs, int punch)
             if ((int)b != (int)last_beat) { engine_hear(&eng, 0, 36 + ((int)b / 4 % 3) * 5, 90); for (int i = 0; i < 3; i++) engine_hear(&eng, 2, 72 + i * 3, 70); }
             last_beat = b;
         }
+        if (getenv("FILLHOLD")) eng.fill_want = 1;   /* (FILL held throughout) */
         if (getenv("SOLOPU")) eng.pu_want = eng.beat >= 8.0f && eng.beat < 20.0f ? atoi(getenv("SOLOPU")) : 0;   /* (SOLOPU=n: that
                                                     * punch-in held from beat 8 to 20) */
         if (pudemo) while (dnext < (int)(sizeof DEMO / sizeof DEMO[0]) && eng.beat >= DEMO[dnext].beat) { eng.pu_want = DEMO[dnext].pu; dnext++; }

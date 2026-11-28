@@ -384,6 +384,9 @@ static void deal_step(Engine *e, int p, uint32_t s)
         e->kick_ticks[e->kick_n++ & 7] = t0;
     }
     HitP hp; make_hit(e, p, vel, pitch, alt, &hp);
+    if (infill && e->fill_add && (p == P_PERC || p == P_HATS)) hp.decay *= 0.4f;   /* (a fill that adds: the perc and hats
+                                                  * short, a staccato burst, not long hits piling up: at MOOD 0 they rang
+                                                  * on into each other, three voices each, too much for the FM-1) */
     float pan = hit_pan(e, p);
     if (ratch > 4) ratch = 4;
     for (int k = 0; k < ratch; k++) {
@@ -535,6 +538,8 @@ static void start_voice(Engine *e, Part *P, int p, const Ev *v)
     int sounding = 0, free_v = -1, quiet = -1; float ql = 1e9f;
     static const int CAP[NPARTS] = { 2, 3, 3, 3 };   /* (at most this many ringing at once: the oldest faintest let go) */
     int cap = e->gov < 0.6f ? 1 + (p != P_KICK) : e->gov < 0.85f ? 2 + (p == P_SNARE) : CAP[p];
+    if ((p == P_PERC || p == P_HATS) && e->fill_add && e->tick >= e->fill_from && e->tick < e->fill_to && cap > 2) cap = 2;   /* (a fill
+                                                  * that adds: its run of short hits two at a time, not piling up) */
     for (int i = 0; i < NV; i++) {
         Hit *h = &P->v[i];
         if (!h->on) { if (free_v < 0) free_v = i; continue; }
@@ -1225,7 +1230,10 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
         { float a = fm_fabsf(y[0]) + fm_fabsf(y[1]); if (a > e->pk_run) e->pk_run = a; }
         float pu_[2] = { 0, 0 }, pd_[2] = { 0, 0 };
         if (e->pu == PU_PUP || e->pu == PU_PDOWN || want_pu == PU_PUP || want_pu == PU_PDOWN)
-            for (int c = 0; c < 2; c++) shifter_run(&e->shf[c], &y[c], &pu_[c], &pd_[c], 1);
+        {   /* (only the octave playing or about to: the other's heads not read) */
+            int wu = e->pu == PU_PUP || want_pu == PU_PUP, wd = e->pu == PU_PDOWN || want_pu == PU_PDOWN;
+            for (int c = 0; c < 2; c++) shifter_run(&e->shf[c], &y[c], wu ? &pu_[c] : 0, wd ? &pd_[c] : 0, 1);
+        }
         else for (int c = 0; c < 2; c++) {        /* (only fed, so it's ready the moment a pitch key is pressed) */
             Shifter *s = &e->shf[c]; s->buf[s->pos] = to16(y[c] * 0.999f); s->pos = (s->pos + 1) & (SHIM_LINE - 1);
         }

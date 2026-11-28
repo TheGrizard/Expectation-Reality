@@ -243,10 +243,11 @@ void dirt_run(Dirt *d, float a, float mix, float *L, float *R, int n)
 void shifter_run(Shifter *s, const float *in, float *up, float *down, int n)
 {
     const float W = 2048.0f;                             /* each head's sweep: 46 ms */
+    int k0 = up ? 0 : 1, k1 = down ? 2 : 1;              /* (only the octave asked for: a null for the other) */
     for (int i = 0; i < n; i++) {
         s->buf[s->pos] = to16(in[i]);
         float o[2] = { 0, 0 };
-        for (int k = 0; k < 2; k++) {                    /* k 0: up (rate 2), 1: down (rate 0.5) */
+        for (int k = k0; k < k1; k++) {                  /* k 0: up (rate 2), 1: down (rate 0.5) */
             s->ph[k] += (k ? 0.5f : -1.0f) / W;          /* the delay shrinks (up) or grows (down) */
             if (s->ph[k] >= 1.0f) s->ph[k] -= 1.0f;
             if (s->ph[k] < 0.0f) s->ph[k] += 1.0f;
@@ -258,7 +259,8 @@ void shifter_run(Shifter *s, const float *in, float *up, float *down, int n)
                 o[k] += x * (0.5f - 0.5f * sine_c(ph + 0.25f));
             }
         }
-        up[i] = o[0]; down[i] = o[1];
+        if (up) up[i] = o[0];
+        if (down) down[i] = o[1];
         s->pos = (s->pos + 1) & (SHIM_LINE - 1);
     }
 }
