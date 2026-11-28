@@ -48,34 +48,38 @@ wait 200
 expect page 7
 tap FX
 wait 200
+expect page 8
+shot punch_page.png
+tap FX
+wait 200
 expect page 4
 tap LFO
 wait 200
-expect page 8
+expect page 9
 shot motion.png
 tap GLO
 wait 200
-expect page 9
-tap GLO
-wait 200
 expect page 10
-shot genre.png
 tap GLO
 wait 200
 expect page 11
+shot genre.png
 tap GLO
 wait 200
 expect page 12
-shot scale.png
-tap ARP
+tap GLO
 wait 200
 expect page 13
+shot scale.png
 tap ARP
 wait 200
 expect page 14
 tap ARP
 wait 200
 expect page 15
+tap ARP
+wait 200
+expect page 16
 tap HOME
 wait 200
 expect page 0
@@ -95,7 +99,7 @@ tap ARP
 tap ARP
 tap ARP
 wait 100
-expect page 15
+expect page 16
 turn K1 1
 wait 200
 expect clean 1
@@ -115,7 +119,7 @@ tap GLO
 tap GLO
 tap GLO
 wait 100
-expect page 11
+expect page 12
 turn K4 1
 wait 1500
 expect style 1

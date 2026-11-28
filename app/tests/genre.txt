@@ -6,7 +6,7 @@ expect genre 0
 tap GLO
 tap GLO
 wait 100
-expect page 10
+expect page 11
 turn K1 1
 wait 300
 expect genre 1

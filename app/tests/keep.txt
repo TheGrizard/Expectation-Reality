@@ -26,7 +26,7 @@ tap GLO
 tap GLO
 tap GLO
 wait 100
-expect page 11
+expect page 12
 turn K1 2
 wait 100
 expect peg_n 2

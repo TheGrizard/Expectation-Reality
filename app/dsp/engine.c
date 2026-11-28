@@ -42,6 +42,8 @@ void engine_init(Engine *e, Groove *g)
 {
     memset(e, 0, sizeof *e);
     e->g = g;
+    e->mash_amt = 0.5f; e->crush_q = 24.0f; e->crush_hz = 6000.0f; e->rev_part = e->rev_now = -1;   /* (the PUNCH-INS page's
+                                                  * defaults, until the app's settings come in) */
     rng_seed(&e->rng, g->seed ^ 0xA5A5u);
     reverb_init(&e->rv, 1.0f); reverb_set(&e->rv, 1.2f, 6000.0f);
     for (int p = 0; p < NPARTS; p++) {
@@ -707,6 +709,16 @@ static int slice_quiet(const Engine *e, int start, int len) { return pb_peak(e, 
 /* the live chopper's sample: act 0 the groove as it plays, 1 the last len before the step repeated, 2 the last len
  * backwards; s0 the step's first sample in the memory, ph how far into the step. Each pass faded at its ends (1 ms) */
 enum { CH_LIVE, CH_REP, CH_REV };
+static inline float pr_sample(const Engine *e, int act, int s0, int len, float ph, int c, float live)   /* (REVERSE on one
+                                                  * part: as ch_sample, from that part's own memory) */
+{
+    if (act == CH_LIVE || len < 64) return live;
+    int k = (int)ph % len, i = s0 - 1 - k;
+    while (i < 0) i += PUNCH_BUF;
+    float w = fm_minf(1.0f, fm_minf((float)k, (float)(len - k)) / 44.0f);
+    return from16(e->prb[c][i % PUNCH_BUF]) * w;
+}
+
 static inline float ch_sample(const Engine *e, int act, int s0, int len, float ph, int c, float live)
 {
     if (act == CH_LIVE || len < 64) return live;
@@ -755,6 +767,8 @@ static void punch_engage(Engine *e, int pu, int at)   /* (at: the sample of this
     if (pu == PU_GLITCH || pu == PU_REVERSE) {   /* the live ones: on everything as it plays, the beat going on through them */
         float st = pu == PU_GLITCH ? beat * 0.25f : beat * 0.5f;   /* (REVERSE: an eighth, or less where the memory is short) */
         while (st * 2.0f > (float)(PUNCH_BUF - 512)) st *= 0.5f;
+        e->rev_now = pu == PU_REVERSE ? e->rev_part : -1;   /* (REVERSE's part held as it started: turned mid-way, the
+                                                  * next REVERSE takes it) */
         e->ch_step = st; e->ch_ph = 0; e->ch_s0 = e->pw; e->ch_len = (int)st; e->ch_act = 0; e->ch_xf = 0;
         e->ch_pact = 0; e->ch_ps0 = e->pw; e->ch_plen = (int)st; e->ch_pph = 0;
         e->pu_fwd = 0; e->pu_cap = 0; e->pu_frozen = 0; e->pu_quiet = 0; e->pu_tries = 0;
@@ -784,6 +798,41 @@ static void punch_engage(Engine *e, int pu, int at)   /* (at: the sample of this
     }
     e->pu_frozen = slice && !e->pu_fwd;
     e->pu_quiet = 0; e->pu_tries = 0;
+}
+
+/* REVERSE on one part (FX's PUNCH-INS page): that part's own memory kept while it's chosen, and while REVERSE plays it
+ * played back an eighth at a time, backwards, in step with the grid the whole kit's REVERSE keeps (ch_*: the punch-ins'
+ * loop below runs it, passing the mix through), before it goes into the mix, so its sends follow it and the other parts
+ * play on forwards. Faded in and out over 4 ms, each eighth crossfaded over 1 ms, as the whole kit's */
+static void part_reverse(Engine *e, int p, float *x0, float *x1, int n)
+{
+    int tgt = e->pu == PU_REVERSE && !e->pu_rel && e->rev_now == p;
+    float st = 1.0f / (0.004f * SR);
+    for (int i = 0; i < n; i++) {
+        e->prb[0][e->prw] = to16(x0[i]); e->prb[1][e->prw] = to16(x1[i]);
+        if (tgt && !e->pr_on) {                   /* (started: from where the kit's grid stands) */
+            e->pr_on = 1; e->pr_step = e->ch_step; e->pr_ph = e->ch_ph + (float)i; e->pr_act = CH_LIVE; e->pr_s0 = e->prw;
+            e->pr_len = (int)e->ch_step; e->pr_xf = 0; e->pr_pact = CH_LIVE; e->pr_ps0 = e->prw; e->pr_plen = e->pr_len; e->pr_pph = 0;
+        }
+        if (e->pr_on) {
+            if (e->pr_ph >= e->pr_step) {
+                e->pr_pact = e->pr_act; e->pr_ps0 = e->pr_s0; e->pr_plen = e->pr_len; e->pr_pph = e->pr_ph;
+                e->pr_ph -= e->pr_step; e->pr_s0 = e->prw; e->pr_act = CH_REV; e->pr_len = (int)e->pr_step; e->pr_xf = 44;
+            }
+            e->pr_mix += clampf((tgt ? 1.0f : 0.0f) - e->pr_mix, -st, st);
+            float y[2] = { x0[i], x1[i] };
+            for (int c = 0; c < 2; c++) {
+                float v = pr_sample(e, e->pr_act, e->pr_s0, e->pr_len, e->pr_ph, c, y[c]);
+                if (e->pr_xf > 0) { float k = (float)e->pr_xf / 44.0f; v += (pr_sample(e, e->pr_pact, e->pr_ps0, e->pr_plen, e->pr_pph, c, y[c]) - v) * k; }
+                y[c] += (v - y[c]) * e->pr_mix;
+            }
+            x0[i] = y[0]; x1[i] = y[1];
+            e->pr_ph += 1.0f;
+            if (e->pr_xf > 0) { e->pr_xf--; e->pr_pph += 1.0f; }
+            if (!tgt && e->pr_mix <= 0.0f) { e->pr_on = 0; e->pr_mix = 0; }
+        }
+        if (++e->prw >= PUNCH_BUF) e->prw = 0;
+    }
 }
 
 void engine_block_mix(Engine *e, float *outL, float *outR)
@@ -895,6 +944,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 } else if (e->pn_dw[p] <= 0) { e->pn_w[p] = e->pn_c0[p] = e->pn_c1[p] = e->pn_dw[p] = e->pn_d0[p] = e->pn_d1[p] = 0; }
             }
         }
+        if (p == e->rev_part || p == e->rev_now) part_reverse(e, p, px0, px1, n);   /* (REVERSE on this part alone) */
         for (int i = 0; i < n; i++) { mL[i] += px0[i]; mR[i] += px1[i]; }
         if (p == P_KICK) for (int i = 0; i < n; i++) { kX0[i] = px0[i]; kX1[i] = px1[i]; }
         if (scmp[p] > 0) { float a = scmp[p]; for (int i = 0; i < n; i++) { cLb[i] += px0[i] * a; cRb[i] += px1[i] * a; } }
@@ -1175,13 +1225,15 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
             float fx[2] = { y[0], y[1] };
             if (pu == PU_PDOWN || pu == PU_PUP) { fx[0] = (pu == PU_PUP ? pu_[0] : pd_[0]) * 1.2f; fx[1] = (pu == PU_PUP ? pu_[1] : pd_[1]) * 1.2f; }
             else if (pu == PU_CRUSH) {
-                e->crush_h += 6000.0f / SR; if (e->crush_h >= 1.0f) { e->crush_h -= 1.0f; e->crush_v[0] = (float)(int)(y[0] * 24.0f) / 24.0f; e->crush_v[1] = (float)(int)(y[1] * 24.0f) / 24.0f; }
+                float q = e->crush_q;             /* (CRUSH BITS: its steps a unit; CRUSH RATE: how often it's held anew) */
+                e->crush_h += e->crush_hz / SR; if (e->crush_h >= 1.0f) { e->crush_h -= 1.0f; e->crush_v[0] = (float)(int)(y[0] * q) / q; e->crush_v[1] = (float)(int)(y[1] * q) / q; }
                 fx[0] = e->crush_v[0]; fx[1] = e->crush_v[1];
             } else if (pu == PU_MASH) {           /* TAPE MASH: a chewed tape, held: the sound read back late off the memory,
                                                    * the delay wobbling (wow, flutter) and now and then catching (a sag in
                                                    * pitch), saturated, dulled, with dropouts; pressed harder, mashed more.
                                                    * Every change glides: the read only ever slides, so it never clicks */
-                float dep = 0.55f + 0.45f * clamp01(e->pu_press);
+                float dep = clampf(e->mash_amt * 1.1f + 0.45f * clamp01(e->pu_press), 0.0f, 1.6f);   /* (TAPE MASH on the
+                                                  * PUNCH-INS page: 50 as it was, 0 a gentle wow, 100 mangled) */
                 if (--e->m_cnt <= 0) {
                     e->m_cnt = (int)((0.06f + 0.3f * rng_f(&e->rng)) * SR);
                     e->m_tgt = rng_chance(&e->rng, 0.4f) ? 0.4f + 0.6f * rng_f(&e->rng) : 0.0f;
@@ -1195,7 +1247,7 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                 e->m_g += (e->m_gt - e->m_g) * 0.004f;
                 float rp = (float)e->pw - e->m_d; while (rp < 0) rp += (float)PUNCH_BUF;
                 int i0 = (int)rp % PUNCH_BUF, i1 = (i0 + 1) % PUNCH_BUF; float fr = rp - fm_floorf(rp);
-                float lk = 0.25f + 0.3f * (1.0f - dep);   /* (dull: ~2.5 to 5 kHz) */
+                float lk = fm_maxf(0.08f, 0.25f + 0.3f * (1.0f - dep));   /* (dull: ~2.5 to 5 kHz, darker past 100) */
                 for (int c = 0; c < 2; c++) {
                     float v = from16(e->pb[c][i0]) + (from16(e->pb[c][i1]) - from16(e->pb[c][i0])) * fr;
                     v = soft_clip(v * (1.6f + 1.6f * dep)) * 0.75f;
@@ -1221,6 +1273,8 @@ void engine_block_mix(Engine *e, float *outL, float *outR)
                     }
                 }
                 for (int c = 0; c < 2; c++) {
+                    if (pu == PU_REVERSE && e->rev_now >= 0) { fx[c] = y[c]; continue; }   /* (one part's: reversed on its own,
+                                                  * above; the grid kept here) */
                     float v = ch_sample(e, e->ch_act, e->ch_s0, e->ch_len, e->ch_ph, c, y[c]);
                     if (e->ch_xf > 0) { float k = (float)e->ch_xf / 44.0f; v += (ch_sample(e, e->ch_pact, e->ch_ps0, e->ch_plen, e->ch_pph, c, y[c]) - v) * k; }
                     fx[c] = v;

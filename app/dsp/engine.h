@@ -106,6 +106,12 @@ struct Engine {
     float frz_feed, sw_dip, frz_prev; int frz_len, frz_left, sw_off, frz_live, frz_hit, pu_quiet, pu_tries;
     float pn_w[NPARTS], pn_c0[NPARTS], pn_c1[NPARTS], pn_dw[NPARTS], pn_d0[NPARTS], pn_d1[NPARTS];   /* (PAN's gains, sliding) */
     float pk_run, frz_ref, frz_go; int fill_add;   /* (fill_add: this fill adds (1) or takes away (0)) */ uint32_t frz_bar;   /* (FREEZE held: caught anew each bar, the old wash let go meanwhile) */                                /* (the groove's recent loudest: what 'nothing in it' is measured against) */
+    /* FX's PUNCH-INS page (the app's settings): TAPE MASH's amount, CRUSH's steps a unit and rate, REVERSE's part (-1 all;
+     * rev_now: as it was when REVERSE started) */
+    float mash_amt, crush_q, crush_hz; int rev_part, rev_now;
+    /* REVERSE on one part: its own memory (that part alone, as it goes into the mix) and its eighths, in step with the
+     * whole kit's (ch_*) */
+    int16_t prb[2][PUNCH_BUF]; int prw, pr_on, pr_act, pr_pact, pr_s0, pr_ps0, pr_len, pr_plen, pr_xf; float pr_ph, pr_pph, pr_step, pr_mix;
     int ch_act, ch_pact, ch_s0, ch_ps0, ch_len, ch_plen, ch_xf; float ch_ph, ch_pph, ch_step;   /* (GLITCH, REVERSE: the
                                                   * live chopper, this step and the one it crossfades from) */ float frz_got, frz_lv;   /* (FREEZE's catch: the last half beat from the
                                                   * memory; SWELL's: how far back its hit is) */

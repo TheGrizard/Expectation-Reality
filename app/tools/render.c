@@ -228,6 +228,8 @@ static void run(const char *path, float secs, int punch)
             if ((int)b != (int)last_beat) { engine_hear(&eng, 0, 36 + ((int)b / 4 % 3) * 5, 90); for (int i = 0; i < 3; i++) engine_hear(&eng, 2, 72 + i * 3, 70); }
             last_beat = b;
         }
+        if (getenv("SOLOPU")) eng.pu_want = eng.beat >= 8.0f && eng.beat < 20.0f ? atoi(getenv("SOLOPU")) : 0;   /* (SOLOPU=n: that
+                                                    * punch-in held from beat 8 to 20) */
         if (pudemo) while (dnext < (int)(sizeof DEMO / sizeof DEMO[0]) && eng.beat >= DEMO[dnext].beat) { eng.pu_want = DEMO[dnext].pu; dnext++; }
         if (punch) {
             while (next < (int)(sizeof PLAN / sizeof PLAN[0]) && eng.beat >= PLAN[next].beat) {
@@ -241,6 +243,10 @@ static void run(const char *path, float secs, int punch)
         while (dn_at < dn_n && dnotes[dn_at].at < done + BLKN) { engine_hear(&eng, dnotes[dn_at].ch, dnotes[dn_at].note, dnotes[dn_at].vel); dn_at++; }
         if (getenv("CLEANAT")) eng.clean = (float)done / SR >= (float)atof(getenv("CLEANAT"));   /* (OUTPUT CLEAN from then on) */
         struct timespec t0_, t1_, t2_; clock_gettime(CLOCK_MONOTONIC, &t0_);
+        if (getenv("MASH")) eng.mash_amt = (float)atoi(getenv("MASH")) * 0.01f;   /* (the PUNCH-INS page: TAPE MASH 0-100, */
+        if (getenv("CBITS")) eng.crush_q = 0.75f * (float)(1u << (atoi(getenv("CBITS")) - 1));   /* CRUSH BITS, */
+        if (getenv("CRATE")) eng.crush_hz = (float)atoi(getenv("CRATE"));   /* CRUSH RATE in Hz) */
+        if (getenv("REVPART")) eng.rev_part = atoi(getenv("REVPART"));   /* (REVERSE on one part: 0 KICK .. 3 HATS, -1 all) */
         if (getenv("GOV")) eng.gov = (float)atof(getenv("GOV"));   /* (the load guard held there: 1 none, 0.8 fewer voices, 0.5 fewest) */
         if (getenv("RND")) { int rb = atoi(getenv("RND")); for (int q = 0; q < NPARTS; q++) { eng.rnd_bits[q] = (uint8_t)rb; eng.rnd_depth[q] = 1.0f; } }   /* (RND=7: every
                                                   * black key held: TONE, WEIGHT and ENTROPY dealt anew each hit) */

@@ -78,8 +78,8 @@ settings: switching doesn't mix them up.
    popup says which. Press it a few times.
 3. **Hold HOME and turn K3 (EVOLVE).** At 0 the groove loops exactly. Turn it up and the groove's hidden details come
    in one by one: ratchets, ghost notes, nudges, conditions. Past about 70 it starts rewriting itself.
-4. **Hold a white key.** The second white key from the bottom repeats the last beat; the ones in the middle pitch
-   it down and up; the bottom key is a high-pass filter, the top one a low-pass.
+4. **Hold a white key.** The fifth white key from the bottom repeats the last eighth; the ninth and tenth pitch it
+   down and up; the bottom key is a high-pass filter, the top one a low-pass.
 5. **Hold a black key.** Each hit of that part gets a new random colour while you hold it.
 6. **SAVE** a groove you like. Stop with **PLAY** before switching off, and wait a few seconds: it keeps your
    settings.
@@ -300,6 +300,14 @@ back within an eighth of a second), FREEZE's wash too, so the kick always cuts t
 **FX a fourth time: DELAY**: FEEDBACK, GLITCH (how often the time jumps to another, every sixteenth: Autechre's
 stutter).
 
+**FX a fifth time: PUNCH-INS**, the white keys' effects tuned (kept with your settings: REC leaves them):
+- **TAPE MASH**: how chewed TAPE MASH's tape is: 0 a gentle wow, 50 as it was, 100 mangled (deep wobble, heavy
+  saturation, darker, more dropouts). Pressing the key harder still adds more.
+- **CRUSH BITS**: 1 to 12; fewer is grittier (6 as it was).
+- **CRUSH RATE**: how often CRUSH takes a new sample, 1 to 22 kHz; lower is lower-fi (6 kHz as it was).
+- **REVERSE**: ALL (the whole kit, as it was), or KICK, SNARE, PERC or HATS: that part alone played backwards, its
+  sends with it, the rest going on forwards.
+
 **The balance** (always on, as After Images has it): each part is held at the same loudness against the others at
 every MOOD (measured in the simulator, weighted as the ear hears it), the mix's tone tilts slowly towards a steady
 top-to-bottom, and a leveller keeps every groove at about the same loudness. At the very end a limiter holds the
@@ -369,23 +377,23 @@ while it follows a clock.
 | Key | Punch-in |
 |---|---|
 | 1 (bottom) | HIGH-PASS, from about 350 Hz; press harder for more |
-| 2 | FILL: from the next beat, for a bar (held, for as long as you hold it): a contrast, the kick on the downbeat alone, the perc and hats busier (ACTIVITY low) or back to their core hits (ACTIVITY high) |
-| 3 | REPEAT 1/8 |
-| 4 | REPEAT 1/12 (triplets) |
-| 5 | REPEAT 1/16 |
-| 6 | REPEAT 1/32 |
-| 7 | GLITCH: everything as it plays, chopped: each sixteenth let through, repeated (a 16th, 32nd, 64th or triplet) or played backwards |
-| 8 | PITCH DOWN an octave |
-| 9 | PITCH UP an octave |
-| 10 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more |
-| 11 | REVERSE: everything as it plays, backwards: each eighth (a sixteenth at slower tempos) played backwards as the next comes in |
-| 12 | FREEZE: a moment of the whole kit caught in the room and held as an endless wash, the groove going on over it; held, caught anew each bar |
-| 13 | SWELL: the latest strong hit played backwards, swelling into the next beat; held, into every beat |
-| 14 | CRUSH |
-| 15 | KILL KICK |
+| 2 | KILL KICK |
+| 3 | FILL: from the next beat, for a bar (held, for as long as you hold it): a contrast, the kick on the downbeat alone, the perc and hats busier (ACTIVITY low) or back to their core hits (ACTIVITY high) |
+| 4 | GLITCH: everything as it plays, chopped: each sixteenth let through, repeated (a 16th, 32nd, 64th or triplet) or played backwards |
+| 5 | REPEAT 1/8 |
+| 6 | REPEAT 1/12 (triplets) |
+| 7 | REPEAT 1/16 |
+| 8 | REPEAT 1/32 |
+| 9 | PITCH DOWN an octave |
+| 10 | PITCH UP an octave |
+| 11 | TAPE MASH: a chewed tape, held: wobbling, catching, saturated and dull, with dropouts; press harder for more (how chewed: TAPE MASH on FX's PUNCH-INS page) |
+| 12 | REVERSE: everything as it plays, backwards: each eighth (a sixteenth at slower tempos) played backwards as the next comes in (or one part only: REVERSE on FX's PUNCH-INS page) |
+| 13 | FREEZE: a moment of the whole kit caught in the room and held as an endless wash, the groove going on over it; held, caught anew each bar |
+| 14 | SWELL: the latest strong hit played backwards, swelling into the next beat; held, into every beat |
+| 15 | CRUSH (how hard: CRUSH BITS and CRUSH RATE on FX's PUNCH-INS page) |
 | 16 (top) | LOW-PASS, from about 1.5 kHz, a gentle slope; strike it harder for more |
 
-FILL is a white key like the others: it plays on its own. A fill is a contrast, a simple change of the groove, not a roll: the
+FILL plays alongside the other white keys. A fill is a contrast, a simple change of the groove, not a roll: the
 kick steps out (only the bar's downbeat, if the fill reaches one) and the snare plays a slight variation of its own.
 With ACTIVITY low, the perc and hats bring in more of their own patterns (on the sixteenths, never rolled or speeding
 up); with ACTIVITY high, they drop back to their core hits, a breakdown; in between, each fill goes one way or the
@@ -413,9 +421,9 @@ sixteenth...) and repeats in time with the groove. GLITCH and REVERSE keep to th
 the white keys and the black. A held key stays lit. Press it again to let it go,
 or press OCT+ on its own to let every hold go.
 
-**One white key at a time.** Only the newest white key plays: a punch-in, one of the filters or FILL (pitch up and
-down would cancel, two loops would fight, and stacked effects can overload the FM-1's processor). Press a second white
-key while holding the first and the second takes over; let it go and the first comes back, if you're still holding it
+**One white key at a time.** Only the newest white key plays: a punch-in or one of the filters (pitch up and down
+would cancel, two loops would fight, and stacked effects can overload the FM-1's processor); FILL, which only changes
+the pattern, plays alongside. Press a second white key while holding the first and the second takes over; let it go and the first comes back, if you're still holding it
 (or it's held with OCT- or OCT+). Holding a new white key with OCT- or OCT+ lets go of the one held before. The black
 keys play together, alongside it: hold or latch as many as you like (the snare's, perc's and hats' all latched, say,
 with the kick left as it is). Everything fades in and out over a few milliseconds, so nothing clicks.

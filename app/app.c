@@ -25,7 +25,7 @@ static Engine eng PLAT_POOL;
 
 /* ------------------------------------------------------------------ settings */
 #define SET_MAGIC 0x45524731u            /* "ERG1" */
-#define SET_VER 4                        /* the settings' version (2: MOOD turned round; 3: SCREEN's STYLE; 4: a groove's GENRE): each update that adds to them moves this on, and
+#define SET_VER 5                        /* the settings' version (2: MOOD turned round; 3: SCREEN's STYLE; 4: a groove's GENRE; 5: the PUNCH-INS page): each update that adds to them moves this on, and
                                           * settings_load brings an older one's forward (nothing saved is ever lost) */
 #define NSAVED 16
 typedef struct {
@@ -40,9 +40,17 @@ typedef struct {
     uint8_t style, sends, rsv[2];        /* sends: PERSONALITY's SENDS, 0 DRY, 1 DEALT (a spare byte, 0 in older settings: DRY).
                                           * style: SCREEN's STYLE: 0 KNOCKOUT (a hit knocks its square out), 1 TONES (the squares in
                                           * greys, a hit flooding one with its colour, fading back to its grey) */
+    uint8_t mash, crush_bits, crush_rate, rev_to;   /* (5) FX's PUNCH-INS page: TAPE MASH (0-100), CRUSH BITS (1-12),
+                                          * CRUSH RATE (CRUSH_HZ's), REVERSE (0 ALL, or the part's 1-4) */
 } settings_t;
 #define SET_V2_SIZE ((int)__builtin_offsetof(settings_t, style))   /* (versions 1 and 2: all up to here) */
+#define SET_V4_SIZE ((int)__builtin_offsetof(settings_t, mash))    /* (versions 3 and 4: all up to here, 1928 bytes) */
+#define NCRUSH_HZ 9
+static const uint16_t CRUSH_HZ[NCRUSH_HZ] = { 1000, 2000, 3000, 4000, 6000, 8000, 11000, 16000, 22000 };   /* CRUSH RATE */
+
 static settings_t set;
+static void punch_defaults(void) { set.mash = 50; set.crush_bits = 6; set.crush_rate = 4; set.rev_to = 0; }   /* (as they
+                                          * were before the page: TAPE MASH's middle, CRUSH at 6 kHz and 6 bits, REVERSE on all) */
 static uint8_t save_over;
 static uint32_t xr_seen, xr_saves, save_end;
 #define NPAL 16
@@ -64,6 +72,7 @@ static void settings_defaults(void)
     set.midi_on = 1; set.listen = 1; set.cc_in = 1; set.sync = SYNC_INT;
     set.listen_ch = 0; set.out_ch = 9; set.palette = 9; set.peg_n = 0;   /* (ACID first) */
     set.fade = 50; set.usb_full = 0; set.usb_lvl = 80; set.bright = 80;
+    punch_defaults();
     groove_default(&set.cur);
 }
 
@@ -72,6 +81,7 @@ static int settings_ok(void)
     if (set.magic != SET_MAGIC || set.ver < 1 || set.ver > SET_VER || set.nsaved > NSAVED || (set.slot != 255 && set.slot >= set.nsaved)) return 0;
     if (set.sync >= NSYNC || set.midi_on > 1 || set.listen > 1 || set.cc_in > 1 || set.listen_ch > 12 || set.out_ch > 15) return 0;
     if (set.palette >= NPAL || set.peg_n >= NPEG_NS || set.fade > 100 || set.usb_full > 3 || set.usb_lvl > 100 || set.bright > 100 || set.style > 1 || set.sends > 1) return 0;
+    if (set.mash > 100 || set.crush_bits < 1 || set.crush_bits > 12 || set.crush_rate >= NCRUSH_HZ || set.rev_to > NPARTS) return 0;
     if (!groove_ok(&set.cur)) return 0;
     for (int i = 0; i < set.nsaved; i++) if (!groove_ok(&set.saved[i])) return 0;
     return 1;
@@ -86,15 +96,19 @@ static void settings_load(void)
     uint32_t magic = n >= 4 ? *(const uint32_t *)raw : 0;
     int ver = n >= 5 ? raw[4] : 0;
     if (magic == SET_MAGIC && ver == SET_VER && n == (int)sizeof set) memcpy(&set, raw, sizeof set);
-    else if (magic == SET_MAGIC && ver == 3 && n == (int)sizeof set) {   /* 3 (v0.3 .. v0.9): the same, but each groove's GENRE
+    else if (magic == SET_MAGIC && ver == 4 && n == SET_V4_SIZE) {   /* 4 (v0.10 .. v0.15): all but the PUNCH-INS page */
+        memset(&set, 0, sizeof set); memcpy(&set, raw, (unsigned)SET_V4_SIZE); set.ver = SET_VER; punch_defaults();
+        if (settings_ok()) store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
+    }
+    else if (magic == SET_MAGIC && ver == 3 && n == SET_V4_SIZE) {   /* 3 (v0.3 .. v0.9): the same, but each groove's GENRE
                                                   * byte held an old, unused delay level: IDM, as they were dealt */
-        memcpy(&set, raw, sizeof set); set.ver = SET_VER;
+        memset(&set, 0, sizeof set); memcpy(&set, raw, (unsigned)SET_V4_SIZE); set.ver = SET_VER; punch_defaults();
         set.cur.genre = GENRE_IDM; for (int i = 0; i < NSAVED; i++) set.saved[i].genre = GENRE_IDM;
         if (settings_ok()) store_ok = plat_store_save(OBJ_SETTINGS, &set, sizeof set) == 0;
     }
     else if (magic == SET_MAGIC && (ver == 1 || ver == 2) && n == SET_V2_SIZE) {   /* 1 (v0.1), 2 (v0.2): all but STYLE;
                                                   * in 1, MOOD ran the other way */
-        memset(&set, 0, sizeof set); memcpy(&set, raw, (unsigned)SET_V2_SIZE); set.ver = SET_VER; set.style = 0;
+        memset(&set, 0, sizeof set); memcpy(&set, raw, (unsigned)SET_V2_SIZE); set.ver = SET_VER; set.style = 0; punch_defaults();
         set.cur.genre = GENRE_IDM; for (int i = 0; i < NSAVED; i++) set.saved[i].genre = GENRE_IDM;
         if (ver == 1) {
             if (set.cur.mood <= 100) set.cur.mood = (uint8_t)(100 - set.cur.mood);
@@ -302,13 +316,14 @@ static void int_text(int32_t v, char *b)
 static const char *const NOTE_NAME[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 
 /* ------------------------------------------------------------------ the pages */
-enum { PG_HOME, PG_SOUND, PG_SEQ, PG_MIX, PG_SENDS, PG_FXBUS, PG_TYPES, PG_DELAY, PG_MOTION, PG_MACROS, PG_GENRE, PG_SCREEN, PG_SCALE,
+enum { PG_HOME, PG_SOUND, PG_SEQ, PG_MIX, PG_SENDS, PG_FXBUS, PG_TYPES, PG_DELAY, PG_PUNCH, PG_MOTION, PG_MACROS, PG_GENRE, PG_SCREEN, PG_SCALE,
        PG_MIDI, PG_CHAN, PG_USB, NPAGES };
-static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX", "SENDS", "EFFECTS", "TYPES", "DELAY", "MOTION",
+static const char *const PAGE_NAME[NPAGES] = { "HOME", "SOUND", "GROOVE", "MIX", "SENDS", "EFFECTS", "TYPES", "DELAY", "PUNCH-INS", "MOTION",
                                                 "MACROS", "PERSONALITY", "VISUALS", "SCALE", "MIDI", "CHANNELS", "USB AUDIO" };
-static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
+static const uint8_t PAGE_BTN[NPAGES] = { B_HOME, B_EDIT, B_SEQ, B_ENV, B_FX, B_FX, B_FX, B_FX, B_FX, B_LFO, B_GLO, B_GLO, B_GLO, B_GLO, B_ARP, B_ARP, B_ARP };
 enum { K_NONE, K_PCT, K_ENGINE, K_GEN, K_LEN, K_RATE, K_PITCH, K_PAN, K_TONE, K_SEND, K_RT, K_CT, K_DT, K_PT, K_DTIME,
-       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE, K_GENRE, K_DEALT };
+       K_KEY, K_SCALE, K_TEMPO, K_ONOFF, K_SYNC, K_LCH, K_CH, K_PEGN, K_REC, K_ULVL, K_DECAY, K_ROUTE, K_STYLE, K_GENRE, K_DEALT,
+       K_BITS, K_CRATE, K_REVTO };
 typedef struct { const char *name; uint8_t kind, where; uint16_t off; } Knob;   /* where: 0 the groove, 1 the part, 2 the settings */
 #define GO(f) (uint16_t)__builtin_offsetof(Groove, f)
 #define PO(f) (uint16_t)__builtin_offsetof(PartP, f)
@@ -323,6 +338,8 @@ static const Knob PAGES[NPAGES][4] = {
     { { "REVERB SIZE", K_PCT, 0, GO(room) }, { "DELAY TIME", K_DTIME, 0, GO(dtime) }, { "PAN AMOUNT", K_PCT, 0, GO(pan) }, { "COMP AMOUNT", K_PCT, 0, GO(comp) } },
     { { "REVERB TYPE", K_RT, 0, GO(room_t) }, { "DELAY TYPE", K_DT, 0, GO(delay_t) }, { "PAN TYPE", K_PT, 0, GO(pan_t) }, { "COMP TYPE", K_CT, 0, GO(comp_t) } },
     { { "FEEDBACK", K_PCT, 0, GO(dfb) }, { "GLITCH", K_PCT, 0, GO(glitch) }, { "", K_NONE, 0, 0 }, { "", K_NONE, 0, 0 } },
+    /* the white keys' effects, tuned (the settings', not a groove's: REC leaves them) */
+    { { "TAPE MASH", K_PCT, 2, SO(mash) }, { "CRUSH BITS", K_BITS, 2, SO(crush_bits) }, { "CRUSH RATE", K_CRATE, 2, SO(crush_rate) }, { "REVERSE", K_REVTO, 2, SO(rev_to) } },
     { { "LINK", K_PCT, 0, GO(link) }, { "WARP", K_PCT, 0, GO(warp) }, { "FLOW", K_PCT, 0, GO(flow) }, { "CHAOS", K_PCT, 0, GO(chaos) } },
     { { "MOOD", K_PCT, 0, GO(mood) }, { "ACTIVITY", K_PCT, 0, GO(activity) }, { "EVOLVE", K_PCT, 0, GO(evolve) }, { "DRIFT", K_PCT, 0, GO(drift) } },
     { { "PERSONALITY", K_GENRE, 0, GO(genre) }, { "", K_NONE, 0, 0 }, { "FX SENDS", K_DEALT, 2, SO(sends) }, { "", K_NONE, 0, 0 } },   /* (SENDS on
@@ -377,7 +394,7 @@ static struct {
     uint32_t uiq_tail;
     uint32_t splash_t0; int splash_on, touched;
     uint8_t pu_order[16], pu_n;           /* the white keys playing (held or latched), in the order pressed: the newest
-                                          * plays, alone (v0.16: the filters and FILL too, for the processor's sake;
+                                          * plays, alone (v0.16: the filters too, for the processor's sake; FILL alongside;
                                           * the black keys still together: snare, perc and hats latched, the kick left) */
     /* the holds: OCT- held as a key is pressed latches it to the loop's end, OCT+ for good; pressed again, it's let go;
      * OCT+ alone lets every hold go. w: the white keys, b: the black; until: the tick it ends (0 for good) */
@@ -416,6 +433,9 @@ static void knob_text(int pg, int k, char *s)
     case K_RATE: text_cat(s, RATE_NAME[v % NUM_RATES]); break;
     case K_GENRE: text_cat(s, GENRE_NAME[v % NUM_GENRES]); break;
     case K_DEALT: text_cat(s, v ? "DEALT" : "DRY"); break;
+    case K_BITS: int_text(v, s); text_cat(s, v == 1 ? " BIT" : " BITS"); break;
+    case K_CRATE: { int hz = CRUSH_HZ[v % NCRUSH_HZ]; int_text(hz / 1000, s); text_cat(s, " KHZ"); break; }
+    case K_REVTO: text_cat(s, v ? PART_NAME[(v - 1) % NPARTS] : "ALL"); break;
     case K_PITCH: { int o = (int8_t)v; if (o > 0) text_cat(s, "+"); int_text(o, s + (o > 0)); break; }
     case K_PAN: if (v >= 49 && v <= 51) text_cat(s, "C"); else { text_cat(s, v < 50 ? "L" : "R"); int_text(v < 50 ? 50 - v : v - 50, s + 1); } break;
     case K_DECAY: { int d = (int)v - 50; if (!d) text_cat(s, "AS DEALT"); else { if (d > 0) text_cat(s, "+"); int_text(d, s + strlen_(s)); } break; }
@@ -463,6 +483,9 @@ static float knob_frac(int pg, int k)
     case K_RATE: return (float)rate_pos((int)(v % NUM_RATES)) / (NUM_RATES - 1);
     case K_GENRE: return (float)v / (NUM_GENRES - 1);
     case K_DEALT: return (float)v;
+    case K_BITS: return (float)(v - 1) / 11.0f;
+    case K_CRATE: return (float)v / (NCRUSH_HZ - 1);
+    case K_REVTO: return (float)v / NPARTS;
     case K_PITCH: return ((float)(int8_t)v + 24.0f) / 48.0f;
     case K_RT: return (float)v / (NUM_RT - 1);
     case K_CT: return (float)v;
@@ -669,6 +692,9 @@ static void knob_turn(int k, int d)
     case K_RATE: hi = NUM_RATES - 1; step = 1; break;
     case K_GENRE: hi = NUM_GENRES - 1; step = 1; break;
     case K_DEALT: hi = 1; step = 1; break;
+    case K_BITS: lo = 1; hi = 12; step = 1; break;
+    case K_CRATE: hi = NCRUSH_HZ - 1; step = 1; break;
+    case K_REVTO: hi = NPARTS; step = 1; break;
     case K_PITCH: lo = -24; hi = 24; step = 1; break;
     case K_PAN: case K_DECAY: step = 1; break;
     case K_RT: hi = NUM_RT - 1; step = 1; break;
@@ -710,6 +736,10 @@ static void settings_apply(void)
     plat_usb_audio_full(set.usb_full & 1);
     eng.clean = set.usb_full >> 1 & 1;   /* OUTPUT CLEAN: the kit without FX's effects, to the computer and the speaker */
     groove_sends = set.sends;            /* PERSONALITY's SENDS: REC deals the sends (DEALT), or every part dry (DRY) */
+    eng.mash_amt = (float)set.mash * 0.01f;   /* the PUNCH-INS page: TAPE MASH, CRUSH's bits and rate, REVERSE's part */
+    eng.crush_q = 0.75f * (float)(1u << (set.crush_bits - 1));   /* (6 bits: 24 steps a unit, CRUSH as it was) */
+    eng.crush_hz = (float)CRUSH_HZ[set.crush_rate % NCRUSH_HZ];
+    eng.rev_part = set.rev_to ? set.rev_to - 1 : -1;
     palette_apply();
 }
 
@@ -729,12 +759,13 @@ static void page_to(int pg)
 }
 
 /* ------------------------------------------------------------------ the keys: punch-ins and randomisers
- * White keys, low to high: HIGH-PASS, FILL, REPEAT 1/8, 1/12, 1/16, 1/32, GLITCH, PITCH DOWN, PITCH UP, TAPE MASH,
- * REVERSE, FREEZE, SWELL, CRUSH, KILL KICK, LOW-PASS. The latest held plays (the filters alongside, their own).
+ * White keys, low to high: HIGH-PASS, KILL KICK, FILL, GLITCH, REPEAT 1/8, 1/12, 1/16, 1/32, PITCH DOWN, PITCH UP,
+ * TAPE MASH, REVERSE, FREEZE, SWELL, CRUSH, LOW-PASS. The latest held plays, alone.
  * Black keys, in their groups: KICK's TONE, WEIGHT, ENTROPY; SNARE's WEIGHT, ENTROPY; PERC's TONE, WEIGHT, ENTROPY;
  * HATS' WEIGHT, ENTROPY; the top one every part's three. Held, each hit of the part takes new values. */
-static const uint8_t PU_KEY[16] = { PU_HPF, PU_FILL, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_GLITCH, PU_PDOWN, PU_PUP, PU_MASH,
-                                    PU_REVERSE, PU_FREEZE, PU_SWELL, PU_CRUSH, PU_KILL, PU_LPF };
+static const uint8_t PU_KEY[16] = { PU_HPF, PU_KILL, PU_FILL, PU_GLITCH, PU_REP8, PU_REP12, PU_REP16, PU_REP32, PU_PDOWN, PU_PUP,
+                                    PU_MASH, PU_REVERSE, PU_FREEZE, PU_SWELL, PU_CRUSH, PU_LPF };   /* (v0.16, the owner's order:
+                                                  * HIGH-PASS, KILL KICK, FILL, GLITCH, the repeats, then the rest) */
 static const struct { int8_t part; uint8_t bits; } RND_KEY[11] = {
     { P_KICK, 1 }, { P_KICK, 2 }, { P_KICK, 4 }, { P_SNARE, 2 }, { P_SNARE, 4 }, { P_PERC, 1 }, { P_PERC, 2 }, { P_PERC, 4 },
     { P_HATS, 2 }, { P_HATS, 4 }, { -1, 7 } };
@@ -776,7 +807,8 @@ static void hold_w(int i, int hold, uint32_t keys)
 {
     static const uint8_t WK[16] = PLAT_WHITE_KEYS;
     int pu = PU_KEY[i];
-    for (int k = 0; k < 16; k++) if (k != i && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }   /* (one
+    if (pu != PU_FILL)                   /* (FILL, only the pattern changed, held alongside: it costs the processor nothing) */
+        for (int k = 0; k < 16; k++) if (k != i && PU_KEY[k] != PU_FILL && (ui.lat_w >> k & 1u)) { ui.lat_w &= (uint16_t)~(1u << k); if (!(keys >> WK[k] & 1u)) pu_drop(k); }   /* (one
                                                   * white key at a time, the filters and FILL too: a hold takes the place
                                                   * of the one before) */
     ui.lat_w |= (uint16_t)(1u << i); ui.lat_w_until[i] = hold == 2 ? 0 : loop_end();
@@ -826,7 +858,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
                 ui.lat_w &= (uint16_t)~(1u << i);
                 pop("LET GO", PU_NAME[pu], C_TXT);
             } else pop("PUNCH-IN", PU_NAME[pu], C_TXT);
-            pu_drop(i); if (ui.pu_n < 16) ui.pu_order[ui.pu_n++] = (uint8_t)i;
+            if (pu != PU_FILL) { pu_drop(i); if (ui.pu_n < 16) ui.pu_order[ui.pu_n++] = (uint8_t)i; }   /* (FILL alongside) */
             ui.pop_until = plat_ms() + 700u;
         }
         else if ((keys & b) && tap) hold_w(i, tap, keys);   /* (held, then OCT- or OCT+ tapped: held from now) */
@@ -835,10 +867,13 @@ static void keys_input(uint32_t keys, uint32_t btn)
     /* the newest white key plays, alone: a punch-in, or a filter, or FILL (letting it go hands back to the one before,
      * if that's still held or held for it) */
     int top = ui.pu_n ? ui.pu_order[ui.pu_n - 1] : -1, tpu = top >= 0 ? PU_KEY[top] : 0;
-    int tfilt = tpu == PU_HPF || tpu == PU_LPF || tpu == PU_FILL;
+    int tfilt = tpu == PU_HPF || tpu == PU_LPF;
     eng.pu_want = top >= 0 && !tfilt ? tpu : 0;
     eng.pu_press = top < 0 || tfilt ? 0.0f : keys >> WK[top] & 1u ? key_depth(WK[top], 1) : ui.lat_w_dep[top];   /* (how hard: TAPE MASH's depth) */
-    eng.fill_want = top == 1;                    /* FILL: a fill each beat while held */
+    {   /* FILL: a fill each beat while held, alongside whichever white key plays */
+        int fk = 0; for (int k = 0; k < 16; k++) if (PU_KEY[k] == PU_FILL) fk = k;
+        eng.fill_want = (keys >> WK[fk] & 1u) || (ui.lat_w >> fk & 1u);
+    }
     eng.pu_hpw = top != 0 ? 0.0f : keys >> WK[0] & 1u ? 1.0f + key_depth(WK[0], 1) : 1.0f + ui.lat_w_dep[0];          /* (the bottom key: pressure) */
     eng.pu_lpw = top != 15 ? 0.0f : keys >> WK[15] & 1u ? 1.0f + key_depth(WK[15], 0) : 1.0f + ui.lat_w_dep[15];   /* (the top: how hard it was struck) */
     uint8_t bits[NPARTS] = { 0, 0, 0, 0 }; float dep[NPARTS] = { 0, 0, 0, 0 };
@@ -1213,7 +1248,7 @@ static void draw_panel_rows(int y0)
     } else {
         static const char *const HINT[NPAGES] = {
             "WHERE THE GROOVE GOES", "SELECT CHOOSES THE PART", "ITS PATTERN: ITS OWN LENGTH", "SELECT CHOOSES THE PART",
-            "THIS PART INTO EACH EFFECT", "THE WHOLE KIT'S EFFECTS", "EACH EFFECT'S KIND", "THE DELAY, IN TIME",
+            "THIS PART INTO EACH EFFECT", "THE WHOLE KIT'S EFFECTS", "EACH EFFECT'S KIND", "THE DELAY, IN TIME", "THE WHITE KEYS' EFFECTS",
             "HOW THE PARTS MOVE", "WHERE THE GROOVE GOES", "WHAT REC DEALS", "THE SQUARES", "THE PERC'S NOTES, THE TEMPO",
             "SYNC, AND AFTER IMAGES HEARD", "AFTER IMAGES' LAYERS, THE DRUMS OUT", "THE RECORDING'S LEVEL" };
         cv_text(6, y0 + 26, &FONT_XS, HINT[pg], dim(C_SUB, 0.8f));
@@ -1415,6 +1450,11 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "rate")) *got = set.cur.p[ui.sel].rate;
     else if (!strcmp(what, "genre")) *got = set.cur.genre;
     else if (!strcmp(what, "sends")) *got = set.sends;
+    else if (!strcmp(what, "mash")) *got = set.mash;
+    else if (!strcmp(what, "crush_bits")) *got = set.crush_bits;
+    else if (!strcmp(what, "crush_rate")) *got = set.crush_rate;
+    else if (!strcmp(what, "rev_to")) *got = set.rev_to;
+    else if (!strcmp(what, "setver")) *got = set.ver;
     else if (!strcmp(what, "sent")) { int n = 0; for (int p = 0; p < NPARTS; p++) n += set.cur.p[p].s_room + set.cur.p[p].s_delay + set.cur.p[p].s_pan; *got = n; }
     else if (!strcmp(what, "kicksent")) *got = set.cur.p[P_KICK].s_room + set.cur.p[P_KICK].s_delay + set.cur.p[P_KICK].s_pan;
     else if (!strcmp(what, "ratepos")) *got = rate_pos(set.cur.p[ui.sel].rate % NUM_RATES);

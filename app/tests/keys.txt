@@ -2,48 +2,48 @@
 # the keys: the white ones punch-ins (the bottom a high-pass, the top a low-pass), the black ones randomisers
 wav keys.wav
 wait 3000
-key w2 down 100
+key w4 down 100
 wait 300
 expect pu_want 3
 expect pu 3
 shot punch.png
-key w2 up
+key w4 up
 wait 300
 expect pu_want 0
 expect pu 0
 # FILL (the second white key): fills while held, the punch-ins untouched
-key w1 down 100
+key w2 down 100
 wait 200
 expect fill_want 1
 expect pu_want 0
 wait 1500
-key w1 up
+key w2 up
 wait 200
 expect fill_want 0
-key w7 down 100
-wait 400
-expect pu 7
-key w7 up
-wait 200
 key w8 down 100
 wait 400
-expect pu 8
+expect pu 7
 key w8 up
 wait 200
 key w9 down 100
-wait 600
-expect pu 9
+wait 400
+expect pu 8
 key w9 up
 wait 200
+key w10 down 100
+wait 600
+expect pu 9
+key w10 up
+wait 200
 expect pu 0
-key w11 down 100
+key w12 down 100
 wait 800
 expect pu 11
-key w11 up
-wait 1500
-key w12 down 100
-wait 100
 key w12 up
+wait 1500
+key w13 down 100
+wait 100
+key w13 up
 wait 1200
 expect pu 0
 key w0 down 100
@@ -75,35 +75,35 @@ expect rnd3 7
 key b10 up
 wait 200
 expect rnd2 0
-key w4 down 100
 key w6 down 100
+key w3 down 100
 wait 300
 expect pu_want 6
-key w6 up
+key w3 up
 wait 300
 expect pu_want 4
-key w4 up
+key w6 up
 wait 500
 expect pu 0
 expect playing 1
 # the holds: OCT+ held as a key is pressed holds it for good; another held takes its place; pressed again, let go
 press OCT+
-key w7 down 100
+key w8 down 100
 wait 100
-key w7 up
+key w8 up
 release OCT+
 wait 400
 expect pu 7
 press OCT+
-key w8 down 100
+key w9 down 100
 wait 100
-key w8 up
+key w9 up
 release OCT+
 wait 400
 expect pu 8
-key w8 down 100
+key w9 down 100
 wait 100
-key w8 up
+key w9 up
 wait 400
 expect pu 0
 # a black key held too, the filters alongside; OCT+ alone lets every hold go
@@ -123,9 +123,9 @@ wait 300
 expect rnd0 0
 # OCT- holds to the loop's end: still on a moment later, gone by the loop's end (two bars at most, at this tempo)
 press OCT-
-key w9 down 100
+key w10 down 100
 wait 100
-key w9 up
+key w10 up
 release OCT-
 wait 400
 expect pu 9
@@ -133,13 +133,13 @@ wait 9000
 expect pu 0
 expect playing 1
 # or the other way round: a key held, then OCT- or OCT+ tapped; let go of the key, it's still held. OCT+ alone: all go
-key w7 down 100
+key w8 down 100
 wait 100
 press OCT+
 wait 50
 release OCT+
 wait 50
-key w7 up
+key w8 up
 wait 400
 expect pu 7
 key b0 down 100
@@ -166,11 +166,11 @@ key w15 down 110
 wait 200
 expect hpf 0
 expect lpf 1
-key w7 down 100
+key w8 down 100
 wait 400
 expect lpf 0
 expect pu 7
-key w7 up
+key w8 up
 wait 300
 expect pu 0
 expect lpf 1
@@ -181,15 +181,15 @@ expect hpf 1
 key w0 up
 wait 200
 expect hpf 0
-key w1 down 100
 key w2 down 100
+key w4 down 100
 wait 300
-expect fill_want 0
+expect fill_want 1
 expect pu_want 3
-key w2 up
+key w4 up
 wait 200
 expect fill_want 1
-key w1 up
+key w2 up
 wait 200
 # the black keys still together (the kick left alone, snare, perc and hats latched)
 key b4 down 100

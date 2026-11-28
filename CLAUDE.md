@@ -54,7 +54,8 @@ Generative at its core, with macros across the main features, as After Images ha
 - Effects, in three places:
   - The white keys are always punch-ins, OP-XY-style, for performance: a high-pass (from about 350 Hz)
     on the bottom white key and a low-pass on the top one, each faded in and out so it never clicks; pitch up and
-    pitch down (the owner especially likes these), FILL on the second white key (a simple change of the groove, every
+    pitch down (the owner especially likes these), FILL on the third white key (v0.16's order, the owner's: HIGH-PASS, KILL KICK, FILL, GLITCH, the repeats, PITCH DOWN, PITCH
+    UP, TAPE MASH, REVERSE, FREEZE, SWELL, CRUSH, LOW-PASS) (a simple change of the groove, every
     part a slight variation of its pattern, for a bar or while held; never rolls or frenetic runs, never accelerating), repeats, glitch, tape mash (a held, chewed-tape wobble), reverse, a
     room freeze, a reverse swell, crush, kill kick. Repeats, glitch and reverse are held to the grid. FREEZE takes the kick in too.
     Quantised (the owner's timing is loose): a punch-in starts on the next beat (up to a sixteenth late: at once), ends
@@ -62,7 +63,7 @@ Generative at its core, with macros across the main features, as After Images ha
     FILL is a contrast: ACTIVITY low it adds (perc and hats busier), high it takes away (their core hits), in between
     either at random.
     Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
-    is let go; OCT+ alone lets every hold go. One white key at a time, the filters and FILL included (v0.16, the owner's
+    is let go; OCT+ alone lets every hold go. One white key at a time, the filters included, FILL alongside (v0.16, the owner's
     rule: stacked effects overloaded the FM-1): the newest plays, letting it go hands back to the one before if still
     held; a new hold replaces the old. The black keys together, any number (the owner latches all but the kick's). Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.
   - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
@@ -73,6 +74,8 @@ Generative at its core, with macros across the main features, as After Images ha
     PERSONALITY's SENDS: DRY (REC deals every part dry; the owner adds them; the kick can be sent too) or DEALT (each
     personality's own sends for the snare, perc and hats, all under 50 for now; the kick never to the reverb, delay or
     pan, only some COMP).
+  - FX a fifth time, PUNCH-INS (settings, v5): TAPE MASH (how chewed), CRUSH BITS, CRUSH RATE, REVERSE (ALL or one part,
+    reversed alone before the mix from its own memory, prb, on the whole kit's grid).
   - FX again: REVERB SIZE, DELAY TIME, PAN AMOUNT, COMP AMOUNT (CCs 24-27 in that order; the reverb's and delay's
     levels come from the sends). FX a fourth time: DELAY's FEEDBACK and GLITCH. FX a third time: each one's type,
     REVERB TYPE, DELAY TYPE, PAN TYPE, COMP TYPE (a knob each, its name on
