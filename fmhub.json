@@ -1,5 +1,5 @@
 {
-  "what": "Turns the FM-1 into a generative drum machine. Press REC for a new groove: four parts on their own lengths (polymeters), eighteen synthesised drum engines, step components that EVOLVE brings in, punch-in effects on the keys and randomisers on the black keys. Plays under After Images: follows its clock and hears its notes.",
+  "what": "Turns the FM-1 into a generative drum machine. Press REC for a new groove: four parts on their own lengths (polymeters), thirty-eight synthesised drum engines, four personalities (BRAINDANCE, FLOORS, CLOUDS, IMPLODE), step components that EVOLVE brings in, punch-in effects on the white keys and randomisers on the black keys, a kit bus with reverb, delay, pan and a tape compressor. Plays under After Images: follows its clock and hears its notes.",
   "author": "TheGrizard",
   "kinds": [
     "drum-machine"
