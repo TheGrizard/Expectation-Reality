@@ -157,3 +157,59 @@ release OCT+
 wait 400
 expect pu 0
 expect rnd0 0
+# v0.16: one white key at a time, the filters and FILL too (the newest plays; let go, the one before comes back) and
+# one black key at a time
+wait 300
+key w0 down 100
+wait 200
+expect hpf 1
+key w15 down 110
+wait 200
+expect hpf 0
+expect lpf 1
+key w7 down 100
+wait 400
+expect lpf 0
+expect pu 7
+key w7 up
+wait 300
+expect pu 0
+expect lpf 1
+key w15 up
+wait 200
+expect lpf 0
+expect hpf 1
+key w0 up
+wait 200
+expect hpf 0
+key w1 down 100
+key w2 down 100
+wait 300
+expect fill_want 0
+expect pu_want 3
+key w2 up
+wait 200
+expect fill_want 1
+key w1 up
+wait 200
+key b0 down 100
+wait 100
+expect rnd0 1
+key b4 down 100
+wait 100
+expect rnd0 0
+expect rnd1 4
+key b10 down 100
+wait 100
+expect rnd1 7
+expect rnd2 7
+key b10 up
+wait 100
+expect rnd1 4
+expect rnd2 0
+key b4 up
+wait 100
+expect rnd0 1
+key b0 up
+wait 100
+expect rnd0 0

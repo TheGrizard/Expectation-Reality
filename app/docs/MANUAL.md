@@ -385,7 +385,7 @@ while it follows a clock.
 | 15 | KILL KICK |
 | 16 (top) | LOW-PASS, from about 1.5 kHz, a gentle slope; strike it harder for more |
 
-FILL plays alongside the punch-ins and filters. A fill is a contrast, a simple change of the groove, not a roll: the
+FILL is a white key like the others: it plays on its own. A fill is a contrast, a simple change of the groove, not a roll: the
 kick steps out (only the bar's downbeat, if the fill reaches one) and the snare plays a slight variation of its own.
 With ACTIVITY low, the perc and hats bring in more of their own patterns (on the sixteenths, never rolled or speeding
 up); with ACTIVITY high, they drop back to their core hits, a breakdown; in between, each fill goes one way or the
@@ -411,10 +411,14 @@ sixteenth...) and repeats in time with the groove. GLITCH and REVERSE keep to th
 **Holds.** Hold **OCT-** as you press a key, or hold the key and tap OCT-, and it stays on to the end of the loop
 (the kick's pattern, at least a beat away); **OCT+** the same way and it stays on for good. Either order works, for
 the white keys and the black. A held key stays lit. Press it again to let it go,
-or press OCT+ on its own to let every hold go. One punch-in plays at a time (pitch up and down would cancel, two loops
-would fight), so holding a new one lets go of the one held before; the two filters can be held alongside it, and any
-number of black keys. While a punch-in is held, pressing another plays that one for as long as you press it. The latest key held plays; the two filters work alongside
-the others. Everything fades in and out over a few milliseconds, so nothing clicks.
+or press OCT+ on its own to let every hold go.
+
+**One white key and one black key at a time.** Only the newest white key plays: a punch-in, one of the filters or
+FILL (pitch up and down would cancel, two loops would fight, and stacked effects can overload the FM-1's processor).
+The same goes for the black keys: only the newest randomises. Press a second key while holding the first and the second
+takes over; let it go and the first comes back, if you're still holding it (or it's held with OCT- or OCT+). Holding a
+new key with OCT- or OCT+ lets go of the one held before. So you can play one punch-in or filter and one randomiser
+together. Everything fades in and out over a few milliseconds, so nothing clicks.
 
 **The black keys are randomisers.** While you hold one, every hit of its part takes a new random value of one of its
 SOUND settings, and holds it until the next hit (sample and hold). Press harder for wilder values. By the black keys'

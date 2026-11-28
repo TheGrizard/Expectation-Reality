@@ -62,8 +62,9 @@ Generative at its core, with macros across the main features, as After Images ha
     FILL is a contrast: ACTIVITY low it adds (perc and hats busier), high it takes away (their core hits), in between
     either at random.
     Holds: OCT- held as a key (white or black) is pressed holds it to the loop's end, OCT+ for good; pressed again it
-    is let go; OCT+ alone lets every hold go. One punch-in at a time (a new hold replaces the old), the filters and
-    black keys alongside. Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.
+    is let go; OCT+ alone lets every hold go. One white key at a time, the filters and FILL included, and one black key
+    at a time (v0.16, the owner's rule: stacked effects overloaded the FM-1): the newest plays, letting it go hands back
+    to the one before if still held; a new hold replaces the old. Groove history (REC's replaced grooves) is on HOME held + OCT- / OCT+.
   - The black keys are randomisers on each part's SOUND settings, sample and hold at every hit while held: the
     first group of three KICK's, the next two SNARE's, the next three PERC's, the next two HATS', the lone top one
     every part's (in the two-key groups WEIGHT and ENTROPY; TONE left out: to confirm with the owner).
