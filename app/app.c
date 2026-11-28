@@ -377,8 +377,8 @@ static struct {
     uint32_t uiq_tail;
     uint32_t splash_t0; int splash_on, touched;
     uint8_t pu_order[16], pu_n;           /* the white keys playing (held or latched), in the order pressed: the newest
-                                          * plays, alone (v0.16: the filters and FILL too, for the processor's sake) */
-    uint8_t b_order[11], b_n;             /* the black keys the same: the newest alone */
+                                          * plays, alone (v0.16: the filters and FILL too, for the processor's sake;
+                                          * the black keys still together: snare, perc and hats latched, the kick left) */
     /* the holds: OCT- held as a key is pressed latches it to the loop's end, OCT+ for good; pressed again, it's let go;
      * OCT+ alone lets every hold go. w: the white keys, b: the black; until: the tick it ends (0 for good) */
     uint16_t lat_w, lat_b; uint32_t lat_w_until[16], lat_b_until[11]; float lat_w_dep[16], lat_b_dep[11];
@@ -762,18 +762,10 @@ static void pu_drop(int i)               /* a white key no longer playing (let g
     ui.pu_n = (uint8_t)w;
 }
 
-static void b_drop(int j)                /* a black key no longer playing */
-{
-    int w = 0; for (int k = 0; k < ui.b_n; k++) if (ui.b_order[k] != j) ui.b_order[w++] = ui.b_order[k];
-    ui.b_n = (uint8_t)w;
-}
-
 static void holds_clear(void)
 {
     static const uint8_t WK[16] = PLAT_WHITE_KEYS;
-    static const uint8_t BK[11] = PLAT_BLACK_KEYS;
     for (int i = 0; i < 16; i++) if ((ui.lat_w >> i & 1u) && !(ui.keys >> WK[i] & 1u)) pu_drop(i);
-    for (int j = 0; j < 11; j++) if ((ui.lat_b >> j & 1u) && !(ui.keys >> BK[j] & 1u)) b_drop(j);
     ui.lat_w = 0; ui.lat_b = 0;
 }
 
@@ -798,8 +790,6 @@ static void hold_b(int j, int hold)
     static const uint8_t BK[11] = PLAT_BLACK_KEYS;
     const char *what = RND_KEY[j].part < 0 ? "EVERY PART" : PART_NAME[RND_KEY[j].part];
     uint16_t c = RND_KEY[j].part < 0 ? C_TXT : PART_C[RND_KEY[j].part];
-    for (int k = 0; k < 11; k++) if (k != j && (ui.lat_b >> k & 1u)) { ui.lat_b &= (uint16_t)~(1u << k); b_drop(k); }   /* (one black
-                                                  * key at a time: a hold takes the place of the one before) */
     ui.lat_b |= (uint16_t)(1u << j); ui.lat_b_until[j] = hold == 2 ? 0 : loop_end();
     ui.lat_b_dep[j] = 0.4f + 0.6f * key_depth((uint32_t)BK[j], 1); ui.oct_used[hold - 1] = 1;
     pop(hold == 2 ? "RANDOM, HELD" : "RANDOM, TO THE LOOP'S END", what, c);
@@ -821,7 +811,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
         }
     for (int j = 0; j < 11; j++)
         if ((ui.lat_b >> j & 1u) && ui.lat_b_until[j] && (int32_t)(now_t - ui.lat_b_until[j]) >= 0 && set.playing) {
-            ui.lat_b &= (uint16_t)~(1u << j); if (!(keys >> BK[j] & 1u)) b_drop(j);
+            ui.lat_b &= (uint16_t)~(1u << j);
         }
     for (int i = 0; i < 16; i++) {
         int kk = WK[i]; uint32_t b = 1u << kk;
@@ -852,13 +842,6 @@ static void keys_input(uint32_t keys, uint32_t btn)
     eng.pu_hpw = top != 0 ? 0.0f : keys >> WK[0] & 1u ? 1.0f + key_depth(WK[0], 1) : 1.0f + ui.lat_w_dep[0];          /* (the bottom key: pressure) */
     eng.pu_lpw = top != 15 ? 0.0f : keys >> WK[15] & 1u ? 1.0f + key_depth(WK[15], 0) : 1.0f + ui.lat_w_dep[15];   /* (the top: how hard it was struck) */
     uint8_t bits[NPARTS] = { 0, 0, 0, 0 }; float dep[NPARTS] = { 0, 0, 0, 0 };
-    for (int j = 0; j < 11; j++) {               /* (first, which is newest: pressed, or let go and not held) */
-        int kk = BK[j];
-        if (kk >= NKEYS) continue;
-        int held = keys >> kk & 1u;
-        if (held && !(ui.keys >> kk & 1u)) { b_drop(j); if (ui.b_n < 11) ui.b_order[ui.b_n++] = (uint8_t)j; }
-        if (!held && (ui.keys >> kk & 1u) && !(ui.lat_b >> j & 1u)) b_drop(j);
-    }
     for (int j = 0; j < 11; j++) {
         int kk = BK[j];
         if (kk >= NKEYS) continue;
@@ -872,7 +855,7 @@ static void keys_input(uint32_t keys, uint32_t btn)
             if (!hold) { text_cat(ui.pop_3, RND_WHAT(j)); ui.pop_until = plat_ms() + 900u; }
         } else if (held && tap) hold_b(j, tap);   /* (held, then OCT- or OCT+ tapped: held from now) */
         float d = held ? 0.4f + 0.6f * key_depth((uint32_t)kk, 1) : ui.lat_b >> j & 1u ? ui.lat_b_dep[j] : -1.0f;
-        if (d < 0 || !ui.b_n || ui.b_order[ui.b_n - 1] != j) continue;   /* (the newest black key alone, one at a time) */
+        if (d < 0) continue;
         for (int p = 0; p < NPARTS; p++) if (RND_KEY[j].part < 0 || RND_KEY[j].part == p) { bits[p] |= RND_KEY[j].bits; if (d > dep[p]) dep[p] = d; }
     }
     for (int p = 0; p < NPARTS; p++) { eng.rnd_depth[p] = dep[p]; eng.rnd_bits[p] = bits[p]; }

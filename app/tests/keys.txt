@@ -157,8 +157,7 @@ release OCT+
 wait 400
 expect pu 0
 expect rnd0 0
-# v0.16: one white key at a time, the filters and FILL too (the newest plays; let go, the one before comes back) and
-# one black key at a time
+# v0.16: one white key at a time, the filters and FILL too (the newest plays; let go, the one before comes back)
 wait 300
 key w0 down 100
 wait 200
@@ -192,24 +191,16 @@ wait 200
 expect fill_want 1
 key w1 up
 wait 200
-key b0 down 100
-wait 100
-expect rnd0 1
+# the black keys still together (the kick left alone, snare, perc and hats latched)
 key b4 down 100
 wait 100
+key b6 down 100
+wait 100
 expect rnd0 0
 expect rnd1 4
-key b10 down 100
-wait 100
-expect rnd1 7
-expect rnd2 7
-key b10 up
-wait 100
-expect rnd1 4
-expect rnd2 0
+expect rnd2 2
 key b4 up
+key b6 up
 wait 100
-expect rnd0 1
-key b0 up
-wait 100
-expect rnd0 0
+expect rnd1 0
+expect rnd2 0

@@ -413,12 +413,12 @@ sixteenth...) and repeats in time with the groove. GLITCH and REVERSE keep to th
 the white keys and the black. A held key stays lit. Press it again to let it go,
 or press OCT+ on its own to let every hold go.
 
-**One white key and one black key at a time.** Only the newest white key plays: a punch-in, one of the filters or
-FILL (pitch up and down would cancel, two loops would fight, and stacked effects can overload the FM-1's processor).
-The same goes for the black keys: only the newest randomises. Press a second key while holding the first and the second
-takes over; let it go and the first comes back, if you're still holding it (or it's held with OCT- or OCT+). Holding a
-new key with OCT- or OCT+ lets go of the one held before. So you can play one punch-in or filter and one randomiser
-together. Everything fades in and out over a few milliseconds, so nothing clicks.
+**One white key at a time.** Only the newest white key plays: a punch-in, one of the filters or FILL (pitch up and
+down would cancel, two loops would fight, and stacked effects can overload the FM-1's processor). Press a second white
+key while holding the first and the second takes over; let it go and the first comes back, if you're still holding it
+(or it's held with OCT- or OCT+). Holding a new white key with OCT- or OCT+ lets go of the one held before. The black
+keys play together, alongside it: hold or latch as many as you like (the snare's, perc's and hats' all latched, say,
+with the kick left as it is). Everything fades in and out over a few milliseconds, so nothing clicks.
 
 **The black keys are randomisers.** While you hold one, every hit of its part takes a new random value of one of its
 SOUND settings, and holds it until the next hit (sample and hold). Press harder for wilder values. By the black keys'
